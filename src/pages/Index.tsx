@@ -8,29 +8,64 @@ import avatarLogo from "@/assets/avatar-logo.svg";
 interface Package {
   id: string;
   name: string;
-  price: number;
+  price: string;
+  priceValue: number;
+  subtitle?: string;
+  description?: string[];
 }
 
 const packages: Package[] = [
   {
-    id: "jadlospis",
-    name: "JADŁOSPIS  7 dniowy",
-    price: 170,
+    id: "optymalny-pakiet",
+    name: "OPTYMALNY PAKIET STARTOWY",
+    price: "370,00 PLN",
+    priceValue: 370,
+    subtitle: "( diagnoza + analiza + raport + zalecenia)",
+    description: [
+      "pełna analiza kondycji organizmu on line (biorezonans), w tym raport zdrowotnych",
+      "Indywidualny plan terapii",
+      "wskazówki dietetyczne",
+    ],
   },
   {
-    id: "profilaktyka",
-    name: "PROFILAKTYKA",
-    price: 27,
+    id: "mini-pakiet",
+    name: "MINI PAKIET STARTOWY",
+    price: "220,00 PLN",
+    priceValue: 220,
+    subtitle: "(analiza/mini-diagnostyka + raport + zalecenia)",
+    description: [
+      "analiza kondycji organizmu na podstawie wywiadu, załączonych badań lub mini-diagnostyki on line (niedobory, alergie, obciążenia)",
+      "Indywidualny plan terapii",
+      "wskazówki dietetyczne",
+    ],
   },
   {
     id: "aktualizacja",
     name: "AKTUALIZACJA PLANU ZDROWOTNEGO",
-    price: 220,
+    price: "220,00 PLN",
+    priceValue: 220,
+    subtitle: "(kontrola i korekta zaleceń na podstawie osiągniętych postępów)",
+    description: [
+      "analiza kondycji organizmu, w tym diagnostyka",
+      "kontynuacja planu terapii",
+      "wskazówki dietetyczne",
+    ],
   },
   {
-    id: "pakiet-startowy",
-    name: "OPTYMALNY  PAKIET STARTOWY",
-    price: 370,
+    id: "jadlospis",
+    name: "JADŁOSPIS 7 dniowy",
+    price: "170,00 PLN",
+    priceValue: 170,
+  },
+  {
+    id: "profilaktyka",
+    name: "PROFILAKTYKA",
+    price: "27,00 PLN / miesiąc",
+    priceValue: 27,
+    description: [
+      "wytyczne dietetyczne z elementami terapii",
+      "program profilaktyczny odnoszący się do zgłoszonych potrzeb/problemów",
+    ],
   },
 ];
 
@@ -49,7 +84,7 @@ const Index = () => {
 
   const totalPrice = packages
     .filter((pkg) => selectedPackages.includes(pkg.id))
-    .reduce((sum, pkg) => sum + pkg.price, 0);
+    .reduce((sum, pkg) => sum + pkg.priceValue, 0);
 
   const handleBack = () => {
     navigate("/");
@@ -85,13 +120,15 @@ const Index = () => {
             </div>
 
             {/* Package Options */}
-            <div className="space-y-1 mb-10">
+            <div className="space-y-4 mb-10">
               {packages.map((pkg) => (
                 <PackageCard
                   key={pkg.id}
                   id={pkg.id}
                   name={pkg.name}
                   price={pkg.price}
+                  subtitle={pkg.subtitle}
+                  description={pkg.description}
                   isSelected={selectedPackages.includes(pkg.id)}
                   onToggle={togglePackage}
                 />
