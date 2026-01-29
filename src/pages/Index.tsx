@@ -1,44 +1,36 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 import PackageCard from "@/components/PackageCard";
 import avatarLogo from "@/assets/avatar-logo.svg";
 
 interface Package {
   id: string;
   name: string;
-  description: string;
   price: number;
 }
 
 const packages: Package[] = [
   {
     id: "jadlospis",
-    name: "Jadłospis",
-    description:
-      "Dedykowany jadłospis na podstawie Twoich wyników badań i preferencji żywieniowych. Otrzymasz szczegółowy plan posiłków.",
-    price: 249,
+    name: "JADŁOSPIS  7 dniowy",
+    price: 170,
   },
   {
     id: "profilaktyka",
-    name: "Profilaktyka",
-    description:
-      "Kompleksowy pakiet profilaktyczny obejmujący zalecenia zdrowotne i plan działania na podstawie diagnostyki.",
-    price: 349,
+    name: "PROFILAKTYKA",
+    price: 27,
   },
   {
     id: "aktualizacja",
-    name: "Aktualizacja",
-    description:
-      "Aktualizacja dotychczasowego planu w oparciu o nowe wyniki badań i postępy w realizacji celów zdrowotnych.",
-    price: 149,
+    name: "AKTUALIZACJA PLANU ZDROWOTNEGO",
+    price: 220,
   },
   {
     id: "pakiet-startowy",
-    name: "Pakiet Startowy",
-    description:
-      "Pełny pakiet dla nowych klientów zawierający diagnostykę, jadłospis i plan profilaktyczny w jednym.",
-    price: 549,
+    name: "OPTYMALNY  PAKIET STARTOWY",
+    price: 370,
   },
 ];
 
@@ -68,72 +60,96 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center px-4 py-8 sm:py-12">
-        {/* Logo */}
-        <div className="mb-8">
-          <img
-            src={avatarLogo}
-            alt="Avatar centrum zdrowia"
-            className="h-20 sm:h-24 w-auto"
-          />
-        </div>
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+          {/* Left Card - Main Content */}
+          <div className="bg-card rounded-2xl shadow-sm p-8 md:p-12">
+            {/* Logo */}
+            <div className="mb-10">
+              <img
+                src={avatarLogo}
+                alt="Avatar centrum zdrowia"
+                className="h-12 w-auto"
+              />
+            </div>
 
-        {/* Header */}
-        <div className="text-center mb-8 max-w-2xl">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-3">
-            Wybierz zestaw usług diagnostycznych
-          </h1>
-          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-            Oferta obejmuje dobór diety w oparciu o diagnostykę oraz kompleksowe
-            podejście do Twojego zdrowia i samopoczucia.
-          </p>
-        </div>
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-2xl md:text-[1.7rem] font-bold text-foreground mb-3">
+                Diagnostyka i kuracja jednorazowa
+              </h1>
+              <p className="text-muted-foreground text-sm md:text-base italic">
+                Wybierz jakie informacje diagnostyka powinna zawierać. Od ilości informacji, zależy finalna cena pakietu.
+              </p>
+            </div>
 
-        {/* Package Cards */}
-        <div className="w-full max-w-2xl space-y-4 mb-8">
-          {packages.map((pkg) => (
-            <PackageCard
-              key={pkg.id}
-              id={pkg.id}
-              name={pkg.name}
-              description={pkg.description}
-              price={pkg.price}
-              isSelected={selectedPackages.includes(pkg.id)}
-              onToggle={togglePackage}
-            />
-          ))}
-        </div>
-      </div>
+            {/* Package Options */}
+            <div className="space-y-1 mb-10">
+              {packages.map((pkg) => (
+                <PackageCard
+                  key={pkg.id}
+                  id={pkg.id}
+                  name={pkg.name}
+                  price={pkg.price}
+                  isSelected={selectedPackages.includes(pkg.id)}
+                  onToggle={togglePackage}
+                />
+              ))}
+            </div>
 
-      {/* Footer */}
-      <div className="sticky bottom-0 bg-card/95 backdrop-blur-md border-t border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          {/* Total */}
-          <div className="text-center mb-4">
-            <span className="text-lg text-muted-foreground">Do zapłaty: </span>
-            <span className="text-2xl font-bold text-primary">
-              {totalPrice} zł
-            </span>
+            {/* Divider */}
+            <div className="border-t border-foreground mb-6" />
+
+            {/* Total */}
+            <div className="mb-8">
+              <span className="text-muted-foreground text-base">Łączny koszt: </span>
+              <span className="text-2xl font-bold text-foreground ml-2">
+                {totalPrice} zł
+              </span>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleBack}
+                className="flex items-center gap-2 text-foreground hover:text-foreground/70 transition-colors font-medium"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                Powrót
+              </button>
+              <Button
+                onClick={handleNext}
+                disabled={selectedPackages.length === 0}
+                className="px-8 h-11 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-md"
+              >
+                Dalej
+              </Button>
+            </div>
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex gap-4">
-            <Button
-              variant="secondary"
-              onClick={handleBack}
-              className="flex-1 h-12 text-base font-medium"
-            >
-              Powrót
-            </Button>
-            <Button
-              onClick={handleNext}
-              disabled={selectedPackages.length === 0}
-              className="flex-1 h-12 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              Dalej
-            </Button>
+          {/* Right Card - Sidebar */}
+          <div className="bg-secondary rounded-2xl shadow-sm p-8 flex flex-col items-center justify-center text-center min-h-[400px] lg:min-h-0">
+            {/* Logo */}
+            <div className="mb-8">
+              <img
+                src={avatarLogo}
+                alt="Avatar centrum zdrowia"
+                className="h-20 w-auto"
+              />
+            </div>
+
+            {/* Tagline */}
+            <div>
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                Przyszłość diagnostyki
+              </h2>
+              <p className="text-foreground/80 text-sm leading-relaxed">
+                Zadbaj o swojego AVATARA
+                <br />
+                Zadbaj o swoje ciało
+              </p>
+            </div>
           </div>
         </div>
       </div>
