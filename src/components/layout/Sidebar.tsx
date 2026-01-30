@@ -1,4 +1,4 @@
-import { Home, FileText, User, Users, HelpCircle, LogOut, Menu } from "lucide-react";
+import { LayoutGrid, CircleDot, User, HelpCircle, Megaphone, LogOut, Menu } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -8,15 +8,15 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 
 const navItems = [
-  { title: "Strona główna", url: "/dashboard", icon: Home },
-  { title: "Wyniki", url: "/dashboard/results", icon: FileText },
-  { title: "Profil", url: "/dashboard/profile", icon: User },
-  { title: "Program polecający", url: "/dashboard/referrals", icon: Users },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
+  { title: "Wyniki badań", url: "/dashboard/results", icon: CircleDot },
+  { title: "Mój profil", url: "/dashboard/profile", icon: User },
   { title: "Pomoc", url: "/dashboard/help", icon: HelpCircle },
+  { title: "Program polecający", url: "/dashboard/referrals", icon: Megaphone },
 ];
 
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -33,14 +33,6 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
           alt="Avatar centrum zdrowia"
           className="h-10 w-auto"
         />
-      </div>
-
-      {/* User info */}
-      <div className="p-4 border-b border-border">
-        <p className="text-sm text-muted-foreground">Zalogowany jako:</p>
-        <p className="font-medium text-foreground truncate">
-          {user?.firstName} {user?.lastName}
-        </p>
       </div>
 
       {/* Navigation */}
@@ -67,10 +59,10 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
       <div className="p-4 border-t border-border">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors w-full"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full"
         >
           <LogOut className="h-5 w-5" />
-          <span>Wyloguj się</span>
+          <span>Wyloguj</span>
         </button>
       </div>
     </div>
