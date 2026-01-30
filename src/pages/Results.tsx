@@ -1,149 +1,92 @@
+import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { FileText } from "lucide-react";
-
-// Mock data for results
-const mockResults = [
-  {
-    id: "1",
-    name: "Diagnostyka pełna",
-    date: "2024-01-15",
-    status: "completed",
-    summary: [
-      "Niedobór witaminy D3",
-      "Obciążenie wątroby - zalecana detoksykacja",
-      "Nietolerancja laktozy",
-    ],
-  },
-  {
-    id: "2",
-    name: "Kontrola postępów",
-    date: "2024-02-20",
-    status: "completed",
-    summary: [
-      "Poprawa poziomu witaminy D3",
-      "Wątroba w lepszej kondycji",
-      "Zalecana kontynuacja diety bezlaktozowej",
-    ],
-  },
-  {
-    id: "3",
-    name: "Aktualizacja planu",
-    date: "2024-03-10",
-    status: "pending",
-    summary: [],
-  },
-];
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Camera } from "lucide-react";
 
 const Results = () => {
+  const [question, setQuestion] = useState("");
+
   return (
     <DashboardLayout>
       <div className="max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-            Twoje wyniki
-          </h1>
-          <p className="text-muted-foreground">
-            Historia Twoich diagnoz i planów terapii
-          </p>
+        {/* Nagłówek */}
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
+          Witamy w Avatar!
+        </h1>
+
+        {/* Sekcja zalecenia */}
+        <div className="flex items-center gap-4 mb-6">
+          <Label className="text-sm font-medium text-foreground whitespace-nowrap">
+            Zalecenia z dnia
+          </Label>
+          <Select>
+            <SelectTrigger className="w-[200px] bg-background">
+              <SelectValue placeholder="Wybierz zalecenie" />
+            </SelectTrigger>
+            <SelectContent className="bg-background">
+              <SelectItem value="none">Brak zaleceń</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {mockResults.length > 0 ? (
-          <div className="space-y-6">
-            {/* Results table */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Historia diagnoz</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nazwa</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mockResults.map((result) => (
-                      <TableRow key={result.id}>
-                        <TableCell className="font-medium">
-                          {result.name}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(result.date).toLocaleDateString("pl-PL")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              result.status === "completed"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {result.status === "completed"
-                              ? "Zakończona"
-                              : "W trakcie"}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+        {/* Karta wyników */}
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <p className="font-bold text-foreground">Brak plików wynikowych</p>
+          </CardContent>
+        </Card>
 
-            {/* Latest results details */}
-            {mockResults
-              .filter((r) => r.status === "completed")
-              .map((result) => (
-                <Card key={result.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-accent" />
-                      {result.name} -{" "}
-                      {new Date(result.date).toLocaleDateString("pl-PL")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <h4 className="font-medium mb-3">Główne wnioski:</h4>
-                    <ul className="space-y-2">
-                      {result.summary.map((item, index) => (
-                        <li
-                          key={index}
-                          className="flex items-start gap-2 text-muted-foreground"
-                        >
-                          <span className="text-accent mt-1.5">•</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-semibold text-foreground mb-2">
-                Brak wyników
-              </h3>
-              <p className="text-muted-foreground">
-                Nie masz jeszcze żadnych wyników diagnostyki.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        {/* Sekcja pytanie */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-foreground mb-3">
+            Zadaj pytanie lub opisz dolegliwości
+          </h2>
+          <p className="text-muted-foreground text-sm mb-4">
+            Jeśli masz wątpliwości, lub chcesz poznać szczegóły naszych usług zadaj nam pytanie a my odpowiemy mailowo.
+          </p>
+          <Textarea
+            placeholder="Treść pytania"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            className="min-h-[120px] mb-4 bg-background"
+          />
+          <Button variant="default" className="bg-foreground text-background hover:bg-foreground/90">
+            Wyślij
+          </Button>
+        </div>
+
+        {/* Sekcja diagnostyka */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-foreground mb-4">
+            Zleć kolejną diagnostykę:
+          </h2>
+          {/* Placeholder dla kart pakietów */}
+        </div>
+      </div>
+
+      {/* Panel boczny - Twoje zdjęcie */}
+      <div className="fixed bottom-6 right-6 hidden lg:block">
+        <Card className="w-48">
+          <CardContent className="p-4 text-center">
+            <div className="w-20 h-20 bg-muted rounded-full mx-auto mb-3 flex items-center justify-center">
+              <Camera className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="font-semibold text-foreground text-sm mb-1">Twoje zdjęcie</p>
+            <button className="text-xs text-muted-foreground underline hover:text-foreground transition-colors">
+              Wgraj swoje zdjęcie
+            </button>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
