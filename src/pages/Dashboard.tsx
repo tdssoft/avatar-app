@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Info, Upload } from "lucide-react";
 import PlanCard from "@/components/dashboard/PlanCard";
+import PhotoUpload from "@/components/dashboard/PhotoUpload";
+import ResultsUpload from "@/components/dashboard/ResultsUpload";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,19 +21,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Left column - Photo upload card */}
           <div className="lg:col-span-1">
-            <Card className="h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  Twoje zdjęcie
-                  <Info className="h-4 w-4 text-muted-foreground" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <button className="text-muted-foreground underline underline-offset-4 text-sm font-medium hover:text-foreground">
-                  Wgraj swoje zdjęcie
-                </button>
-              </CardContent>
-            </Card>
+            <PhotoUpload className="h-full" />
           </div>
 
           {/* Right column - Plans selection */}
@@ -72,24 +60,7 @@ const Dashboard = () => {
         </Card>
 
         {/* Upload previous results section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">
-              Jeśli posiadasz wyniki poprzednich badań, wgraj je tutaj:
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-              <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">
-                Przeciągnij pliki tutaj lub kliknij, aby wybrać
-              </p>
-              <Button variant="outline">
-                Wybierz pliki
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ResultsUpload />
       </div>
     </DashboardLayout>
   );

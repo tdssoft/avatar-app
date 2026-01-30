@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera } from "lucide-react";
+import PhotoUpload from "@/components/dashboard/PhotoUpload";
 
 const Results = () => {
   const [question, setQuestion] = useState("");
@@ -76,17 +76,7 @@ const Results = () => {
 
       {/* Panel boczny - Twoje zdjęcie */}
       <div className="fixed bottom-6 right-6 hidden lg:block">
-        <Card className="w-48">
-          <CardContent className="p-4 text-center">
-            <div className="w-20 h-20 bg-muted rounded-full mx-auto mb-3 flex items-center justify-center">
-              <Camera className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <p className="font-semibold text-foreground text-sm mb-1">Twoje zdjęcie</p>
-            <button className="text-xs text-muted-foreground underline hover:text-foreground transition-colors">
-              Wgraj swoje zdjęcie
-            </button>
-          </CardContent>
-        </Card>
+        <PhotoUpload className="w-48" />
       </div>
     </DashboardLayout>
   );
