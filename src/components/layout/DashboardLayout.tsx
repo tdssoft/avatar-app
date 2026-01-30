@@ -2,13 +2,15 @@ import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "./Sidebar";
+import { Bell } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,12 +23,40 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     return null;
   }
 
+  const userInitials = user?.firstName && user?.lastName 
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    : "U";
+
+  const fullName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}`
+    : "Użytkownik";
+
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-8 lg:p-12 pt-20 lg:pt-12">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="h-16 bg-card border-b border-border flex items-center justify-end px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-foreground hidden sm:block">
+              {fullName}
+            </span>
+            <Avatar className="h-9 w-9">
+              <AvatarFallback className="bg-accent text-accent-foreground text-sm">
+                {userInitials}
+              </AvatarFallback>
+            </Avatar>
+            <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+              <Bell className="h-5 w-5 text-muted-foreground" />
+            </button>
+          </div>
+        </header>
+        
+        {/* Main content */}
+        <main className="flex-1 p-6 md:p-8 lg:p-12 pt-6 lg:pt-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };
