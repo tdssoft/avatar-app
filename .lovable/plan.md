@@ -1,174 +1,183 @@
 
 
-# Plan naprawy strony "Wyniki badań" do wersji 1:1
+# Plan: Utworzenie strony płatności 1:1 z oryginałem
 
-## Analiza różnic
+## Analiza screenshota
 
-### Oryginał (app.eavatar.diet):
-1. **Nagłówek**: "Witamy w Avatar!" (identyczny jak na Dashboard)
-2. **Sekcja "Zalecenia z dnia"**: etykieta + dropdown "Wybierz zalecenie"
-3. **Karta "Brak plików wynikowych"**: prosta biała karta z tekstem
-4. **Sekcja "Zadaj pytanie lub opisz dolegliwości"**:
-   - Tytuł sekcji (bold)
-   - Opis: "Jeśli masz wątpliwości, lub chcesz poznać szczegóły naszych usług zadaj nam pytanie a my odpowiemy mailowo."
-   - Textarea z placeholder "Treść pytania"
-   - Czarny przycisk "Wyślij"
-5. **Sekcja "Zleć kolejną diagnostykę:"** (widoczna na dole)
-6. **Panel boczny "Twoje zdjęcie"** (widoczny w prawym dolnym rogu)
+Na podstawie załączonego obrazu, strona płatności ma następujący układ:
 
-### Moja implementacja (BŁĘDNA):
-- Nagłówek: "Twoje wyniki" z podtytułem "Historia Twoich diagnoz i planów terapii"
-- Tabela z historią diagnoz (Nazwa, Data, Status)
-- Karty z wynikami diagnoz i wnioskami
-
-**Problem**: Moja implementacja to zupełnie inny ekran - stworzyłem "historię diagnoz" zamiast "ekranu zaleceń/wyników"
+```text
++----------------------------------------------------+-----------------------------+
+| [Avatar Logo - centrum zdrowia]                    |                             |
+|                                                    |                             |
+| Diagnostyka i kuracja jednorazowa                  |                             |
+|                                                    |                             |
+| Wybierz jakie informacje diagnostyka powinna       |                             |
+| zawierać. Od ilości informacji, zależy             |                             |
+| finalna cena pakietu.                              |                             |
+|                                                    |   [Avatar Logo - duże]      |
+| [ ] OPTYMALNY PAKIET STARTOWY - 370,00 PLN         |                             |
+|     (diagnoza + analiza + raport + zalecenia)      |   Przyszłość diagnostyki    |
+|     - pełna analiza kondycji...                    |                             |
+|     - Indywidualny plan terapii                    |   Zadbaj o swojego AVATARA  |
+|     - wskazówki dietetyczne                        |   Zadbaj o swoje ciało      |
+|                                                    |                             |
+| [ ] MINI PAKIET STARTOWY - 220,00 PLN              |                             |
+|     (analiza/mini-diagnostyka + raport + zalecenia)|                             |
+|     - analiza kondycji organizmu...                |                             |
+|     - Indywidualny plan terapii                    |                             |
+|     - wskazówki dietetyczne                        |                             |
+|                                                    |                             |
+| [ ] AKTUALIZACJA PLANU ZDROWOTNEGO - 220,00 PLN    |                             |
+|     (kontrola i korekta zaleceń...)                |                             |
+|     - analiza kondycji organizmu, w tym diagnostyka|                             |
+|     - kontynuacja planu terapii                    |                             |
+|     - wskazówki dietetyczne                        |                             |
+|                                                    |                             |
+| [ ] JADŁOSPIS 7 dniowy - 170,00 PLN                |                             |
+|     ...                                            |                             |
++----------------------------------------------------+-----------------------------+
+| ← Powrót               Łączny koszt: X zł  [Dalej] | (stopka z sumą i nawigacją) |
++----------------------------------------------------+-----------------------------+
+```
 
 ---
 
-## Plan zmian
+## Elementy do zaimplementowania
 
-### Plik: `src/pages/Results.tsx`
+### 1. Nowa strona: `src/pages/Payment.tsx`
 
-Kompletna przebudowa strony na układ 1:1 z oryginałem:
+**Układ strony:**
+- Dwukolumnowy layout (lewa kolumna z formularzem, prawa z panelem marketingowym)
+- BEZ sidebara i headera dashboardu (to jest standalone checkout page)
+- Białe tło z kartą w środku
 
-```text
-+--------------------------------------------------+
-| Witamy w Avatar!                                 |
-+--------------------------------------------------+
-|                                                  |
-| Zalecenia z dnia  [Wybierz zalecenie ▼]          |
-|                                                  |
-| +----------------------------------------------+ |
-| | Brak plików wynikowych                       | |
-| +----------------------------------------------+ |
-|                                                  |
-| Zadaj pytanie lub opisz dolegliwości             |
-|                                                  |
-| Jeśli masz wątpliwości, lub chcesz poznać        |
-| szczegóły naszych usług zadaj nam pytanie        |
-| a my odpowiemy mailowo.                          |
-|                                                  |
-| +----------------------------------------------+ |
-| | Treść pytania                                | |
-| |                                              | |
-| +----------------------------------------------+ |
-|                                                  |
-| [Wyślij]                                         |
-|                                                  |
-| Zleć kolejną diagnostykę:                        |
-| ...                                              |
-|                                                  |
-+--------------------------------------------------+
-|                            +-------------------+ |
-|                            | Twoje zdjęcie     | |
-|                            +-------------------+ |
-+--------------------------------------------------+
-```
+**Lewa kolumna (formularz):**
+- Logo Avatar (mniejsze, z napisem "centrum zdrowia")
+- Tytuł: "Diagnostyka i kuracja jednorazowa" (h1, bold)
+- Opis: szary tekst kursywą
+- Lista pakietów z checkboxami (wykorzystam istniejący `PackageCard`)
+- Separator na dole
+- Stopka: "Powrót" (link) + "Łączny koszt: X zł" + "Dalej" (przycisk czarny)
 
-### Elementy do implementacji:
+**Prawa kolumna (panel marketingowy):**
+- Szare tło
+- Duże logo Avatar
+- Tekst: "Przyszłość diagnostyki"
+- Tekst: "Zadbaj o swojego AVATARA"
+- Tekst: "Zadbaj o swoje ciało"
 
-1. **Nagłówek** - "Witamy w Avatar!" (h1, bold, bez podtytułu)
+### 2. Dane pakietów
 
-2. **Sekcja zalecenia**:
-   - Label "Zalecenia z dnia"
-   - Select/Dropdown z opcją "Wybierz zalecenie" jako placeholder
-   - Użycie komponentu `Select` z shadcn/ui
+| ID | Nazwa | Cena | Podtytuł | Opis |
+|----|-------|------|----------|------|
+| optimal | OPTYMALNY PAKIET STARTOWY | 370,00 PLN | (diagnoza + analiza + raport + zalecenia) | pełna analiza kondycji organizmu on line (biorezonans), w tym raport zdrowotnych; Indywidualny plan terapii; wskazówki dietetyczne |
+| mini | MINI PAKIET STARTOWY | 220,00 PLN | (analiza/mini-diagnostyka + raport + zalecenia) | analiza kondycji organizmu na podstawie wywiadu, załączonych badań lub mini-diagnostyki on line (niedobory, alergie, obciążenia); Indywidualny plan terapii; wskazówki dietetyczne |
+| update | AKTUALIZACJA PLANU ZDROWOTNEGO | 220,00 PLN | (kontrola i korekta zaleceń na podstawie osiągniętych postępów) | analiza kondycji organizmu, w tym diagnostyka; kontynuacja planu terapii; wskazówki dietetyczne |
+| menu | JADŁOSPIS 7 dniowy | 170,00 PLN | - | (szczegóły do uzupełnienia) |
 
-3. **Karta wyników**:
-   - Prosta biała karta (Card)
-   - Tekst: "Brak plików wynikowych" (bold)
+### 3. Modyfikacja routingu: `src/App.tsx`
 
-4. **Sekcja pytanie**:
-   - Tytuł: "Zadaj pytanie lub opisz dolegliwości" (h2, bold)
-   - Opis: szary tekst wyjaśniający
-   - Textarea z placeholder "Treść pytania"
-   - Przycisk "Wyślij" (czarny, variant="default")
+- Dodanie nowej trasy: `/payment`
+- Import komponentu `Payment`
 
-5. **Sekcja diagnostyka**:
-   - Tytuł: "Zleć kolejną diagnostykę:" (h2, bold)
-   - Miejsce na dodatkową treść (karty pakietów lub placeholder)
+### 4. Modyfikacja Dashboard: `src/pages/Dashboard.tsx`
 
-6. **Panel boczny** (opcjonalnie w prawym dolnym rogu):
-   - Karta "Twoje zdjęcie" - taka sama jak na Dashboard
+- Dodanie `onSelect` do `PlanCard` z nawigacją do `/payment`
+- Użycie `useNavigate` z react-router-dom
 
 ---
 
 ## Szczegóły techniczne
 
-### Struktura komponentu:
+### Struktura Payment.tsx:
 
 ```tsx
-const Results = () => {
+const Payment = () => {
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const navigate = useNavigate();
+
+  const packages = [
+    { id: "optimal", name: "OPTYMALNY PAKIET STARTOWY", price: 370, ... },
+    { id: "mini", name: "MINI PAKIET STARTOWY", price: 220, ... },
+    { id: "update", name: "AKTUALIZACJA PLANU ZDROWOTNEGO", price: 220, ... },
+    { id: "menu", name: "JADŁOSPIS 7 dniowy", price: 170, ... },
+  ];
+
+  const totalCost = packages
+    .filter(p => selectedPackages.includes(p.id))
+    .reduce((sum, p) => sum + p.price, 0);
+
+  const handleToggle = (id: string) => {
+    setSelectedPackages(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
   return (
-    <DashboardLayout>
-      <div className="max-w-4xl">
-        {/* Nagłówek */}
-        <h1>Witamy w Avatar!</h1>
+    <div className="min-h-screen bg-background flex">
+      {/* Left column */}
+      <div className="flex-1 p-8 lg:p-16">
+        <img src={avatarLogo} alt="Avatar" className="h-16 mb-8" />
+        <h1>Diagnostyka i kuracja jednorazowa</h1>
+        <p>Wybierz jakie informacje...</p>
         
-        {/* Sekcja zalecenia */}
-        <div className="flex items-center gap-4">
-          <Label>Zalecenia z dnia</Label>
-          <Select>
-            <SelectTrigger>
-              <SelectValue placeholder="Wybierz zalecenie" />
-            </SelectTrigger>
-            <SelectContent>
-              {/* opcje zaleceń */}
-            </SelectContent>
-          </Select>
-        </div>
+        {packages.map(pkg => (
+          <PackageCard
+            key={pkg.id}
+            id={pkg.id}
+            name={pkg.name}
+            price={`${pkg.price},00 PLN`}
+            subtitle={pkg.subtitle}
+            description={pkg.description}
+            isSelected={selectedPackages.includes(pkg.id)}
+            onToggle={handleToggle}
+          />
+        ))}
         
-        {/* Karta wyników */}
-        <Card>
-          <CardContent>
-            <p className="font-bold">Brak plików wynikowych</p>
-          </CardContent>
-        </Card>
-        
-        {/* Sekcja pytanie */}
-        <div>
-          <h2>Zadaj pytanie lub opisz dolegliwości</h2>
-          <p>Jeśli masz wątpliwości...</p>
-          <Textarea placeholder="Treść pytania" />
-          <Button>Wyślij</Button>
-        </div>
-        
-        {/* Sekcja diagnostyka */}
-        <div>
-          <h2>Zleć kolejną diagnostykę:</h2>
-          {/* placeholder lub karty pakietów */}
+        <Separator />
+        <div className="flex justify-between items-center">
+          <button onClick={() => navigate(-1)}>← Powrót</button>
+          <span>Łączny koszt: {totalCost} zł</span>
+          <Button>Dalej</Button>
         </div>
       </div>
       
-      {/* Opcjonalnie: panel Twoje zdjęcie (fixed/absolute) */}
-    </DashboardLayout>
+      {/* Right column - marketing panel */}
+      <div className="hidden lg:flex w-1/3 bg-muted flex-col items-center justify-center">
+        <img src={avatarLogo} alt="Avatar" className="h-32 mb-8" />
+        <h2>Przyszłość diagnostyki</h2>
+        <p>Zadbaj o swojego AVATARA</p>
+        <p>Zadbaj o swoje ciało</p>
+      </div>
+    </div>
   );
 };
 ```
 
-### Style i spacing:
-
-- Nagłówek: `text-2xl md:text-3xl font-bold` bez margin-bottom na podtytuł
-- Sekcja zalecenia: `flex items-center gap-4 mb-6`
-- Select: szerokość około 200px, border-radius standardowy
-- Karta wyników: biała, bez shadow, border standardowy
-- Sekcja pytanie: margin-top około 32px
-- Textarea: pełna szerokość, wysokość około 120px
-- Przycisk: czarny (variant default), margin-top 16px
+### Styl prawego panelu:
+- Tło: jasnoszare (`bg-muted` lub `bg-gray-100`)
+- Logo: większe niż w lewej kolumnie
+- Tekst wycentrowany pionowo i poziomo
+- Font: "Przyszłość diagnostyki" - bold, większy
+- Tekst pomocniczy - mniejszy, szary
 
 ---
 
-## Pliki do modyfikacji
+## Pliki do utworzenia/modyfikacji
 
-1. **`src/pages/Results.tsx`** - kompletna przebudowa na układ 1:1
+1. **`src/pages/Payment.tsx`** (NOWY) - strona płatności
+2. **`src/App.tsx`** (MODYFIKACJA) - dodanie trasy `/payment`
+3. **`src/pages/Dashboard.tsx`** (MODYFIKACJA) - dodanie nawigacji do payment po kliknięciu "Kupuję"
 
 ---
 
-## Podsumowanie
+## Przepływ użytkownika
 
-Obecna implementacja była całkowicie błędna - stworzyłem "historię diagnoz" zamiast "ekranu zaleceń i pytań". Nowa implementacja będzie dokładnym odwzorowaniem oryginalnego ekranu z:
-- Dropdown do wyboru zaleceń
-- Kartą informującą o braku wyników
-- Formularzem kontaktowym
-- Sekcją zlecania diagnostyki
+1. Użytkownik na Dashboard klika "Kupuję" przy pakiecie
+2. Przekierowanie do `/payment`
+3. Strona wyświetla listę pakietów z checkboxami
+4. Użytkownik zaznacza wybrane opcje - suma się aktualizuje
+5. Kliknięcie "Dalej" - przejście do płatności (Stripe - do implementacji później)
+6. Kliknięcie "Powrót" - powrót do Dashboard
 
