@@ -67,9 +67,7 @@ const Payment = () => {
   };
 
   const handleNext = () => {
-    // TODO: Navigate to Stripe checkout
-    console.log("Selected packages:", selectedPackages);
-    console.log("Total cost:", totalCost);
+    window.location.href = "https://checkout.stripe.com/c/pay/cs_live_b1pksXYYnD860UJL1Mmg53A2rDcnHwhzpHEQICuq2DLClP6Y6omeBUdEjY#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdkdWxOYHwnPyd1blppbHNgWjA0VGlrUTdCdkc3Sk51NzV2dkRPPFVgN31JMGNPSURcbk5gXzE8T1BQRmZzMEZpVWNkaFYwNWM0clJobHdcd0ZrM1VOZ31idWJITmtHU1Z3YGRLXXZxTX9iNTU2dl1SNW5%2FXycpJ2N3amhWYHdzYHcnP3F3cGApJ2dkZm5id2pwa2FGamlqdyc%2FJyZjY2NjY2MnKSdpZHxqcHFRfHVgJz8naHBpcWxabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl";
   };
 
   return (
