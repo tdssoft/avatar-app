@@ -1,4 +1,4 @@
-import { LayoutGrid, CircleDot, User, HelpCircle, Megaphone, LogOut, Menu } from "lucide-react";
+import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -9,10 +9,10 @@ import { useState } from "react";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
-  { title: "Wyniki badań", url: "/dashboard/results", icon: CircleDot },
+  { title: "Wyniki badań", url: "/dashboard/results", icon: Shield },
   { title: "Mój profil", url: "/dashboard/profile", icon: User },
-  { title: "Pomoc", url: "/dashboard/help", icon: HelpCircle },
-  { title: "Program polecający", url: "/dashboard/referrals", icon: Megaphone },
+  { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
+  { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
 ];
 
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
@@ -43,8 +43,8 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
               <NavLink
                 to={item.url}
                 end={item.url === "/dashboard"}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                activeClassName="bg-muted text-foreground font-medium"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
+                activeClassName="bg-background text-foreground font-medium"
                 onClick={onItemClick}
               >
                 <item.icon className="h-5 w-5" />
@@ -59,7 +59,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
       <div className="p-4 border-t border-border">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-full"
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors w-full"
         >
           <LogOut className="h-5 w-5" />
           <span>Wyloguj</span>
@@ -82,14 +82,14 @@ const Sidebar = () => {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0">
+          <SheetContent side="left" className="w-72 p-0 bg-sidebar">
             <SidebarContent onItemClick={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:block w-72 bg-card border-r border-border min-h-screen">
+      <aside className="hidden lg:block w-72 bg-sidebar border-r border-sidebar-border min-h-screen">
         <SidebarContent />
       </aside>
     </>
