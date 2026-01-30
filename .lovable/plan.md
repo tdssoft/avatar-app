@@ -1,193 +1,174 @@
 
-# Plan naprawy stylu i układu aplikacji do wersji 1:1 z Avatar Diet
 
-## Analiza roznic
+# Plan naprawy strony "Wyniki badań" do wersji 1:1
 
-Po dokladnym porownaniu screenshotow widze nastepujace kluczowe roznice:
+## Analiza różnic
 
-### 1. Dashboard - uklad strony glownej
+### Oryginał (app.eavatar.diet):
+1. **Nagłówek**: "Witamy w Avatar!" (identyczny jak na Dashboard)
+2. **Sekcja "Zalecenia z dnia"**: etykieta + dropdown "Wybierz zalecenie"
+3. **Karta "Brak plików wynikowych"**: prosta biała karta z tekstem
+4. **Sekcja "Zadaj pytanie lub opisz dolegliwości"**:
+   - Tytuł sekcji (bold)
+   - Opis: "Jeśli masz wątpliwości, lub chcesz poznać szczegóły naszych usług zadaj nam pytanie a my odpowiemy mailowo."
+   - Textarea z placeholder "Treść pytania"
+   - Czarny przycisk "Wyślij"
+5. **Sekcja "Zleć kolejną diagnostykę:"** (widoczna na dole)
+6. **Panel boczny "Twoje zdjęcie"** (widoczny w prawym dolnym rogu)
 
-**Oryginal (app.eavatar.diet):**
-- Naglowek: "Witamy w Avatar!" (bez emoji, bez imienia)
-- Header z nazwa uzytkownika "Alan Urban" i ikoną dzwonka po prawej stronie
-- Dwukolumnowy uklad:
-  - Lewa strona: Karta "Twoje zdjecie" z opcja wgrywania
-  - Prawa strona: Sekcja "Wybierz odpowiedni plan aby rozpoczac diagnostyke:" z kartami pakietow:
-    - "Diagnostyka i kuracja miesieczna" (od 90 zl/miesiac) - przycisk "Kupuje"
-    - "Diagnostyka i kuracja jednorazowa" (od 150 zl) - przycisk "Kupuje"
-- Sekcja "Zalecenia zdrowotne"
-- Sekcja "Jesli posiadasz wyniki poprzednich badan, wgraj je tutaj:"
+### Moja implementacja (BŁĘDNA):
+- Nagłówek: "Twoje wyniki" z podtytułem "Historia Twoich diagnoz i planów terapii"
+- Tabela z historią diagnoz (Nazwa, Data, Status)
+- Karty z wynikami diagnoz i wnioskami
 
-**Moja implementacja:**
-- Naglowek: "Witaj, Alan!" z emoji
-- Brak headera z uzytkownikiem
-- Siatka 2x2 z kartami quick actions (zupelnie inny uklad)
-- Sekcja "Wgraj pliki" na dole
-
-### 2. Sidebar - menu boczne
-
-**Oryginal:**
-- Logo Avatar
-- Menu: Dashboard, Wyniki badan, Moj profil, Pomoc, Pogram polecajacy, Wyloguj
-- Ikony sa inne (np. Dashboard ma ikone z 4 kwadratamiw kracie)
-- Brak sekcji "Zalogowany jako"
-
-**Moja implementacja:**
-- Logo Avatar
-- Sekcja "Zalogowany jako: Alan Urban"
-- Menu: Strona glowna, Wyniki, Profil, Program polecajacy, Pomoc
-- Inne ikony i nazwy
-
-### 3. Style ogolne
-
-**Oryginal:**
-- Karty pakietow sa prostsze - bialy prostokat z tekstem i przyciskiem "Kupuje" po prawej
-- Czysty, minimalistyczny design
-- Header z nazwa uzytkownika i bell icon na gorze
-
-**Moja implementacja:**
-- Karty z kolorowymi ikonami
-- Zbyt duzo elementow graficznych
+**Problem**: Moja implementacja to zupełnie inny ekran - stworzyłem "historię diagnoz" zamiast "ekranu zaleceń/wyników"
 
 ---
 
 ## Plan zmian
 
-### Faza 1: Naprawa Sidebar
+### Plik: `src/pages/Results.tsx`
 
-**Plik: `src/components/layout/Sidebar.tsx`**
-
-Zmiany:
-1. Usuniecie sekcji "Zalogowany jako"
-2. Zmiana kolejnosci i nazw menu:
-   - Dashboard (ikona: LayoutGrid)
-   - Wyniki badan (ikona: CircleDot)
-   - Moj profil (ikona: User)
-   - Pomoc (ikona: HelpCircle)
-   - Pogram polecajacy (ikona: Megaphone)
-   - Wyloguj (ikona: LogOut)
-3. Zmiana ikon na odpowiednie do oryginalow
-
-### Faza 2: Naprawa DashboardLayout
-
-**Plik: `src/components/layout/DashboardLayout.tsx`**
-
-Zmiany:
-1. Dodanie headera z nazwa uzytkownika i ikoną dzwonka po prawej stronie
-2. Struktura: Logo | ... content ... | "Alan Urban" + bell icon
-
-### Faza 3: Naprawa Dashboard
-
-**Plik: `src/pages/Dashboard.tsx`**
-
-Kompleksowa zmiana ukladu:
+Kompletna przebudowa strony na układ 1:1 z oryginałem:
 
 ```text
-+------------------------------------------+
-| Witamy w Avatar!                          |
-+------------------------------------------+
-|                                           |
-| +----------------+  +-------------------+ |
-| | Twoje zdjecie  |  | Wybierz plan...   | |
-| | [info icon]    |  |                   | |
-| | Wgraj swoje    |  | Diagnostyka i     | |
-| |   zdjecie      |  | kuracja miesieczna| |
-| +----------------+  | od 90 zl/miesiac  | |
-|                     | [Kupuje]          | |
-|                     +-------------------+ |
-|                     | Diagnostyka i     | |
-|                     | kuracja jednor... | |
-|                     | od 150 zl         | |
-|                     | [Kupuje]          | |
-|                     +-------------------+ |
-+------------------------------------------+
-| Zalecenia zdrowotne                       |
-| Tutaj znajdziesz materialy...            |
-+------------------------------------------+
-| Jesli posiadasz wyniki poprzednich...    |
-| [drag & drop area]                        |
-+------------------------------------------+
++--------------------------------------------------+
+| Witamy w Avatar!                                 |
++--------------------------------------------------+
+|                                                  |
+| Zalecenia z dnia  [Wybierz zalecenie ▼]          |
+|                                                  |
+| +----------------------------------------------+ |
+| | Brak plików wynikowych                       | |
+| +----------------------------------------------+ |
+|                                                  |
+| Zadaj pytanie lub opisz dolegliwości             |
+|                                                  |
+| Jeśli masz wątpliwości, lub chcesz poznać        |
+| szczegóły naszych usług zadaj nam pytanie        |
+| a my odpowiemy mailowo.                          |
+|                                                  |
+| +----------------------------------------------+ |
+| | Treść pytania                                | |
+| |                                              | |
+| +----------------------------------------------+ |
+|                                                  |
+| [Wyślij]                                         |
+|                                                  |
+| Zleć kolejną diagnostykę:                        |
+| ...                                              |
+|                                                  |
++--------------------------------------------------+
+|                            +-------------------+ |
+|                            | Twoje zdjęcie     | |
+|                            +-------------------+ |
++--------------------------------------------------+
 ```
 
-Nowe komponenty:
-1. Karta "Twoje zdjecie" - lewa kolumna, biala karta z ikona info i linkiem "Wgraj swoje zdjecie"
-2. Sekcja wyboru pakietow - prawa kolumna z dwoma kartami pakietow
-3. Karty pakietow - prosty design: tytul, opis, cena po prawej, przycisk "Kupuje"
-4. Sekcja "Zalecenia zdrowotne" - tekst informacyjny
-5. Sekcja upload - "Jesli posiadasz wyniki poprzednich badan, wgraj je tutaj:"
+### Elementy do implementacji:
 
-### Faza 4: Dodanie komponentu pakietu dla Dashboard
+1. **Nagłówek** - "Witamy w Avatar!" (h1, bold, bez podtytułu)
 
-**Nowy plik: `src/components/dashboard/PlanCard.tsx`**
+2. **Sekcja zalecenia**:
+   - Label "Zalecenia z dnia"
+   - Select/Dropdown z opcją "Wybierz zalecenie" jako placeholder
+   - Użycie komponentu `Select` z shadcn/ui
 
-Prosty komponent karty pakietu:
-- Tytul po lewej
-- Opis pod tytulem
-- Cena po prawej stronie
-- Przycisk "Kupuje" po prawej
+3. **Karta wyników**:
+   - Prosta biała karta (Card)
+   - Tekst: "Brak plików wynikowych" (bold)
+
+4. **Sekcja pytanie**:
+   - Tytuł: "Zadaj pytanie lub opisz dolegliwości" (h2, bold)
+   - Opis: szary tekst wyjaśniający
+   - Textarea z placeholder "Treść pytania"
+   - Przycisk "Wyślij" (czarny, variant="default")
+
+5. **Sekcja diagnostyka**:
+   - Tytuł: "Zleć kolejną diagnostykę:" (h2, bold)
+   - Miejsce na dodatkową treść (karty pakietów lub placeholder)
+
+6. **Panel boczny** (opcjonalnie w prawym dolnym rogu):
+   - Karta "Twoje zdjęcie" - taka sama jak na Dashboard
 
 ---
 
-## Szczegoly techniczne
+## Szczegóły techniczne
 
-### Zmiany w ikonych Sidebar
+### Struktura komponentu:
 
-| Obecna nazwa | Nowa nazwa | Obecna ikona | Nowa ikona |
-|--------------|------------|--------------|------------|
-| Strona glowna | Dashboard | Home | LayoutGrid |
-| Wyniki | Wyniki badan | FileText | CircleDot |
-| Profil | Moj profil | User | User |
-| Program polecajacy | Pogram polecajacy | Users | Megaphone |
-| Pomoc | Pomoc | HelpCircle | HelpCircle |
-
-### Struktura Dashboard (nowa)
-
+```tsx
+const Results = () => {
+  return (
+    <DashboardLayout>
+      <div className="max-w-4xl">
+        {/* Nagłówek */}
+        <h1>Witamy w Avatar!</h1>
+        
+        {/* Sekcja zalecenia */}
+        <div className="flex items-center gap-4">
+          <Label>Zalecenia z dnia</Label>
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz zalecenie" />
+            </SelectTrigger>
+            <SelectContent>
+              {/* opcje zaleceń */}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Karta wyników */}
+        <Card>
+          <CardContent>
+            <p className="font-bold">Brak plików wynikowych</p>
+          </CardContent>
+        </Card>
+        
+        {/* Sekcja pytanie */}
+        <div>
+          <h2>Zadaj pytanie lub opisz dolegliwości</h2>
+          <p>Jeśli masz wątpliwości...</p>
+          <Textarea placeholder="Treść pytania" />
+          <Button>Wyślij</Button>
+        </div>
+        
+        {/* Sekcja diagnostyka */}
+        <div>
+          <h2>Zleć kolejną diagnostykę:</h2>
+          {/* placeholder lub karty pakietów */}
+        </div>
+      </div>
+      
+      {/* Opcjonalnie: panel Twoje zdjęcie (fixed/absolute) */}
+    </DashboardLayout>
+  );
+};
 ```
-Dashboard.tsx
-├── Header section
-│   └── "Witamy w Avatar!"
-├── Main content (2 columns)
-│   ├── Left: Photo card
-│   │   └── "Twoje zdjecie" + upload link
-│   └── Right: Plans section
-│       ├── Title: "Wybierz odpowiedni plan..."
-│       ├── PlanCard: Miesieczna (90 zl)
-│       └── PlanCard: Jednorazowa (150 zl)
-├── Health recommendations section
-│   └── "Zalecenia zdrowotne" + description
-└── Upload section
-    └── "Jesli posiadasz wyniki..." + drop zone
-```
 
-### Struktura DashboardLayout (nowa)
+### Style i spacing:
 
-```
-DashboardLayout.tsx
-├── Sidebar (left)
-└── Main area (right)
-    ├── Header bar
-    │   └── User name + avatar + bell icon (right aligned)
-    └── Content area
-        └── {children}
-```
+- Nagłówek: `text-2xl md:text-3xl font-bold` bez margin-bottom na podtytuł
+- Sekcja zalecenia: `flex items-center gap-4 mb-6`
+- Select: szerokość około 200px, border-radius standardowy
+- Karta wyników: biała, bez shadow, border standardowy
+- Sekcja pytanie: margin-top około 32px
+- Textarea: pełna szerokość, wysokość około 120px
+- Przycisk: czarny (variant default), margin-top 16px
 
 ---
 
 ## Pliki do modyfikacji
 
-1. **`src/components/layout/Sidebar.tsx`** - nowe menu, usuniecie "Zalogowany jako"
-2. **`src/components/layout/DashboardLayout.tsx`** - dodanie headera z uzytkownikiem
-3. **`src/pages/Dashboard.tsx`** - calkowita zmiana ukladu na zgodny z oryginalem
-4. **`src/components/dashboard/PlanCard.tsx`** (nowy) - komponent karty pakietu
+1. **`src/pages/Results.tsx`** - kompletna przebudowa na układ 1:1
 
 ---
 
 ## Podsumowanie
 
-Plan zakłada:
-1. Naprawa Sidebar - menu identyczne z oryginalem
-2. Dodanie headera z nazwa uzytkownika i dzwonkiem
-3. Całkowita przebudowa Dashboard na uklad 1:1 z oryginalem
-4. Zachowanie funkcjonalnosci Programu polecającego (jako dodatkowa funkcja)
+Obecna implementacja była całkowicie błędna - stworzyłem "historię diagnoz" zamiast "ekranu zaleceń i pytań". Nowa implementacja będzie dokładnym odwzorowaniem oryginalnego ekranu z:
+- Dropdown do wyboru zaleceń
+- Kartą informującą o braku wyników
+- Formularzem kontaktowym
+- Sekcją zlecania diagnostyki
 
-Program polecający pozostanie jako dodatkowa funkcjonalnosc w menu, zgodnie z Twoim zyczeniem.
