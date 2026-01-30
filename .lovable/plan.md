@@ -1,177 +1,193 @@
 
-# Plan implementacji aplikacji Avatar Diet
+# Plan naprawy stylu i układu aplikacji do wersji 1:1 z Avatar Diet
 
-## Zakres projektu
-Na podstawie przesłanych screenshotów stworzę pełną replikę aplikacji Avatar Diet z następującymi modułami:
+## Analiza roznic
 
-## Struktura ekranów do zaimplementowania
+Po dokladnym porownaniu screenshotow widze nastepujace kluczowe roznice:
 
-### 1. Autentykacja
-- **Logowanie** (`/login`) - formularz z email i hasłem
-- **Rejestracja wielokrokowa** (`/signup`):
-  - Krok 1/3: Wybór opcji zdjęcia (radio buttons)
-  - Krok 2/3: Formularz danych (brakuje screenshot, ale domyślam się że to dane osobowe)
-  - Krok 3/3: Dane logowania (imię, nazwisko, telefon, email, hasło)
+### 1. Dashboard - uklad strony glownej
 
-### 2. Dashboard (po zalogowaniu)
-- **Strona główna** (`/dashboard`) - z menu bocznym
-- **Wyniki** (`/dashboard/results`) - tabela z wynikami diagnostyki
-- **Profil** (`/dashboard/profile`) - dane użytkownika
-- **Pomoc** (`/dashboard/help`) - FAQ lub kontakt
+**Oryginal (app.eavatar.diet):**
+- Naglowek: "Witamy w Avatar!" (bez emoji, bez imienia)
+- Header z nazwa uzytkownika "Alan Urban" i ikoną dzwonka po prawej stronie
+- Dwukolumnowy uklad:
+  - Lewa strona: Karta "Twoje zdjecie" z opcja wgrywania
+  - Prawa strona: Sekcja "Wybierz odpowiedni plan aby rozpoczac diagnostyke:" z kartami pakietow:
+    - "Diagnostyka i kuracja miesieczna" (od 90 zl/miesiac) - przycisk "Kupuje"
+    - "Diagnostyka i kuracja jednorazowa" (od 150 zl) - przycisk "Kupuje"
+- Sekcja "Zalecenia zdrowotne"
+- Sekcja "Jesli posiadasz wyniki poprzednich badan, wgraj je tutaj:"
 
-### 3. Program polecający (nowa funkcjonalność)
-- **Lista poleceń** (`/dashboard/referrals`) - widok dla użytkownika polecającego
-- Generowanie unikalnego linku/kodu polecającego
-- Historia poleceń z informacją o statusie
-- System nagród za polecenia
+**Moja implementacja:**
+- Naglowek: "Witaj, Alan!" z emoji
+- Brak headera z uzytkownikiem
+- Siatka 2x2 z kartami quick actions (zupelnie inny uklad)
+- Sekcja "Wgraj pliki" na dole
 
-## Architektura techniczna
+### 2. Sidebar - menu boczne
 
-### Nowe pliki do utworzenia
+**Oryginal:**
+- Logo Avatar
+- Menu: Dashboard, Wyniki badan, Moj profil, Pomoc, Pogram polecajacy, Wyloguj
+- Ikony sa inne (np. Dashboard ma ikone z 4 kwadratamiw kracie)
+- Brak sekcji "Zalogowany jako"
+
+**Moja implementacja:**
+- Logo Avatar
+- Sekcja "Zalogowany jako: Alan Urban"
+- Menu: Strona glowna, Wyniki, Profil, Program polecajacy, Pomoc
+- Inne ikony i nazwy
+
+### 3. Style ogolne
+
+**Oryginal:**
+- Karty pakietow sa prostsze - bialy prostokat z tekstem i przyciskiem "Kupuje" po prawej
+- Czysty, minimalistyczny design
+- Header z nazwa uzytkownika i bell icon na gorze
+
+**Moja implementacja:**
+- Karty z kolorowymi ikonami
+- Zbyt duzo elementow graficznych
+
+---
+
+## Plan zmian
+
+### Faza 1: Naprawa Sidebar
+
+**Plik: `src/components/layout/Sidebar.tsx`**
+
+Zmiany:
+1. Usuniecie sekcji "Zalogowany jako"
+2. Zmiana kolejnosci i nazw menu:
+   - Dashboard (ikona: LayoutGrid)
+   - Wyniki badan (ikona: CircleDot)
+   - Moj profil (ikona: User)
+   - Pomoc (ikona: HelpCircle)
+   - Pogram polecajacy (ikona: Megaphone)
+   - Wyloguj (ikona: LogOut)
+3. Zmiana ikon na odpowiednie do oryginalow
+
+### Faza 2: Naprawa DashboardLayout
+
+**Plik: `src/components/layout/DashboardLayout.tsx`**
+
+Zmiany:
+1. Dodanie headera z nazwa uzytkownika i ikoną dzwonka po prawej stronie
+2. Struktura: Logo | ... content ... | "Alan Urban" + bell icon
+
+### Faza 3: Naprawa Dashboard
+
+**Plik: `src/pages/Dashboard.tsx`**
+
+Kompleksowa zmiana ukladu:
 
 ```text
-src/
-├── components/
-│   ├── layout/
-│   │   ├── Sidebar.tsx          # Menu boczne dashboardu
-│   │   ├── AuthLayout.tsx       # Layout dla stron logowania/rejestracji
-│   │   └── DashboardLayout.tsx  # Layout dla dashboardu
-│   ├── auth/
-│   │   ├── LoginForm.tsx
-│   │   └── SignupWizard.tsx
-│   └── referral/
-│       ├── ReferralCard.tsx
-│       ├── ReferralLink.tsx
-│       └── ReferralHistory.tsx
-├── pages/
-│   ├── Login.tsx
-│   ├── Signup.tsx
-│   ├── Dashboard.tsx
-│   ├── Results.tsx
-│   ├── Profile.tsx
-│   ├── Help.tsx
-│   └── Referrals.tsx
-├── contexts/
-│   └── AuthContext.tsx          # Stan autoryzacji (mock)
-└── lib/
-    └── referral.ts              # Logika programu polecającego
++------------------------------------------+
+| Witamy w Avatar!                          |
++------------------------------------------+
+|                                           |
+| +----------------+  +-------------------+ |
+| | Twoje zdjecie  |  | Wybierz plan...   | |
+| | [info icon]    |  |                   | |
+| | Wgraj swoje    |  | Diagnostyka i     | |
+| |   zdjecie      |  | kuracja miesieczna| |
+| +----------------+  | od 90 zl/miesiac  | |
+|                     | [Kupuje]          | |
+|                     +-------------------+ |
+|                     | Diagnostyka i     | |
+|                     | kuracja jednor... | |
+|                     | od 150 zl         | |
+|                     | [Kupuje]          | |
+|                     +-------------------+ |
++------------------------------------------+
+| Zalecenia zdrowotne                       |
+| Tutaj znajdziesz materialy...            |
++------------------------------------------+
+| Jesli posiadasz wyniki poprzednich...    |
+| [drag & drop area]                        |
++------------------------------------------+
 ```
 
-### Routing
+Nowe komponenty:
+1. Karta "Twoje zdjecie" - lewa kolumna, biala karta z ikona info i linkiem "Wgraj swoje zdjecie"
+2. Sekcja wyboru pakietow - prawa kolumna z dwoma kartami pakietow
+3. Karty pakietow - prosty design: tytul, opis, cena po prawej, przycisk "Kupuje"
+4. Sekcja "Zalecenia zdrowotne" - tekst informacyjny
+5. Sekcja upload - "Jesli posiadasz wyniki poprzednich badan, wgraj je tutaj:"
 
-```text
-/                    -> Strona pakietów (istniejąca)
-/login               -> Logowanie
-/signup              -> Rejestracja (3 kroki)
-/dashboard           -> Dashboard główny
-/dashboard/results   -> Wyniki
-/dashboard/profile   -> Profil
-/dashboard/help      -> Pomoc
-/dashboard/referrals -> Program polecający
+### Faza 4: Dodanie komponentu pakietu dla Dashboard
+
+**Nowy plik: `src/components/dashboard/PlanCard.tsx`**
+
+Prosty komponent karty pakietu:
+- Tytul po lewej
+- Opis pod tytulem
+- Cena po prawej stronie
+- Przycisk "Kupuje" po prawej
+
+---
+
+## Szczegoly techniczne
+
+### Zmiany w ikonych Sidebar
+
+| Obecna nazwa | Nowa nazwa | Obecna ikona | Nowa ikona |
+|--------------|------------|--------------|------------|
+| Strona glowna | Dashboard | Home | LayoutGrid |
+| Wyniki | Wyniki badan | FileText | CircleDot |
+| Profil | Moj profil | User | User |
+| Program polecajacy | Pogram polecajacy | Users | Megaphone |
+| Pomoc | Pomoc | HelpCircle | HelpCircle |
+
+### Struktura Dashboard (nowa)
+
+```
+Dashboard.tsx
+├── Header section
+│   └── "Witamy w Avatar!"
+├── Main content (2 columns)
+│   ├── Left: Photo card
+│   │   └── "Twoje zdjecie" + upload link
+│   └── Right: Plans section
+│       ├── Title: "Wybierz odpowiedni plan..."
+│       ├── PlanCard: Miesieczna (90 zl)
+│       └── PlanCard: Jednorazowa (150 zl)
+├── Health recommendations section
+│   └── "Zalecenia zdrowotne" + description
+└── Upload section
+    └── "Jesli posiadasz wyniki..." + drop zone
 ```
 
-## Szczegóły implementacji
+### Struktura DashboardLayout (nowa)
 
-### 1. Ekran logowania
-- Dwukolumnowy layout (formularz po lewej, branding po prawej)
-- Pola: Email, Hasło
-- Link "Nie masz konta? Zarejestruj się"
-- Przycisk "Zaloguj się"
+```
+DashboardLayout.tsx
+├── Sidebar (left)
+└── Main area (right)
+    ├── Header bar
+    │   └── User name + avatar + bell icon (right aligned)
+    └── Content area
+        └── {children}
+```
 
-### 2. Rejestracja wielokrokowa
+---
 
-**Krok 1/3 - Wybór zdjęcia:**
-- RadioGroup z dwoma opcjami:
-  - "Wybierz zdjęcie zapisane na urządzeniu"
-  - "Wgraj zdjęcie później"
-- Info box wyjaśniający dlaczego zdjęcie jest potrzebne
-- Przycisk "Dalej"
+## Pliki do modyfikacji
 
-**Krok 3/3 - Dane logowania:**
-- Pola: Imię, Nazwisko (w jednym rzędzie)
-- Pole telefonu z wyborem kraju (+48)
-- Email, Hasło, Powtórz Hasło
-- Checkbox akceptacji regulaminu
-- Przycisk "Rejestracja"
+1. **`src/components/layout/Sidebar.tsx`** - nowe menu, usuniecie "Zalogowany jako"
+2. **`src/components/layout/DashboardLayout.tsx`** - dodanie headera z uzytkownikiem
+3. **`src/pages/Dashboard.tsx`** - calkowita zmiana ukladu na zgodny z oryginalem
+4. **`src/components/dashboard/PlanCard.tsx`** (nowy) - komponent karty pakietu
 
-### 3. Dashboard
-- Menu boczne z ikonami:
-  - Strona główna
-  - Wyniki
-  - Profil
-  - Program polecający
-  - Pomoc
-- Główna treść z witaczem i kartami funkcji
-- Obszar do wgrywania plików
+---
 
-### 4. Program polecający (nowa funkcjonalność)
-Zaprojektuję od podstaw system poleceń:
+## Podsumowanie
 
-**Dla osoby polecającej:**
-- Unikalny kod/link polecający
-- Przycisk kopiowania linku
-- Lista poleconych osób z statusami:
-  - Oczekująca (zarejestrowana, ale nie kupiła)
-  - Aktywna (dokonała zakupu)
-- Statystyki: liczba poleceń, nagrody
+Plan zakłada:
+1. Naprawa Sidebar - menu identyczne z oryginalem
+2. Dodanie headera z nazwa uzytkownika i dzwonkiem
+3. Całkowita przebudowa Dashboard na uklad 1:1 z oryginalem
+4. Zachowanie funkcjonalnosci Programu polecającego (jako dodatkowa funkcja)
 
-**Dla osoby poleconej:**
-- Pole do wpisania kodu polecającego przy rejestracji
-- Rabat na pierwszy zakup
-
-**Nagrody:**
-- System punktów lub zniżek za udane polecenia
-- Historia zdobytych nagród
-
-## Kolejność implementacji
-
-1. **Faza 1: Layout i routing**
-   - AuthLayout i DashboardLayout
-   - Konfiguracja routera
-   - Sidebar z nawigacją
-
-2. **Faza 2: Autentykacja**
-   - Strona logowania
-   - Rejestracja wielokrokowa
-   - Mock AuthContext
-
-3. **Faza 3: Dashboard**
-   - Strona główna dashboardu
-   - Strona wyników
-   - Profil użytkownika
-   - Pomoc
-
-4. **Faza 4: Program polecający**
-   - Generowanie kodów polecających
-   - UI dla polecającego
-   - Integracja z rejestracją
-
-## Szczegóły techniczne
-
-### Stan autoryzacji (mock)
-Ponieważ nie ma backendu, utworzę mockowy kontekst autoryzacji:
-- Przechowywanie stanu zalogowania w localStorage
-- Symulacja logowania/rejestracji
-- Przekierowania dla chronionych stron
-
-### Walidacja formularzy
-- Wykorzystam react-hook-form + zod (już zainstalowane)
-- Walidacja email, hasła (min. 8 znaków), telefonu
-
-### Responsywność
-- Mobile-first design
-- Sidebar chowany na mobile (hamburger menu)
-- Wszystkie ekrany responsywne
-
-## Pytania projektowe
-
-Przed implementacją potrzebuję wyjaśnienia:
-
-1. **Backend**: Czy planujesz podłączyć Supabase dla prawdziwej autoryzacji i bazy danych, czy na razie wystarczy mock?
-
-2. **Program polecający - nagrody**: Jakie nagrody mają być za polecenia?
-   - Zniżka procentowa na zakupy?
-   - Stała kwota rabatu?
-   - Darmowy pakiet po X poleceniach?
-
-3. **Krok 2/3 rejestracji**: Czy możesz przesłać screenshot tego ekranu lub opisać jakie dane zbiera?
+Program polecający pozostanie jako dodatkowa funkcjonalnosc w menu, zgodnie z Twoim zyczeniem.
