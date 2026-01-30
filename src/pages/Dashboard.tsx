@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Info, Upload } from "lucide-react";
 import PlanCard from "@/components/dashboard/PlanCard";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   return (
     <DashboardLayout>
       <div className="max-w-5xl">
@@ -45,11 +47,13 @@ const Dashboard = () => {
                 description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia."
                 price="90 zł"
                 priceUnit="miesiąc"
+                onSelect={() => navigate("/payment")}
               />
               <PlanCard
                 title="Diagnostyka i kuracja jednorazowa"
                 description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia."
                 price="150 zł"
+                onSelect={() => navigate("/payment")}
               />
             </div>
           </div>
