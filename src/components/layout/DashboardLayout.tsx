@@ -36,17 +36,18 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-end px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-foreground hidden sm:block">
-              {fullName}
-            </span>
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-accent text-accent-foreground text-sm">
+        <header className="h-16 bg-background border-b border-border flex items-center justify-end px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-muted text-foreground text-xs font-medium">
                 {userInitials}
               </AvatarFallback>
             </Avatar>
-            <button className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <span className="text-sm font-medium text-foreground hidden sm:block">
+              {fullName}
+            </span>
+            <div className="h-6 w-px bg-border mx-1" />
+            <button className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Powiadomienia">
               <Bell className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
