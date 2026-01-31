@@ -54,8 +54,8 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
         </p>
       )}
 
-      {/* Responsive grid of image tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* Responsive grid of image tiles (fits the available panel width) */}
+      <div className="grid gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
           const image = systemImages[system.id];
@@ -65,8 +65,7 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
               key={system.id}
               onClick={() => onToggle(system.id)}
               className={cn(
-                "group relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 min-w-[100px]",
-                "hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
+                "group relative w-full min-w-0 aspect-[3/4] rounded-lg overflow-hidden border-2 transition-colors duration-200",
                 isSelected
                   ? "border-primary ring-2 ring-primary/30"
                   : "border-border hover:border-primary/50"
@@ -77,19 +76,28 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
                 <img
                   src={image}
                   alt={system.label}
-                  className="absolute inset-0 w-full h-full object-contain p-1 bg-background transition-transform duration-300 group-hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-contain p-1 bg-background"
                 />
               )}
 
               {/* Dark gradient overlay */}
-              <div className={cn(
-                "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-all duration-200",
-                "group-hover:from-black/90 group-hover:via-black/40"
-              )} />
+              <div
+                className={cn(
+                  "absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent transition-all duration-200",
+                  "group-hover:from-foreground/90 group-hover:via-foreground/40"
+                )}
+              />
+
+              {/* Hover overlay - centered label */}
+              <div className="absolute inset-0 flex items-center justify-center bg-foreground/0 transition-colors duration-200 group-hover:bg-foreground/35">
+                <span className="text-background font-semibold text-sm text-center px-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  {system.label}
+                </span>
+              </div>
 
               {/* Name - always visible */}
               <div className="absolute inset-x-0 bottom-0 p-2">
-                <span className="text-white font-semibold text-xs text-center block drop-shadow-lg">
+                <span className="text-background font-semibold text-[11px] sm:text-xs text-center block drop-shadow-lg truncate">
                   {system.label}
                 </span>
               </div>
