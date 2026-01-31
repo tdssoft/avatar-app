@@ -1,204 +1,151 @@
 
-# Plan: Naprawa dwóch krytycznych błędów
+Cel: naprawić program poleceń tak, żeby polecona osoba pojawiała się u polecającego po rejestracji z linku, oraz usunąć bug “logowanie działa dopiero za 2. razem”. W tym samym czasie zrobić “live testing” (reprodukcja + weryfikacja po poprawkach).
 
-## Zidentyfikowane problemy
+## Co już ustaliłem (na podstawie kodu + bazy danych)
+### 1) Polecenia nie działają, bo rekordy w bazie w ogóle się nie tworzą
+- W bazie: `public.referrals` ma **0 rekordów**.
+- W bazie: `public.profiles` ma **1 rekord**, a `referral_code` jest w nim **pusty/null**.
+- Frontend próbuje tworzyć:
+  - profil w `profiles` po `signUp()`,
+  - oraz rekord w `referrals` po `signUp()`.
 
-### Problem 1: Automatyczne wylogowanie przy odświeżaniu strony
+Problem: przy standardowej rejestracji z potwierdzeniem email (co sugeruje tekst w UI “Sprawdź skrzynkę email, aby potwierdzić konto”) użytkownik **nie ma jeszcze aktywnej sesji**, więc RLS blokuje inserty do `profiles` i `referrals`. Dodatkowo referrer może mieć kod tylko w metadata, ale nie w `profiles`, więc lookup po `profiles.referral_code` potrafi zwrócić null i referral nie powstaje.
 
-**Przyczyna:** W pliku `src/components/layout/DashboardLayout.tsx` (linie 16-20):
+### 2) “Muszę kliknąć Zaloguj się 2 razy”
+Najczęstszy scenariusz w tym układzie:
+- login działa, ale zanim kontekst zdąży ustawić `user` (a DashboardLayout sprawdza `isAuthenticated: !!user`), następuje redirect z /dashboard z powrotem na /login.
+- Drugi klik już trafia, bo `user` zdążył się ustawić.
 
-```typescript
-useEffect(() => {
-  if (!isAuthenticated) {
-    navigate("/login");
-  }
-}, [isAuthenticated, navigate]);
-```
-
-Ten kod nie uwzględnia stanu ładowania (`isLoading`). Przy odświeżeniu strony:
-1. Aplikacja się ładuje
-2. `user` jest `null` (sesja jeszcze nie została odzyskana z Supabase)
-3. `isAuthenticated` = `false`
-4. Przekierowanie do `/login` następuje **zanim** Supabase zdąży odzyskać sesję
-
-### Problem 2: Brak poleconej osoby w liście poleceń
-
-**Przyczyna:** System poleceń używa `localStorage` (`avatar_referrals`), ale **nigdzie nie ma kodu, który tworzy rekord polecenia** przy rejestracji.
-
-W `SignupWizard.tsx`:
-- Kod polecający jest pobierany z URL (`?ref=...`)
-- Zapisywany jest w `user_metadata.referredBy`
-- **ALE** - nie jest tworzony rekord w `localStorage.avatar_referrals`
-
-Dlatego strona "Program polecający" pokazuje "Brak poleceń" - bo `getReferralsByCode()` szuka w pustym localStorage.
+Wniosek: bramka dostępu do dashboardu powinna bazować na **sesji** (session), a nie na tym czy profil użytkownika już się wczytał (user). Profil może ładować się chwilę dłużej.
 
 ---
 
-## Rozwiązanie
-
-### Naprawa 1: Zabezpieczenie przed przedwczesnym przekierowaniem
-
-**Plik:** `src/components/layout/DashboardLayout.tsx`
-
-Zmiana:
-```typescript
-// PRZED:
-useEffect(() => {
-  if (!isAuthenticated) {
-    navigate("/login");
-  }
-}, [isAuthenticated, navigate]);
-
-// PO:
-useEffect(() => {
-  // Poczekaj aż ładowanie się zakończy
-  if (!isLoading && !isAuthenticated) {
-    navigate("/login");
-  }
-}, [isLoading, isAuthenticated, navigate]);
-
-// Dodaj też sprawdzenie ładowania w render:
-if (isLoading) {
-  return <LoadingScreen />; // lub spinner
-}
-```
-
-**Wymagane zmiany:**
-1. Dodać `isLoading` do destrukturyzacji z `useAuth()`
-2. Zmienić warunek w `useEffect` 
-3. Dodać sprawdzenie `isLoading` przed renderowaniem contentu
-
-### Naprawa 2: Migracja systemu poleceń do bazy danych
-
-**Problem z localStorage:** Dane są lokalne dla przeglądarki - polecający nie widzi osób, które zarejestrowały się z innego urządzenia.
-
-**Rozwiązanie:** Stworzyć tabelę `referrals` w bazie danych i przepisać logikę.
-
-#### Krok 2.1: Utworzenie tabeli `referrals`
-
-```sql
-CREATE TABLE public.referrals (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  referrer_user_id uuid NOT NULL,
-  referrer_code text NOT NULL,
-  referred_user_id uuid NOT NULL,
-  referred_email text NOT NULL,
-  referred_name text NOT NULL,
-  status text NOT NULL DEFAULT 'pending',
-  created_at timestamptz DEFAULT now(),
-  activated_at timestamptz
-);
-
--- RLS: Użytkownik widzi tylko swoje polecenia
-ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view referrals they made"
-  ON public.referrals FOR SELECT
-  USING (auth.uid() = referrer_user_id);
-```
-
-#### Krok 2.2: Aktualizacja funkcji rejestracji
-
-**Plik:** `src/contexts/AuthContext.tsx` (funkcja `signup`)
-
-Po pomyślnej rejestracji, jeśli użytkownik podał kod polecający:
-1. Wyszukaj użytkownika z tym kodem polecającym
-2. Utwórz rekord w tabeli `referrals`
-
-```typescript
-// Po utworzeniu użytkownika:
-if (data.referralCode && authData.user) {
-  // Znajdź polecającego po kodzie
-  const { data: referrerUsers } = await supabase
-    .from('profiles')
-    .select('user_id')
-    .eq('referral_code', data.referralCode)
-    .single();
-  
-  if (referrerUsers) {
-    await supabase.from('referrals').insert({
-      referrer_user_id: referrerUsers.user_id,
-      referrer_code: data.referralCode,
-      referred_user_id: authData.user.id,
-      referred_email: data.email,
-      referred_name: `${data.firstName} ${data.lastName}`,
-      status: 'pending'
-    });
-  }
-}
-```
-
-#### Krok 2.3: Aktualizacja tabeli `profiles`
-
-Dodać kolumnę `referral_code` do tabeli `profiles`:
-
-```sql
-ALTER TABLE public.profiles 
-ADD COLUMN referral_code text;
-
--- Indeks dla szybkiego wyszukiwania po kodzie
-CREATE INDEX idx_profiles_referral_code ON public.profiles(referral_code);
-```
-
-#### Krok 2.4: Aktualizacja strony poleceń
-
-**Plik:** `src/pages/Referrals.tsx`
-
-Zamienić wywołania localStorage na zapytania do Supabase:
-
-```typescript
-// PRZED:
-setReferrals(getReferralsByCode(user.referralCode));
-
-// PO:
-const { data } = await supabase
-  .from('referrals')
-  .select('*')
-  .eq('referrer_code', user.referralCode);
-setReferrals(data || []);
-```
-
-#### Krok 2.5: Aktualizacja funkcji poleceń
-
-**Plik:** `src/lib/referral.ts`
-
-Przepisać wszystkie funkcje, aby używały Supabase zamiast localStorage.
+## Strategia naprawy (bez rozluźniania bezpieczeństwa)
+Zamiast przywracać niebezpieczne RLS typu “Anyone can insert referrals”, robimy stabilny mechanizm:
+1) Profil i referral tworzymy przez backendową funkcję (działającą z uprawnieniami serwisowymi) wywoływaną tuż po rejestracji.
+2) Dodatkowo robimy “self-healing” profilu przy logowaniu (upsert / uzupełnienie referral_code) dla już istniejących kont.
+3) Naprawiamy logowanie przez zmianę logiki “authenticated” i loaderów.
 
 ---
 
-## Podsumowanie plików do modyfikacji
+## Kroki implementacji
 
-| Plik | Zmiana |
-|------|--------|
-| `src/components/layout/DashboardLayout.tsx` | Dodanie sprawdzenia `isLoading` przed przekierowaniem |
-| `supabase/migrations/...` | Utworzenie tabeli `referrals` i dodanie kolumny do `profiles` |
-| `src/contexts/AuthContext.tsx` | Zapisywanie kodu polecającego w profilu + tworzenie rekordu polecenia |
-| `src/lib/referral.ts` | Przepisanie funkcji na Supabase |
-| `src/pages/Referrals.tsx` | Użycie danych z bazy zamiast localStorage |
+### A. Naprawa logowania “na 2 razy”
+1) W `AuthContext`:
+   - Traktować użytkownika jako zalogowanego, jeśli istnieje `session` (np. `isAuthenticated: !!session`), a nie `!!user`.
+   - Rozdzielić “czy mamy sesję” od “czy profil jest gotowy”.
+   - Dodać stan typu `isProfileReady` / `isUserReady` (lub logicznie: `isLoading` pozostaje true aż do pobrania profilu, ale redirect ma używać sesji).
+2) W `DashboardLayout`:
+   - Redirect do `/login` robić na podstawie `session` (brak sesji), nie na podstawie `user`.
+   - Jeśli jest sesja, ale profil jeszcze się ładuje: pokazać spinner (zamiast wyrzucać na login).
+3) W `AuthContext` ograniczyć podwójne fetchowanie profilu:
+   - Aktualnie login robi `await fetchUserProfile(data.user)` i jednocześnie `onAuthStateChange` może odpalić kolejny fetch. Dodamy prosty “guard” (np. ref/flag/promise) aby jeden fetch nie dublował drugiego.
+
+Efekt: po 1. kliknięciu “Zaloguj się” użytkownik zostaje na /dashboard, a UI ewentualnie pokazuje spinner aż do wczytania profilu.
 
 ---
 
-## Szczegóły techniczne
+### B. Utrwalenie referral_code w profilu (self-healing dla istniejących kont)
+W `fetchUserProfile`:
+1) Jeśli profil w `profiles` nie istnieje → zrobić `insert/upsert` profilu dla bieżącego użytkownika.
+2) Jeśli profil istnieje, ale `referral_code` jest null/pusty, a w metadata istnieje `referralCode` → zrobić `update profiles set referral_code = ...`.
+3) Jeśli metadata nie ma referralCode (konto legacy), to:
+   - wygenerować nowy kod,
+   - zaktualizować metadata użytkownika (`supabase.auth.updateUser({ data: { referralCode: ... }})`),
+   - zapisać ten kod do `profiles.referral_code`.
 
-### Przepływ po naprawie (Problem 1):
+Efekt: referrer zawsze ma kod także w `profiles`, więc wyszukiwanie referrera po kodzie będzie działać.
 
-1. Użytkownik odświeża stronę
-2. `isLoading = true`, więc wyświetla się spinner
-3. Supabase odzyskuje sesję z tokena w localStorage
-4. `onAuthStateChange` aktualizuje `user`
-5. `isLoading = false`, `isAuthenticated = true`
-6. Dashboard się wyświetla
+---
 
-### Przepływ po naprawie (Problem 2):
+### C. Pewne tworzenie poleceń przy rejestracji (bez zależności od sesji)
+Zrobimy backendową funkcję (server-side) np. `post-signup`:
+1) Wywoływana po `signUp()` (w momencie, gdy mamy `authData.user.id`, email, imię/nazwisko, generated referralCode i ewentualny referredBy).
+2) Funkcja:
+   - weryfikuje, że user faktycznie istnieje (admin getUserById),
+   - robi upsert profilu: `profiles(user_id, referral_code, avatar_url=null)` (idempotentnie),
+   - jeśli `referredBy` jest podane:
+     - znajduje referrera po `profiles.referral_code = referredBy`,
+     - tworzy rekord w `referrals` (idempotentnie, patrz niżej).
 
-1. Jan Kowalski klika link `signup?ref=ABC123`
-2. Rejestruje się przez formularz
-3. System znajduje użytkownika z kodem `ABC123` (Alan Urban)
-4. Tworzy rekord w tabeli `referrals`:
-   - `referrer_user_id` = ID Alana
-   - `referred_user_id` = ID Jana
-   - `status` = "pending"
-5. Alan otwiera "Program polecający"
-6. Zapytanie do bazy zwraca Jana Kowalskiego
-7. Jan widoczny w liście poleceń
+3) Idempotencja (żeby nie tworzyć duplikatów):
+   - dodamy unikalny indeks np. na `referrals(referred_user_id)` (zakładamy 1 referrer na użytkownika),
+   - insert będzie robił “insert if not exists” (ON CONFLICT DO NOTHING).
+
+4) Zmiany w kodzie:
+   - W `AuthContext.signup` usunąć bezpośrednie `.from("profiles").insert(...)` i `.from("referrals").insert(...)` (bo to się wykłada na RLS/ braku sesji).
+   - Zastąpić to `supabase.functions.invoke("post-signup", { body: ... })`.
+   - Jeśli funkcja zwróci błąd → log + (opcjonalnie) toast “konto utworzone, ale nie udało się zarejestrować polecenia; spróbuj ponownie / skontaktuj się”.
+
+Efekt: polecenie zapisuje się już w momencie rejestracji (bez czekania na potwierdzenie email i bez ryzykownego rozluźniania RLS).
+
+---
+
+### D. Migracje w bazie (bez niszczenia danych)
+1) `profiles`:
+   - dodać unikalny indeks na `referral_code` (z warunkiem, żeby nie blokować nulli/pustych):
+     - np. UNIQUE INDEX WHERE referral_code is not null and referral_code <> ''.
+2) `referrals`:
+   - dodać unikalny indeks na `referred_user_id` (lub parę `referrer_user_id, referred_user_id`).
+3) (Opcjonalnie, jeśli chcemy mocniej zabezpieczyć) – pozostawić obecny INSERT policy (auth.uid() = referred_user_id) albo docelowo nawet ją usunąć i tworzyć referrals tylko przez backendową funkcję. W praktyce: jeśli wszystko tworzy funkcja, polityka INSERT może być zbędna.
+
+---
+
+### E. “Naprawa” poleceń, które zostały już utracone (np. Jan Kowalski)
+Ponieważ historyczne rejestracje mogły się odbyć w czasie, gdy insert do referrals nie działał, dodamy mechanizm “repair”:
+1) Backendowa funkcja `repair-referral`:
+   - wymaga zalogowania (sprawdza kto woła),
+   - sprawdza, czy caller faktycznie jest właścicielem `referrer_code` (profiles.user_id = caller && profiles.referral_code = …),
+   - przyjmuje `referredEmail`,
+   - odnajduje usera po emailu (admin API), weryfikuje że metadata `referredBy` pasuje do kodu,
+   - jeśli referral nie istnieje → tworzy go.
+2) UI w `Referrals`:
+   - mały link/sekcja “Nie widzisz polecenia? Napraw” + pole email + przycisk.
+
+Efekt: można odzyskać polecenia, które “zniknęły”, bez ręcznego grzebania w bazie.
+
+---
+
+## Live testing (dokładny scenariusz)
+Po wdrożeniu zmian wykonam test w preview:
+1) Zaloguję się na konto polecające (Twoje) i wejdę w /dashboard/referrals:
+   - sprawdzę, czy `profiles.referral_code` jest już zapisany (self-healing).
+2) Skopiuję link polecający.
+3) W nowym kontekście przeglądarki (incognito / druga sesja) wejdę w link i wykonam rejestrację testową:
+   - najlepiej email typu `alan.urban23+ref_test1@gmail.com` (Gmail wspiera “+”).
+4) Sprawdzę, że backendowa funkcja utworzyła rekord w `referrals`:
+   - weryfikacja w bazie (licznik referrals powinien wzrosnąć),
+   - następnie w UI u referrera odświeżę “Historia poleceń” i potwierdzę obecność wpisu.
+5) Test logowania:
+   - wyloguję,
+   - zaloguję się 1 raz,
+   - potwierdzę, że nie ma już powrotu na /login i nie trzeba 2 kliknięć.
+
+Jeśli którykolwiek krok nie przejdzie:
+- dołożę widoczne logi/komunikaty błędów (w UI i w konsoli) w miejscach, gdzie teraz błędy są “połykane”, żeby diagnoza była natychmiastowa (konkretnie: wyniki `invoke("post-signup")`, upsert profilu, i ewentualne konflikty indeksów).
+
+---
+
+## Zakres zmian w plikach (frontend)
+- `src/contexts/AuthContext.tsx`
+  - poprawa logiki auth (session vs user),
+  - self-healing profilu (referral_code),
+  - wywołanie backendowej funkcji po signUp,
+  - odduplikowanie fetchUserProfile.
+- `src/components/layout/DashboardLayout.tsx`
+  - redirect na podstawie session,
+  - spinner gdy session jest, ale user/profil się jeszcze ładuje.
+- `src/pages/Referrals.tsx`
+  - opcjonalny “Napraw polecenie” (email input + invoke repair),
+  - opcjonalny “Odśwież” (manual refresh).
+
+## Zakres zmian w backend (Lovable Cloud)
+- Nowe backendowe funkcje:
+  - `post-signup`
+  - `repair-referral`
+- Migracje:
+  - indeksy unikalne dla `profiles.referral_code` oraz `referrals` (idempotencja).
+
+## Dlaczego to naprawi problem “wcześniej działało”
+Wcześniej działało prawdopodobnie dlatego, że insert do `referrals` był chwilowo “otwarty” (policy WITH CHECK true) albo rejestracja dawała sesję od razu. Po uszczelnieniu RLS (i przy potwierdzaniu email) insert z frontendu przestał przechodzić. Zaproponowane rozwiązanie utrzymuje bezpieczeństwo i przywraca działanie niezależnie od tego, czy sesja jest już aktywna.
 
