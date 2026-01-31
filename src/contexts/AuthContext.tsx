@@ -99,7 +99,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         firstName: metadata?.firstName || "",
         lastName: metadata?.lastName || "",
         phone: metadata?.phone || "",
-        referralCode: metadata?.referralCode || "",
+        // Prefer profile.referral_code, fallback to metadata
+        referralCode: profile?.referral_code || metadata?.referralCode || "",
         referredBy: metadata?.referredBy,
         createdAt: supabaseUser.created_at,
         avatarUrl: profile?.avatar_url || undefined,
@@ -124,7 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -132,6 +133,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       return { success: false, error: error.message };
     }
+
+    // Wait for user profile to be loaded before returning success
+    if (data.user) {
+      await fetchUserProfile(data.user);
+    }
+
     return { success: true };
   };
 
