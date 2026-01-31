@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 
 const RecommendationCreator = () => {
-  const { id } = useParams<{ id: string }>();
+  // Avoid TSX generic parsing edge-cases by typing via assertion.
+  const { id } = useParams() as { id: string };
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
@@ -68,9 +70,9 @@ const RecommendationCreator = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="h-full flex flex-col gap-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 shrink-0">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/patient/${id}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -80,13 +82,14 @@ const RecommendationCreator = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Layout: on web keep everything inside one viewport by using fixed-height panels */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Interactive Body Systems Overlay */}
-          <Card>
+          <Card className="min-h-0 flex flex-col">
             <CardHeader>
               <CardTitle className="text-lg">Układy ciała</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 min-h-0 overflow-auto">
               <BodySystemsOverlay
                 selectedSystems={selectedSystems}
                 onToggle={handleSystemToggle}
@@ -96,84 +99,100 @@ const RecommendationCreator = () => {
 
           {/* Right Column - PDF Creator Form */}
           <div className="lg:col-span-2">
-            <Card>
+            <Card className="min-h-0 flex flex-col">
               <CardHeader>
                 <CardTitle className="text-lg">Kreator PDF</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Diagnosis Summary */}
-                <div className="space-y-2">
-                  <Label htmlFor="diagnosisSummary">Podsumowanie diagnozy</Label>
-                  <Textarea
-                    id="diagnosisSummary"
-                    placeholder="Wprowadź podsumowanie diagnozy..."
-                    value={formData.diagnosisSummary}
-                    onChange={(e) => setFormData({ ...formData, diagnosisSummary: e.target.value })}
-                    className="min-h-[100px]"
-                  />
-                </div>
+              <CardContent className="flex-1 min-h-0 flex flex-col gap-4">
+                <Tabs defaultValue="diagnosis" className="flex-1 min-h-0 flex flex-col">
+                  <TabsList className="w-full justify-start flex-wrap h-auto">
+                    <TabsTrigger value="diagnosis">Diagnoza</TabsTrigger>
+                    <TabsTrigger value="diet">Dieta</TabsTrigger>
+                    <TabsTrigger value="supp">Suplementacja</TabsTrigger>
+                    <TabsTrigger value="therapies">Terapie</TabsTrigger>
+                    <TabsTrigger value="shop">Sklep</TabsTrigger>
+                  </TabsList>
 
-                {/* Dietary Recommendations */}
-                <div className="space-y-2">
-                  <Label htmlFor="dietaryRecommendations">Zalecenia dietetyczne</Label>
-                  <Textarea
-                    id="dietaryRecommendations"
-                    placeholder="Wprowadź zalecenia dietetyczne..."
-                    value={formData.dietaryRecommendations}
-                    onChange={(e) => setFormData({ ...formData, dietaryRecommendations: e.target.value })}
-                    className="min-h-[100px]"
-                  />
-                </div>
+                  <TabsContent value="diagnosis" className="flex-1 min-h-0 mt-4">
+                    <div className="h-full flex flex-col gap-2">
+                      <Label htmlFor="diagnosisSummary">Podsumowanie diagnozy</Label>
+                      <Textarea
+                        id="diagnosisSummary"
+                        placeholder="Wprowadź podsumowanie diagnozy..."
+                        value={formData.diagnosisSummary}
+                        onChange={(e) =>
+                          setFormData({ ...formData, diagnosisSummary: e.target.value })
+                        }
+                        className="flex-1 min-h-0 resize-none"
+                      />
+                    </div>
+                  </TabsContent>
 
-                {/* Supplementation Program */}
-                <div className="space-y-2">
-                  <Label htmlFor="supplementationProgram">Kuracja - Program suplementacji</Label>
-                  <Textarea
-                    id="supplementationProgram"
-                    placeholder="Wprowadź program suplementacji..."
-                    value={formData.supplementationProgram}
-                    onChange={(e) => setFormData({ ...formData, supplementationProgram: e.target.value })}
-                    className="min-h-[100px]"
-                  />
-                </div>
+                  <TabsContent value="diet" className="flex-1 min-h-0 mt-4">
+                    <div className="h-full flex flex-col gap-2">
+                      <Label htmlFor="dietaryRecommendations">Zalecenia dietetyczne</Label>
+                      <Textarea
+                        id="dietaryRecommendations"
+                        placeholder="Wprowadź zalecenia dietetyczne..."
+                        value={formData.dietaryRecommendations}
+                        onChange={(e) =>
+                          setFormData({ ...formData, dietaryRecommendations: e.target.value })
+                        }
+                        className="flex-1 min-h-0 resize-none"
+                      />
+                    </div>
+                  </TabsContent>
 
-                {/* Shop Links */}
-                <div className="space-y-2">
-                  <Label htmlFor="shopLinks">Linki do sklepu</Label>
-                  <Textarea
-                    id="shopLinks"
-                    placeholder="Wprowadź linki do produktów..."
-                    value={formData.shopLinks}
-                    onChange={(e) => setFormData({ ...formData, shopLinks: e.target.value })}
-                    className="min-h-[80px]"
-                  />
-                </div>
+                  <TabsContent value="supp" className="flex-1 min-h-0 mt-4">
+                    <div className="h-full flex flex-col gap-2">
+                      <Label htmlFor="supplementationProgram">Kuracja - Program suplementacji</Label>
+                      <Textarea
+                        id="supplementationProgram"
+                        placeholder="Wprowadź program suplementacji..."
+                        value={formData.supplementationProgram}
+                        onChange={(e) =>
+                          setFormData({ ...formData, supplementationProgram: e.target.value })
+                        }
+                        className="flex-1 min-h-0 resize-none"
+                      />
+                    </div>
+                  </TabsContent>
 
-                {/* Supporting Therapies */}
-                <div className="space-y-2">
-                  <Label htmlFor="supportingTherapies">Terapie wspierające</Label>
-                  <Textarea
-                    id="supportingTherapies"
-                    placeholder="Wprowadź zalecane terapie wspierające..."
-                    value={formData.supportingTherapies}
-                    onChange={(e) => setFormData({ ...formData, supportingTherapies: e.target.value })}
-                    className="min-h-[100px]"
-                  />
-                </div>
+                  <TabsContent value="therapies" className="flex-1 min-h-0 mt-4">
+                    <div className="h-full flex flex-col gap-2">
+                      <Label htmlFor="supportingTherapies">Terapie wspierające</Label>
+                      <Textarea
+                        id="supportingTherapies"
+                        placeholder="Wprowadź zalecane terapie wspierające..."
+                        value={formData.supportingTherapies}
+                        onChange={(e) =>
+                          setFormData({ ...formData, supportingTherapies: e.target.value })
+                        }
+                        className="flex-1 min-h-0 resize-none"
+                      />
+                    </div>
+                  </TabsContent>
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate(`/admin/patient/${id}`)}
-                  >
+                  <TabsContent value="shop" className="flex-1 min-h-0 mt-4">
+                    <div className="h-full flex flex-col gap-2">
+                      <Label htmlFor="shopLinks">Linki do sklepu</Label>
+                      <Textarea
+                        id="shopLinks"
+                        placeholder="Wprowadź linki do produktów..."
+                        value={formData.shopLinks}
+                        onChange={(e) => setFormData({ ...formData, shopLinks: e.target.value })}
+                        className="flex-1 min-h-0 resize-none"
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+
+                {/* Actions (kept in view) */}
+                <div className="flex justify-end gap-3 pt-2 shrink-0">
+                  <Button variant="outline" onClick={() => navigate(`/admin/patient/${id}`)}>
                     Powrót
                   </Button>
-                  <Button 
-                    onClick={handleSubmit} 
-                    disabled={isLoading}
-                    className="gap-2"
-                  >
+                  <Button onClick={handleSubmit} disabled={isLoading} className="gap-2">
                     <Save className="h-4 w-4" />
                     {isLoading ? "Zapisywanie..." : "Zapisz"}
                   </Button>
