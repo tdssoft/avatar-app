@@ -14,6 +14,10 @@ import Profile from "./pages/Profile";
 import Help from "./pages/Help";
 import Referrals from "./pages/Referrals";
 import Payment from "./pages/Payment";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import PatientProfile from "./pages/admin/PatientProfile";
+import RecommendationCreator from "./pages/admin/RecommendationCreator";
+import Partners from "./pages/admin/Partners";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +38,11 @@ const App = () => (
             <Route path="/dashboard/help" element={<Help />} />
             <Route path="/dashboard/referrals" element={<Referrals />} />
             <Route path="/payment" element={<Payment />} />
+            {/* Admin Routes */}
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/patient/:id" element={<PatientProfile />} />
+            <Route path="/admin/patient/:id/recommendation/new" element={<RecommendationCreator />} />
+            <Route path="/admin/partners" element={<Partners />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
