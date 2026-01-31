@@ -1,132 +1,168 @@
 
+# Plan: Naprawa dwóch krytycznych błędów
 
-# Plan: 5 poprawek interfejsu
+## Zidentyfikowane problemy
 
-## Podsumowanie zmian
+### Problem 1: Automatyczne wylogowanie przy odświeżaniu strony
 
-Wdrożę 5 poprawek:
-1. Przekierowanie po aktywacji maila na /dashboard
-2. Dodanie podglądu i pobierania plików
-3. Przeniesienie "Twoje zdjęcie" do prawego górnego rogu
-4. Przycisk "Wyloguj" pod "Program polecający"
-5. Kolorystyka w odcieniach szarości/czerni (bez niebieskiego)
-
----
-
-## Zmiana 1: Przekierowanie po aktywacji maila
-
-### Plik: `src/contexts/AuthContext.tsx`
-
-Zmienię `emailRedirectTo` w funkcji `signup`:
-- Z: `${window.location.origin}/` (strona główna)
-- Na: `${window.location.origin}/dashboard`
+**Przyczyna:** W pliku `src/components/layout/DashboardLayout.tsx` (linie 16-20):
 
 ```typescript
-// Linia 139 - zmiana:
-const redirectUrl = `${window.location.origin}/dashboard`;
+useEffect(() => {
+  if (!isAuthenticated) {
+    navigate("/login");
+  }
+}, [isAuthenticated, navigate]);
 ```
+
+Ten kod nie uwzględnia stanu ładowania (`isLoading`). Przy odświeżeniu strony:
+1. Aplikacja się ładuje
+2. `user` jest `null` (sesja jeszcze nie została odzyskana z Supabase)
+3. `isAuthenticated` = `false`
+4. Przekierowanie do `/login` następuje **zanim** Supabase zdąży odzyskać sesję
+
+### Problem 2: Brak poleconej osoby w liście poleceń
+
+**Przyczyna:** System poleceń używa `localStorage` (`avatar_referrals`), ale **nigdzie nie ma kodu, który tworzy rekord polecenia** przy rejestracji.
+
+W `SignupWizard.tsx`:
+- Kod polecający jest pobierany z URL (`?ref=...`)
+- Zapisywany jest w `user_metadata.referredBy`
+- **ALE** - nie jest tworzony rekord w `localStorage.avatar_referrals`
+
+Dlatego strona "Program polecający" pokazuje "Brak poleceń" - bo `getReferralsByCode()` szuka w pustym localStorage.
 
 ---
 
-## Zmiana 2: Podgląd i pobieranie plików
+## Rozwiązanie
 
-### Plik: `src/components/dashboard/ResultsUpload.tsx`
+### Naprawa 1: Zabezpieczenie przed przedwczesnym przekierowaniem
 
-Dodam przyciski przy każdym pliku:
-- **Ikona oka** - podgląd (otwiera w nowej karcie)
-- **Ikona pobierania** - pobiera plik
+**Plik:** `src/components/layout/DashboardLayout.tsx`
 
-Dla podglądu/pobrania użyję `supabase.storage.from("results").createSignedUrl()` ponieważ bucket "results" jest prywatny.
+Zmiana:
+```typescript
+// PRZED:
+useEffect(() => {
+  if (!isAuthenticated) {
+    navigate("/login");
+  }
+}, [isAuthenticated, navigate]);
 
-Struktura listy plików zmieni się z:
-```
-[ plik.pdf ] [ X ]
-```
-Na:
-```
-[ plik.pdf ] [ Podgląd ] [ Pobierz ] [ X ]
-```
+// PO:
+useEffect(() => {
+  // Poczekaj aż ładowanie się zakończy
+  if (!isLoading && !isAuthenticated) {
+    navigate("/login");
+  }
+}, [isLoading, isAuthenticated, navigate]);
 
----
-
-## Zmiana 3: "Twoje zdjęcie" w prawym górnym rogu
-
-### Plik: `src/pages/Results.tsx`
-
-Obecnie:
-```jsx
-<div className="fixed bottom-6 right-6 hidden lg:block">
-  <PhotoUpload className="w-48" />
-</div>
+// Dodaj też sprawdzenie ładowania w render:
+if (isLoading) {
+  return <LoadingScreen />; // lub spinner
+}
 ```
 
-Zmienię na:
-```jsx
-<div className="fixed top-20 right-6 hidden lg:block">
-  <PhotoUpload className="w-48" />
-</div>
+**Wymagane zmiany:**
+1. Dodać `isLoading` do destrukturyzacji z `useAuth()`
+2. Zmienić warunek w `useEffect` 
+3. Dodać sprawdzenie `isLoading` przed renderowaniem contentu
+
+### Naprawa 2: Migracja systemu poleceń do bazy danych
+
+**Problem z localStorage:** Dane są lokalne dla przeglądarki - polecający nie widzi osób, które zarejestrowały się z innego urządzenia.
+
+**Rozwiązanie:** Stworzyć tabelę `referrals` w bazie danych i przepisać logikę.
+
+#### Krok 2.1: Utworzenie tabeli `referrals`
+
+```sql
+CREATE TABLE public.referrals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_user_id uuid NOT NULL,
+  referrer_code text NOT NULL,
+  referred_user_id uuid NOT NULL,
+  referred_email text NOT NULL,
+  referred_name text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  created_at timestamptz DEFAULT now(),
+  activated_at timestamptz
+);
+
+-- RLS: Użytkownik widzi tylko swoje polecenia
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view referrals they made"
+  ON public.referrals FOR SELECT
+  USING (auth.uid() = referrer_user_id);
 ```
 
-Użyję `top-20` aby zmieścić się pod nagłówkiem (header ma 64px = h-16).
+#### Krok 2.2: Aktualizacja funkcji rejestracji
 
----
+**Plik:** `src/contexts/AuthContext.tsx` (funkcja `signup`)
 
-## Zmiana 4: Przycisk "Wyloguj" pod "Program polecający"
-
-### Plik: `src/components/layout/Sidebar.tsx`
-
-Obecnie "Wyloguj" jest w osobnej sekcji na samym dole z border-top.
-
-Przeniosę przycisk "Wyloguj" jako ostatni element listy nawigacji, zaraz po "Program polecający":
+Po pomyślnej rejestracji, jeśli użytkownik podał kod polecający:
+1. Wyszukaj użytkownika z tym kodem polecającym
+2. Utwórz rekord w tabeli `referrals`
 
 ```typescript
-const navItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
-  { title: "Wyniki badań", url: "/dashboard/results", icon: Shield },
-  { title: "Mój profil", url: "/dashboard/profile", icon: User },
-  { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
-  { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
-];
-
-// Przycisk Wyloguj będzie renderowany tuż pod listą nawigacji,
-// bez border-top i bez osobnej sekcji
+// Po utworzeniu użytkownika:
+if (data.referralCode && authData.user) {
+  // Znajdź polecającego po kodzie
+  const { data: referrerUsers } = await supabase
+    .from('profiles')
+    .select('user_id')
+    .eq('referral_code', data.referralCode)
+    .single();
+  
+  if (referrerUsers) {
+    await supabase.from('referrals').insert({
+      referrer_user_id: referrerUsers.user_id,
+      referrer_code: data.referralCode,
+      referred_user_id: authData.user.id,
+      referred_email: data.email,
+      referred_name: `${data.firstName} ${data.lastName}`,
+      status: 'pending'
+    });
+  }
+}
 ```
 
-Usunę:
-```jsx
-{/* Logout */}
-<div className="p-4 border-t border-border">
+#### Krok 2.3: Aktualizacja tabeli `profiles`
+
+Dodać kolumnę `referral_code` do tabeli `profiles`:
+
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN referral_code text;
+
+-- Indeks dla szybkiego wyszukiwania po kodzie
+CREATE INDEX idx_profiles_referral_code ON public.profiles(referral_code);
 ```
 
-I dodam przycisk wylogowania bezpośrednio pod listą nawigacji w sekcji `<nav>`.
+#### Krok 2.4: Aktualizacja strony poleceń
 
----
+**Plik:** `src/pages/Referrals.tsx`
 
-## Zmiana 5: Kolorystyka szarości/czerni (bez niebieskiego)
+Zamienić wywołania localStorage na zapytania do Supabase:
 
-### Plik: `src/index.css`
+```typescript
+// PRZED:
+setReferrals(getReferralsByCode(user.referralCode));
 
-Zmienię kolor akcentu z niebieskiego na czarny/szary:
-
-Obecnie:
-```css
---accent: 197 100% 42%;  /* niebieski */
---accent-foreground: 0 0% 100%;
+// PO:
+const { data } = await supabase
+  .from('referrals')
+  .select('*')
+  .eq('referrer_code', user.referralCode);
+setReferrals(data || []);
 ```
 
-Zmienię na:
-```css
---accent: 0 0% 20%;  /* ciemnoszary */
---accent-foreground: 0 0% 100%;
-```
+#### Krok 2.5: Aktualizacja funkcji poleceń
 
-### Pliki do przejrzenia pod kątem klas niebieskich:
+**Plik:** `src/lib/referral.ts`
 
-Sprawdzę następujące pliki i zamienię `bg-accent/10`, `text-accent` na wersje szare:
-
-1. **`src/pages/Referrals.tsx`** - ikony w sekcji nagród używają `text-accent` i `bg-accent/10`
-
-Po zmianie zmiennej CSS `--accent` wszystkie te elementy automatycznie przyjmą nowy kolor.
+Przepisać wszystkie funkcje, aby używały Supabase zamiast localStorage.
 
 ---
 
@@ -134,68 +170,35 @@ Po zmianie zmiennej CSS `--accent` wszystkie te elementy automatycznie przyjmą 
 
 | Plik | Zmiana |
 |------|--------|
-| `src/contexts/AuthContext.tsx` | Zmiana redirectUrl na /dashboard |
-| `src/components/dashboard/ResultsUpload.tsx` | Dodanie podglądu i pobierania |
-| `src/pages/Results.tsx` | Zmiana pozycji PhotoUpload z bottom na top |
-| `src/components/layout/Sidebar.tsx` | Wyloguj pod Program polecający |
-| `src/index.css` | Accent color na szary zamiast niebieskiego |
+| `src/components/layout/DashboardLayout.tsx` | Dodanie sprawdzenia `isLoading` przed przekierowaniem |
+| `supabase/migrations/...` | Utworzenie tabeli `referrals` i dodanie kolumny do `profiles` |
+| `src/contexts/AuthContext.tsx` | Zapisywanie kodu polecającego w profilu + tworzenie rekordu polecenia |
+| `src/lib/referral.ts` | Przepisanie funkcji na Supabase |
+| `src/pages/Referrals.tsx` | Użycie danych z bazy zamiast localStorage |
 
 ---
 
 ## Szczegóły techniczne
 
-### Podgląd i pobieranie plików (Zmiana 2)
+### Przepływ po naprawie (Problem 1):
 
-```typescript
-// Funkcja do pobrania signed URL
-const getSignedUrl = async (filePath: string): Promise<string | null> => {
-  const { data, error } = await supabase.storage
-    .from("results")
-    .createSignedUrl(filePath, 60); // 60 sekund ważności
-  
-  if (error) return null;
-  return data.signedUrl;
-};
+1. Użytkownik odświeża stronę
+2. `isLoading = true`, więc wyświetla się spinner
+3. Supabase odzyskuje sesję z tokena w localStorage
+4. `onAuthStateChange` aktualizuje `user`
+5. `isLoading = false`, `isAuthenticated = true`
+6. Dashboard się wyświetla
 
-// Funkcja podglądu
-const handlePreview = async (filePath: string) => {
-  const url = await getSignedUrl(filePath);
-  if (url) {
-    window.open(url, "_blank");
-  }
-};
+### Przepływ po naprawie (Problem 2):
 
-// Funkcja pobierania
-const handleDownload = async (filePath: string, fileName: string) => {
-  const url = await getSignedUrl(filePath);
-  if (url) {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-  }
-};
-```
-
-### Nowy układ listy plików
-
-```jsx
-<li className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-2">
-  <div className="flex items-center gap-2">
-    <FileCheck className="h-4 w-4 text-foreground" />
-    <span className="text-sm text-foreground">{file.file_name}</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <button onClick={() => handlePreview(file.file_path)} title="Podgląd">
-      <Eye className="h-4 w-4" />
-    </button>
-    <button onClick={() => handleDownload(file.file_path, file.file_name)} title="Pobierz">
-      <Download className="h-4 w-4" />
-    </button>
-    <button onClick={() => handleDeleteFile(file.id, file.file_path)} title="Usuń">
-      <X className="h-4 w-4" />
-    </button>
-  </div>
-</li>
-```
+1. Jan Kowalski klika link `signup?ref=ABC123`
+2. Rejestruje się przez formularz
+3. System znajduje użytkownika z kodem `ABC123` (Alan Urban)
+4. Tworzy rekord w tabeli `referrals`:
+   - `referrer_user_id` = ID Alana
+   - `referred_user_id` = ID Jana
+   - `status` = "pending"
+5. Alan otwiera "Program polecający"
+6. Zapytanie do bazy zwraca Jana Kowalskiego
+7. Jan widoczny w liście poleceń
 
