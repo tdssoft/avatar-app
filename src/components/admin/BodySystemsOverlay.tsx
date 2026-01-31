@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { Check } from "lucide-react";
 
 // Import body system images
@@ -14,17 +13,18 @@ import odpornosciowyImg from "@/assets/body-systems/odpornosciowy.png";
 
 const bodySystemsOptions = [
   { id: "limfatyczny", label: "Limfatyczny" },
-  { id: "szkieletowy", label: "Szkieletowy" },
   { id: "nerwowy", label: "Nerwowy" },
   { id: "miesniowy", label: "Mięśniowy" },
   { id: "oddechowy", label: "Oddechowy" },
-  { id: "pokarmowy", label: "Pokarmowy" },
   { id: "krazeniowy", label: "Krążeniowy" },
   { id: "moczowy", label: "Moczowy" },
   { id: "hormonalny", label: "Hormonalny" },
   { id: "odpornosciowy", label: "Odpornościowy" },
-  { id: "rozrodczy", label: "Rozrodczy" },
-  { id: "powlokowy", label: "Powłokowy" },
+  // Systems without images - hidden for now
+  // { id: "szkieletowy", label: "Szkieletowy" },
+  // { id: "pokarmowy", label: "Pokarmowy" },
+  // { id: "rozrodczy", label: "Rozrodczy" },
+  // { id: "powlokowy", label: "Powłokowy" },
 ];
 
 // Map system IDs to their images
@@ -45,61 +45,61 @@ interface BodySystemsOverlayProps {
 }
 
 const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayProps) => {
-  const [hoveredSystem, setHoveredSystem] = useState<string | null>(null);
-
-  // Show hovered system image, or first selected, or null
-  const previewSystem = hoveredSystem || (selectedSystems.length > 0 ? selectedSystems[0] : null);
-  const previewImage = previewSystem ? systemImages[previewSystem] : null;
-
   return (
-    <div className="flex gap-4">
-      {/* Preview Area */}
-      <div className="flex-shrink-0 w-40">
-        <div className="aspect-[3/4] bg-muted/30 rounded-lg overflow-hidden border border-border flex items-center justify-center">
-          {previewImage ? (
-            <img
-              src={previewImage}
-              alt={`Układ ${previewSystem}`}
-              className="w-full h-full object-contain p-2 animate-in fade-in duration-200"
-            />
-          ) : (
-            <span className="text-muted-foreground text-xs text-center px-2">
-              Najedź na układ lub wybierz
-            </span>
-          )}
-        </div>
-        {selectedSystems.length > 0 && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Wybrano: {selectedSystems.length}
-          </p>
-        )}
-      </div>
+    <div className="space-y-3">
+      {/* Selected count */}
+      {selectedSystems.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Wybrano: <span className="font-medium text-foreground">{selectedSystems.length}</span> układów
+        </p>
+      )}
 
-      {/* Grid of system tiles */}
-      <div className="flex-1 grid grid-cols-3 gap-2">
+      {/* Grid of image tiles */}
+      <div className="grid grid-cols-4 gap-3">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
-          const hasImage = !!systemImages[system.id];
+          const image = systemImages[system.id];
 
           return (
             <button
               key={system.id}
               onClick={() => onToggle(system.id)}
-              onMouseEnter={() => hasImage && setHoveredSystem(system.id)}
-              onMouseLeave={() => setHoveredSystem(null)}
               className={cn(
-                "relative p-2 rounded-md border text-xs font-medium transition-all duration-150",
-                "hover:scale-[1.02] active:scale-[0.98]",
+                "group relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all duration-200",
+                "hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
                 isSelected
-                  ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
-                  : "bg-card text-card-foreground border-border hover:bg-accent hover:border-accent-foreground/20",
-                !hasImage && "opacity-60"
+                  ? "border-primary ring-2 ring-primary/30"
+                  : "border-border hover:border-primary/50"
               )}
             >
-              {isSelected && (
-                <Check className="absolute top-1 right-1 w-3 h-3" />
+              {/* Image */}
+              {image && (
+                <img
+                  src={image}
+                  alt={system.label}
+                  className="absolute inset-0 w-full h-full object-contain p-1 bg-background"
+                />
               )}
-              <span className="block truncate">{system.label}</span>
+
+              {/* Hover overlay with name */}
+              <div className={cn(
+                "absolute inset-0 flex items-center justify-center transition-all duration-200",
+                "bg-black/0 group-hover:bg-black/60"
+              )}>
+                <span className={cn(
+                  "text-white font-semibold text-sm text-center px-2 transition-opacity duration-200",
+                  "opacity-0 group-hover:opacity-100"
+                )}>
+                  {system.label}
+                </span>
+              </div>
+
+              {/* Selected checkmark */}
+              {isSelected && (
+                <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-md">
+                  <Check className="w-3 h-3 text-primary-foreground" />
+                </div>
+              )}
             </button>
           );
         })}
