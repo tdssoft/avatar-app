@@ -55,7 +55,7 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
       )}
 
       {/* Responsive grid of image tiles (fits the available panel width) */}
-      <div className="grid gap-3 sm:gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+      <div className="grid gap-2 sm:gap-3 [grid-template-columns:repeat(auto-fit,minmax(120px,1fr))]">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
           const image = systemImages[system.id];
