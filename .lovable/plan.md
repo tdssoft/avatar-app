@@ -1,205 +1,178 @@
 
-# Plan: Ekrany panelu administracyjnego
+
+# Plan: Interaktywny panel z overlayem układów ciała
 
 ## Podsumowanie
-Na podstawie dostarczonych screenshotów, stworzę kompletny panel administracyjny dla konta admin, zawierający: dashboard z listą pacjentów, profil pacjenta z pełną funkcjonalnością, kreator zaleceń (rekomendacji) oraz zarządzanie partnerami.
+Zastąpię obecny system checkboxów interaktywnym panelem, gdzie użytkownik klika na przyciski układów ciała, a wybrane systemy są nakładane na bazową sylwetkę jako przezroczyste warstwy, tworząc kompozyt wizualny.
 
 ---
 
-## Nowe ekrany do stworzenia
+## Jak to będzie działać
 
-### 1. Admin Dashboard - Lista pacjentów
-- Tabela z pacjentami (Imię i nazwisko, Subskrypcja, Diagnoza, Akcja, Ostatnia komunikacja)
-- Przycisk "+" do dodawania nowego pacjenta
-- Modal tworzenia konta pacjenta (Imię, Nazwisko, Email, Numer telefonu)
-- Przycisk "Profil pacjenta" przy każdym wierszu
-
-### 2. Profil pacjenta (szczegóły)
-- Nagłowek: "Pacjent: [Imię Nazwisko]"
-- Sekcja "Zalecenia z dnia" z selektorem daty i przyciskiem "+"
-- Upload pliku zaleceń zdrowotnych
-- Sekcja "Pakiet Pacjenta" (info o platnosci)
-- Prawy sidebar z danymi pacjenta (awatar, imię, email, telefon)
-- Sekcja "Ankieta pacjenta" z przyciskiem "Przeglądaj"
-- Sekcja "Pliki z poprzednimi wynikami"
-- Sekcja "Notatki" z textarea i przyciskiem "Dodaj notatkę"
-- Sekcja "Komunikacja SMS" z przyciskiem "Wyślij SMS"
-- Sekcja "Pytania przez formularz" z przyciskiem "Odpowiedz"
-
-### 3. Kreator zaleceń (Recommendations Creator)
-- Checkbox lista ukladow ciala (limfatyczny, szkieletowy, nerwowy, miesniowy, oddechowy, pokarmowy, krazeniowy, moczowy, hormonalny, odpornosciowy, rozrodczy, powlokowy)
-- Obrazek "Avatar" po lewej stronie
-- Sekcja "Kreator PDF" z textarea:
-  - Podsumowanie diagnozy
-  - Zalecenia dietetyczne
-  - Kuracja Program suplementacji
-  - Linki do sklepu
-  - Terapie wspierajace
-- Przyciski "Powrot" i "Zapisz"
-
-### 4. Strona Partnerzy
-- Tabela "Partnerzy polecajacy" (Imie i nazwisko, Linki do sklepow, Ilosc zarejestrowanych kont)
-- Przycisk "Dodaj link +" przy kazdym partnerze
-- Modal "Dodaj link do sklepow"
+1. **Bazowa sylwetka** - po lewej stronie wyświetla się szary obrys ludzkiego ciała (podstawa)
+2. **Przyciski układów** - lista przycisków z nazwami układów ciała
+3. **Nakładanie warstw** - po kliknięciu przycisku:
+   - Przycisk zmienia kolor na aktywny (podświetlenie)
+   - Odpowiadający obraz układu nakłada się na sylwetkę z przezroczystością
+   - Można wybrać wiele układów - wszystkie nakładają się na siebie
+4. **Efekt końcowy** - użytkownik widzi kompozyt wszystkich wybranych układów na jednej sylwetce
 
 ---
 
-## Struktura bazy danych (nowe tabele)
+## Struktura komponentu
 
-### Tabela: `patients` (rozszerzenie profilu dla admina)
+### Nowy komponent: `BodySystemsOverlay.tsx`
 ```
-- id: uuid (PK)
-- user_id: uuid (FK do profiles)
-- admin_notes: text
-- subscription_status: text (Brak, Aktywna, etc.)
-- diagnosis_status: text
-- last_communication_at: timestamp
-- created_at: timestamp
-- updated_at: timestamp
+src/components/admin/BodySystemsOverlay.tsx
 ```
 
-### Tabela: `recommendations` (zalecenia zdrowotne)
-```
-- id: uuid (PK)
-- patient_id: uuid (FK)
-- created_by_admin_id: uuid
-- recommendation_date: date
-- body_systems: text[] (tablica wybranych ukladow)
-- diagnosis_summary: text
-- dietary_recommendations: text
-- supplementation_program: text
-- shop_links: text
-- supporting_therapies: text
-- pdf_url: text (wygenerowany PDF)
-- created_at: timestamp
-```
-
-### Tabela: `patient_notes` (notatki admina)
-```
-- id: uuid (PK)
-- patient_id: uuid (FK)
-- admin_id: uuid
-- note_text: text
-- created_at: timestamp
-```
-
-### Tabela: `patient_messages` (komunikacja SMS/pytania)
-```
-- id: uuid (PK)
-- patient_id: uuid (FK)
-- admin_id: uuid (null jesli od pacjenta)
-- message_type: text (sms, question, answer)
-- message_text: text
-- sent_at: timestamp
-```
-
-### Tabela: `partner_shop_links` (linki partnerow)
-```
-- id: uuid (PK)
-- partner_user_id: uuid (FK do profiles)
-- shop_url: text
-- added_by_admin_id: uuid
-- created_at: timestamp
-```
-
-### Rozszerzenie tabeli `profiles`
-```
-- role: text (user, admin) - default 'user'
-- first_name: text
-- last_name: text
-- phone: text
-```
+Komponent zawiera:
+- Kontener z `position: relative` dla nakładania warstw
+- Bazowy obraz sylwetki (szary obrys)
+- Obrazy układów z `position: absolute` nakładane na bazę
+- Lista przycisków do wyboru układów
 
 ---
 
-## Struktura plikow
+## Dostępne obrazy układów
 
-### Nowe strony (src/pages/admin/)
-```
-src/pages/admin/
-  AdminDashboard.tsx      - Lista pacjentow
-  PatientProfile.tsx      - Szczegoly pacjenta
-  RecommendationCreator.tsx - Kreator zalecen
-  Partners.tsx            - Zarzadzanie partnerami
-```
+Na podstawie przesłanych plików:
+| ID układu | Plik obrazu |
+|-----------|-------------|
+| limfatyczny | układ-limfatyczny.png |
+| nerwowy | układ-nerwowy.png |
+| miesniowy | układ-mięśniowy.png |
+| oddechowy | układ-oddechowy.png |
+| krazeniowy | układ-krążeniowy.png |
+| moczowy | układ-moczowy.png |
+| hormonalny | układ-hormonalny.png |
+| odpornosciowy | układ-odpornościowy.png |
 
-### Nowe komponenty (src/components/admin/)
-```
-src/components/admin/
-  AdminSidebar.tsx        - Menu boczne dla admina
-  AdminLayout.tsx         - Layout panelu admina
-  PatientTable.tsx        - Tabela pacjentow
-  CreatePatientDialog.tsx - Modal tworzenia pacjenta
-  PatientNotesSection.tsx - Sekcja notatek
-  PatientSmsSection.tsx   - Sekcja SMS
-  PatientQuestionsSection.tsx - Sekcja pytan
-  BodySystemsSelector.tsx - Checkboxy ukladow ciala
-  RecommendationForm.tsx  - Formularz zalecen
-  PartnerTable.tsx        - Tabela partnerow
-  AddLinkDialog.tsx       - Modal dodawania linku
-```
-
-### Nowe funkcje backendowe (supabase/functions/)
-```
-supabase/functions/
-  admin-create-patient/   - Tworzenie konta pacjenta (z wysylka email)
-  admin-send-sms/         - Wysylka SMS
-  admin-generate-pdf/     - Generowanie PDF zalecen
-```
+Brakujące układy (szkieletowy, pokarmowy, rozrodczy, powłokowy) będą wyświetlane jako przyciski, ale bez nakładki obrazu do momentu dostarczenia grafik.
 
 ---
 
-## Routing
+## Zmiany w plikach
 
-Nowe trasy w `App.tsx`:
+### 1. Dodanie obrazów do projektu
+Skopiuję przesłane pliki do:
 ```
-/admin                     -> AdminDashboard
-/admin/patient/:id         -> PatientProfile
-/admin/patient/:id/recommendation/new -> RecommendationCreator
-/admin/partners            -> Partners
+src/assets/body-systems/
+  base-silhouette.png     <- bazowa sylwetka (z image-40.png lub image-41.png)
+  limfatyczny.png
+  nerwowy.png
+  miesniowy.png
+  oddechowy.png
+  krazeniowy.png
+  moczowy.png
+  hormonalny.png
+  odpornosciowy.png
+```
+
+### 2. Nowy komponent `BodySystemsOverlay.tsx`
+```typescript
+// Interfejs
+interface BodySystemsOverlayProps {
+  selectedSystems: string[];
+  onToggle: (systemId: string) => void;
+}
+
+// Mapa układów do obrazów
+const systemImages = {
+  limfatyczny: limfatycznyImg,
+  nerwowy: nerwowyImg,
+  // ... etc
+};
+
+// Renderowanie
+<div className="relative w-full aspect-[3/4]">
+  {/* Bazowa sylwetka */}
+  <img src={baseSilhouette} className="absolute inset-0 w-full h-full" />
+  
+  {/* Nakładki wybranych układów */}
+  {selectedSystems.map(systemId => (
+    systemImages[systemId] && (
+      <img 
+        key={systemId}
+        src={systemImages[systemId]} 
+        className="absolute inset-0 w-full h-full opacity-80 transition-opacity"
+      />
+    )
+  ))}
+</div>
+
+{/* Przyciski układów */}
+<div className="grid grid-cols-2 gap-2">
+  {bodySystemsOptions.map(system => (
+    <button
+      onClick={() => onToggle(system.id)}
+      className={cn(
+        "p-3 rounded-lg border transition-all",
+        selectedSystems.includes(system.id) 
+          ? "bg-primary text-white border-primary" 
+          : "bg-card hover:bg-accent"
+      )}
+    >
+      {system.label}
+    </button>
+  ))}
+</div>
+```
+
+### 3. Aktualizacja `RecommendationCreator.tsx`
+- Usunięcie karty z checkboxami
+- Import i użycie `BodySystemsOverlay`
+- Zachowanie istniejącej logiki `selectedSystems` i `handleSystemToggle`
+
+---
+
+## Wizualizacja interfejsu
+
+```
++----------------------------------+-----------------------------+
+|  [Interaktywna sylwetka]         |   KREATOR PDF               |
+|                                  |                             |
+|   +------------------------+     |   Podsumowanie diagnozy     |
+|   |   ████████████████     |     |   [textarea]                |
+|   |   █ BAZOWA SYLWETKA █  |     |                             |
+|   |   █  + nakładki     █  |     |   Zalecenia dietetyczne     |
+|   |   █  wybranych      █  |     |   [textarea]                |
+|   |   █  układów        █  |     |                             |
+|   |   ████████████████     |     |   Program suplementacji     |
+|   +------------------------+     |   [textarea]                |
+|                                  |                             |
+|   [Limfatyczny] [Szkieletowy]    |   Linki do sklepu           |
+|   [Nerwowy]     [Mięśniowy]      |   [textarea]                |
+|   [Oddechowy]   [Pokarmowy]      |                             |
+|   [Krążeniowy]  [Moczowy]        |   Terapie wspierające       |
+|   [Hormonalny]  [Odpornościowy]  |   [textarea]                |
+|   [Rozrodczy]   [Powłokowy]      |                             |
+|                                  |   [Powrót] [Zapisz]         |
++----------------------------------+-----------------------------+
 ```
 
 ---
 
-## Komponenty UI - mapowanie na istniejace
+## Efekty wizualne
 
-| Element na screenie | Istniejacy komponent |
-|---------------------|---------------------|
-| Tabela pacjentow | Table, TableRow, etc. |
-| Modal tworzenia | Dialog, DialogContent |
-| Przyciski | Button |
-| Pola tekstowe | Input, Textarea |
-| Checkboxy | Checkbox |
-| Selektory | Select |
-| Karty | Card, CardContent |
+1. **Animacje przy wyborze**:
+   - Płynne pojawianie się nakładki (`transition-opacity`)
+   - Podświetlenie aktywnego przycisku
 
----
+2. **Przezroczystość warstw**:
+   - Każdy układ ma 80% opacity
+   - Nakładające się układy tworzą głębszy kolor
 
-## Bezpieczenstwo
-
-1. **RLS Policies**: Wszystkie nowe tabele beda mialy polityki ograniczajace dostep tylko do adminow
-2. **Weryfikacja roli**: Kazda operacja admin-only bedzie sprawdzac `profiles.role = 'admin'`
-3. **Edge Functions**: Operacje wrazliwe (tworzenie kont, SMS) wykonywane przez funkcje backendowe
+3. **Hover na przyciskach**:
+   - Delikatne podświetlenie przy najechaniu
+   - Kursor pointer
 
 ---
 
-## Kolejnosc implementacji
+## Kolejność implementacji
 
-1. Migracja bazy danych (nowe tabele + rozszerzenie profiles o role)
-2. AdminLayout i AdminSidebar
-3. AdminDashboard z tabela pacjentow
-4. CreatePatientDialog + edge function
-5. PatientProfile ze wszystkimi sekcjami
-6. RecommendationCreator
-7. Partners page
-8. Testowanie end-to-end
-
----
-
-## Szacowany zakres
-
-- ~15 nowych plikow komponentow/stron
-- 5-6 nowych tabel w bazie
-- 2-3 nowe edge functions
-- Rozszerzenie routingu
+1. Dodanie plików obrazów do `src/assets/body-systems/`
+2. Utworzenie komponentu `BodySystemsOverlay.tsx`
+3. Aktualizacja `RecommendationCreator.tsx` z nowym komponentem
+4. Testowanie interakcji i wyglądu
 
