@@ -4,27 +4,11 @@ import { ArrowLeft, Save } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import avatarLogo from "@/assets/avatar-logo.svg";
-
-const bodySystemsOptions = [
-  { id: "limfatyczny", label: "Układ limfatyczny" },
-  { id: "szkieletowy", label: "Układ szkieletowy" },
-  { id: "nerwowy", label: "Układ nerwowy" },
-  { id: "miesniowy", label: "Układ mięśniowy" },
-  { id: "oddechowy", label: "Układ oddechowy" },
-  { id: "pokarmowy", label: "Układ pokarmowy" },
-  { id: "krazeniowy", label: "Układ krążeniowy" },
-  { id: "moczowy", label: "Układ moczowy" },
-  { id: "hormonalny", label: "Układ hormonalny" },
-  { id: "odpornosciowy", label: "Układ odpornościowy" },
-  { id: "rozrodczy", label: "Układ rozrodczy" },
-  { id: "powlokowy", label: "Układ powłokowy" },
-];
+import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 
 const RecommendationCreator = () => {
   const { id } = useParams<{ id: string }>();
@@ -97,45 +81,18 @@ const RecommendationCreator = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Body Systems */}
-          <div className="space-y-6">
-            {/* Avatar Image */}
-            <Card>
-              <CardContent className="pt-6 flex justify-center">
-                <img 
-                  src={avatarLogo} 
-                  alt="Avatar - układy ciała" 
-                  className="h-48 w-auto opacity-20"
-                />
-              </CardContent>
-            </Card>
-
-            {/* Body Systems Checkboxes */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Układy ciała</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {bodySystemsOptions.map((system) => (
-                    <div key={system.id} className="flex items-center space-x-3">
-                      <Checkbox
-                        id={system.id}
-                        checked={selectedSystems.includes(system.id)}
-                        onCheckedChange={() => handleSystemToggle(system.id)}
-                      />
-                      <Label 
-                        htmlFor={system.id} 
-                        className="cursor-pointer text-sm font-normal"
-                      >
-                        {system.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Left Column - Interactive Body Systems Overlay */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Układy ciała</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BodySystemsOverlay
+                selectedSystems={selectedSystems}
+                onToggle={handleSystemToggle}
+              />
+            </CardContent>
+          </Card>
 
           {/* Right Column - PDF Creator Form */}
           <div className="lg:col-span-2">
