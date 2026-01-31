@@ -19,6 +19,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string | null
           id: string
+          referral_code: string | null
           updated_at: string | null
           user_id: string
         }
@@ -26,6 +27,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           id?: string
+          referral_code?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -33,8 +35,45 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           id?: string
+          referral_code?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          activated_at: string | null
+          created_at: string | null
+          id: string
+          referred_email: string
+          referred_name: string
+          referred_user_id: string
+          referrer_code: string
+          referrer_user_id: string
+          status: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string | null
+          id?: string
+          referred_email: string
+          referred_name: string
+          referred_user_id: string
+          referrer_code: string
+          referrer_user_id: string
+          status?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string | null
+          id?: string
+          referred_email?: string
+          referred_name?: string
+          referred_user_id?: string
+          referrer_code?: string
+          referrer_user_id?: string
+          status?: string
         }
         Relationships: []
       }
