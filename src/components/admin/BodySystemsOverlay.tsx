@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Check } from "lucide-react";
 
 // Import body system images
-import baseSilhouette from "@/assets/body-systems/base-silhouette.png";
 import limfatycznyImg from "@/assets/body-systems/limfatyczny.png";
 import nerwowyImg from "@/assets/body-systems/nerwowy.png";
 import miesniowyImg from "@/assets/body-systems/miesniowy.png";
@@ -12,21 +13,21 @@ import hormonalnyImg from "@/assets/body-systems/hormonalny.png";
 import odpornosciowyImg from "@/assets/body-systems/odpornosciowy.png";
 
 const bodySystemsOptions = [
-  { id: "limfatyczny", label: "Układ limfatyczny" },
-  { id: "szkieletowy", label: "Układ szkieletowy" },
-  { id: "nerwowy", label: "Układ nerwowy" },
-  { id: "miesniowy", label: "Układ mięśniowy" },
-  { id: "oddechowy", label: "Układ oddechowy" },
-  { id: "pokarmowy", label: "Układ pokarmowy" },
-  { id: "krazeniowy", label: "Układ krążeniowy" },
-  { id: "moczowy", label: "Układ moczowy" },
-  { id: "hormonalny", label: "Układ hormonalny" },
-  { id: "odpornosciowy", label: "Układ odpornościowy" },
-  { id: "rozrodczy", label: "Układ rozrodczy" },
-  { id: "powlokowy", label: "Układ powłokowy" },
+  { id: "limfatyczny", label: "Limfatyczny" },
+  { id: "szkieletowy", label: "Szkieletowy" },
+  { id: "nerwowy", label: "Nerwowy" },
+  { id: "miesniowy", label: "Mięśniowy" },
+  { id: "oddechowy", label: "Oddechowy" },
+  { id: "pokarmowy", label: "Pokarmowy" },
+  { id: "krazeniowy", label: "Krążeniowy" },
+  { id: "moczowy", label: "Moczowy" },
+  { id: "hormonalny", label: "Hormonalny" },
+  { id: "odpornosciowy", label: "Odpornościowy" },
+  { id: "rozrodczy", label: "Rozrodczy" },
+  { id: "powlokowy", label: "Powłokowy" },
 ];
 
-// Map system IDs to their overlay images
+// Map system IDs to their images
 const systemImages: Record<string, string> = {
   limfatyczny: limfatycznyImg,
   nerwowy: nerwowyImg,
@@ -36,8 +37,6 @@ const systemImages: Record<string, string> = {
   moczowy: moczowyImg,
   hormonalny: hormonalnyImg,
   odpornosciowy: odpornosciowyImg,
-  // Missing images - will show button only without overlay
-  // szkieletowy, pokarmowy, rozrodczy, powlokowy
 };
 
 interface BodySystemsOverlayProps {
@@ -46,39 +45,38 @@ interface BodySystemsOverlayProps {
 }
 
 const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayProps) => {
+  const [hoveredSystem, setHoveredSystem] = useState<string | null>(null);
+
+  // Show hovered system image, or first selected, or null
+  const previewSystem = hoveredSystem || (selectedSystems.length > 0 ? selectedSystems[0] : null);
+  const previewImage = previewSystem ? systemImages[previewSystem] : null;
+
   return (
-    <div className="space-y-4">
-      {/* Interactive Silhouette with Overlays */}
-      <div className="relative w-full aspect-[3/4] bg-muted/30 rounded-lg overflow-hidden">
-        {/* Base Silhouette */}
-        <img
-          src={baseSilhouette}
-          alt="Bazowa sylwetka"
-          className="absolute inset-0 w-full h-full object-contain"
-        />
-
-        {/* Overlay layers for selected systems */}
-        {selectedSystems.map((systemId) =>
-          systemImages[systemId] ? (
+    <div className="flex gap-4">
+      {/* Preview Area */}
+      <div className="flex-shrink-0 w-40">
+        <div className="aspect-[3/4] bg-muted/30 rounded-lg overflow-hidden border border-border flex items-center justify-center">
+          {previewImage ? (
             <img
-              key={systemId}
-              src={systemImages[systemId]}
-              alt={`Układ ${systemId}`}
-              className="absolute inset-0 w-full h-full object-contain opacity-85 transition-opacity duration-300 animate-in fade-in"
+              src={previewImage}
+              alt={`Układ ${previewSystem}`}
+              className="w-full h-full object-contain p-2 animate-in fade-in duration-200"
             />
-          ) : null
-        )}
-
-        {/* Selected count badge */}
+          ) : (
+            <span className="text-muted-foreground text-xs text-center px-2">
+              Najedź na układ lub wybierz
+            </span>
+          )}
+        </div>
         {selectedSystems.length > 0 && (
-          <div className="absolute top-3 right-3 bg-primary text-primary-foreground text-xs font-medium px-2 py-1 rounded-full">
-            {selectedSystems.length} wybrano
-          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            Wybrano: {selectedSystems.length}
+          </p>
         )}
       </div>
 
-      {/* Body System Buttons Grid */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Grid of system tiles */}
+      <div className="flex-1 grid grid-cols-3 gap-2">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
           const hasImage = !!systemImages[system.id];
@@ -87,26 +85,21 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
             <button
               key={system.id}
               onClick={() => onToggle(system.id)}
+              onMouseEnter={() => hasImage && setHoveredSystem(system.id)}
+              onMouseLeave={() => setHoveredSystem(null)}
               className={cn(
-                "p-3 rounded-lg border text-sm font-medium transition-all duration-200 text-left",
+                "relative p-2 rounded-md border text-xs font-medium transition-all duration-150",
                 "hover:scale-[1.02] active:scale-[0.98]",
                 isSelected
-                  ? "bg-primary text-primary-foreground border-primary shadow-md"
-                  : "bg-card text-card-foreground border-border hover:bg-accent hover:text-accent-foreground",
-                !hasImage && "opacity-70"
+                  ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/20"
+                  : "bg-card text-card-foreground border-border hover:bg-accent hover:border-accent-foreground/20",
+                !hasImage && "opacity-60"
               )}
             >
-              <span className="flex items-center gap-2">
-                {isSelected && (
-                  <span className="w-2 h-2 rounded-full bg-primary-foreground" />
-                )}
-                {system.label}
-              </span>
-              {!hasImage && (
-                <span className="text-xs opacity-60 block mt-1">
-                  (brak obrazu)
-                </span>
+              {isSelected && (
+                <Check className="absolute top-1 right-1 w-3 h-3" />
               )}
+              <span className="block truncate">{system.label}</span>
             </button>
           );
         })}
