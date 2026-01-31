@@ -34,14 +34,21 @@ const LoginForm = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      const success = await login(data.email, data.password);
-      if (success) {
+      const result = await login(data.email, data.password);
+      if (result.success) {
         navigate("/dashboard");
       } else {
+        // Map Supabase error messages to Polish
+        let errorMessage = "Nieprawidłowy email lub hasło";
+        if (result.error?.includes("Invalid login credentials")) {
+          errorMessage = "Nieprawidłowy email lub hasło";
+        } else if (result.error?.includes("Email not confirmed")) {
+          errorMessage = "Email nie został potwierdzony. Sprawdź swoją skrzynkę pocztową.";
+        }
         toast({
           variant: "destructive",
           title: "Błąd logowania",
-          description: "Nieprawidłowy email lub hasło",
+          description: errorMessage,
         });
       }
     } catch {
