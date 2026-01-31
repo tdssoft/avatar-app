@@ -77,19 +77,19 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
                 <img
                   src={image}
                   alt={system.label}
-                  className="absolute inset-0 w-full h-full object-contain p-1 bg-background"
+                  className="absolute inset-0 w-full h-full object-contain p-1 bg-background transition-transform duration-300 group-hover:scale-105"
                 />
               )}
 
-              {/* Hover overlay with name */}
+              {/* Dark gradient overlay */}
               <div className={cn(
-                "absolute inset-0 flex items-center justify-center transition-all duration-200",
-                "bg-black/0 group-hover:bg-black/60"
-              )}>
-                <span className={cn(
-                  "text-white font-semibold text-sm text-center px-2 transition-opacity duration-200",
-                  "opacity-0 group-hover:opacity-100"
-                )}>
+                "absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-all duration-200",
+                "group-hover:from-black/90 group-hover:via-black/40"
+              )} />
+
+              {/* Name - always visible */}
+              <div className="absolute inset-x-0 bottom-0 p-2">
+                <span className="text-white font-semibold text-xs text-center block drop-shadow-lg">
                   {system.label}
                 </span>
               </div>
