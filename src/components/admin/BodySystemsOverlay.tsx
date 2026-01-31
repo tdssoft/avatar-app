@@ -54,8 +54,8 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
         </p>
       )}
 
-      {/* Grid of image tiles */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Responsive grid of image tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 max-w-3xl">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
           const image = systemImages[system.id];
