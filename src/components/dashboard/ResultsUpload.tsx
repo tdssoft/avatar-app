@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileCheck, X, Loader2 } from "lucide-react";
+import { Upload, FileCheck, X, Loader2, Eye, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -194,6 +194,51 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
     fileInputRef.current?.click();
   };
 
+  const handlePreview = async (filePath: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("results")
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Preview error:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się otworzyć podglądu pliku",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("results")
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        const link = document.createElement("a");
+        link.href = data.signedUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      toast({
+        title: "Błąd",
+        description: "Nie udało się pobrać pliku",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <Card className={className}>
       <CardHeader>
@@ -255,13 +300,29 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
                     <FileCheck className="h-4 w-4 text-primary" />
                     <span className="text-sm text-foreground">{file.file_name}</span>
                   </div>
-                  <button
-                    onClick={() => handleDeleteFile(file.id, file.file_path)}
-                    className="text-muted-foreground hover:text-destructive transition-colors"
-                    title="Usuń plik"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handlePreview(file.file_path)}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Podgląd"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDownload(file.file_path, file.file_name)}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Pobierz"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFile(file.id, file.file_path)}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Usuń plik"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
