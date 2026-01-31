@@ -96,18 +96,25 @@ const SignupWizard = () => {
     };
 
     try {
-      const success = await signup(finalData);
-      if (success) {
+      const result = await signup(finalData);
+      if (result.success) {
         toast({
           title: "Rejestracja udana!",
-          description: "Witaj w Avatar Centrum Zdrowia",
+          description: "Sprawdź swoją skrzynkę email, aby potwierdzić konto.",
         });
-        navigate("/dashboard");
+        navigate("/login");
       } else {
+        // Map Supabase error messages to Polish
+        let errorMessage = "Wystąpił błąd podczas rejestracji";
+        if (result.error?.includes("User already registered")) {
+          errorMessage = "Konto z tym adresem email już istnieje";
+        } else if (result.error?.includes("Password should be")) {
+          errorMessage = "Hasło nie spełnia wymagań bezpieczeństwa";
+        }
         toast({
           variant: "destructive",
           title: "Błąd rejestracji",
-          description: "Konto z tym adresem email już istnieje",
+          description: errorMessage,
         });
       }
     } catch {
