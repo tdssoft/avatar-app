@@ -166,11 +166,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .insert({
           user_id: authData.user.id,
           avatar_url: null,
+          referral_code: referralCode,
         });
 
       if (profileError) {
         console.error("Error creating profile:", profileError);
         // Don't fail signup if profile creation fails
+      }
+
+      // Create referral record if user was referred by someone
+      if (data.referralCode) {
+        try {
+          // Find the referrer by their referral code
+          const { data: referrerProfile } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("referral_code", data.referralCode)
+            .maybeSingle();
+
+          if (referrerProfile) {
+            await supabase.from("referrals").insert({
+              referrer_user_id: referrerProfile.user_id,
+              referrer_code: data.referralCode,
+              referred_user_id: authData.user.id,
+              referred_email: data.email,
+              referred_name: `${data.firstName} ${data.lastName}`,
+              status: "pending",
+            });
+          }
+        } catch (referralError) {
+          console.error("Error creating referral record:", referralError);
+          // Don't fail signup if referral creation fails
+        }
       }
     }
 

@@ -21,7 +21,7 @@ import {
   Referral,
 } from "@/lib/referral";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Gift, Users, UserCheck, Clock, Share2 } from "lucide-react";
+import { Copy, Gift, Users, UserCheck, Clock, Share2, Loader2 } from "lucide-react";
 
 const Referrals = () => {
   const { user } = useAuth();
@@ -29,13 +29,30 @@ const Referrals = () => {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [stats, setStats] = useState({ total: 0, pending: 0, active: 0 });
   const [referralLink, setReferralLink] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user?.referralCode) {
-      setReferrals(getReferralsByCode(user.referralCode));
-      setStats(getReferralStats(user.referralCode));
-      setReferralLink(generateReferralLink(user.referralCode));
-    }
+    const loadReferrals = async () => {
+      if (user?.referralCode) {
+        setIsLoading(true);
+        try {
+          const [fetchedReferrals, fetchedStats] = await Promise.all([
+            getReferralsByCode(user.referralCode),
+            getReferralStats(user.referralCode),
+          ]);
+          setReferrals(fetchedReferrals);
+          setStats(fetchedStats);
+          setReferralLink(generateReferralLink(user.referralCode));
+        } catch (error) {
+          console.error("Error loading referrals:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    };
+    loadReferrals();
   }, [user?.referralCode]);
 
   const handleCopyLink = async () => {
@@ -277,14 +294,14 @@ const Referrals = () => {
                       <TableRow key={referral.id}>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{referral.referredName}</p>
+                            <p className="font-medium">{referral.referred_name}</p>
                             <p className="text-sm text-muted-foreground">
-                              {referral.referredEmail}
+                              {referral.referred_email}
                             </p>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(referral.createdAt).toLocaleDateString(
+                          {new Date(referral.created_at).toLocaleDateString(
                             "pl-PL"
                           )}
                         </TableCell>
