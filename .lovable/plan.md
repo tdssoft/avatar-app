@@ -1,151 +1,205 @@
 
-Cel: naprawić program poleceń tak, żeby polecona osoba pojawiała się u polecającego po rejestracji z linku, oraz usunąć bug “logowanie działa dopiero za 2. razem”. W tym samym czasie zrobić “live testing” (reprodukcja + weryfikacja po poprawkach).
+# Plan: Ekrany panelu administracyjnego
 
-## Co już ustaliłem (na podstawie kodu + bazy danych)
-### 1) Polecenia nie działają, bo rekordy w bazie w ogóle się nie tworzą
-- W bazie: `public.referrals` ma **0 rekordów**.
-- W bazie: `public.profiles` ma **1 rekord**, a `referral_code` jest w nim **pusty/null**.
-- Frontend próbuje tworzyć:
-  - profil w `profiles` po `signUp()`,
-  - oraz rekord w `referrals` po `signUp()`.
-
-Problem: przy standardowej rejestracji z potwierdzeniem email (co sugeruje tekst w UI “Sprawdź skrzynkę email, aby potwierdzić konto”) użytkownik **nie ma jeszcze aktywnej sesji**, więc RLS blokuje inserty do `profiles` i `referrals`. Dodatkowo referrer może mieć kod tylko w metadata, ale nie w `profiles`, więc lookup po `profiles.referral_code` potrafi zwrócić null i referral nie powstaje.
-
-### 2) “Muszę kliknąć Zaloguj się 2 razy”
-Najczęstszy scenariusz w tym układzie:
-- login działa, ale zanim kontekst zdąży ustawić `user` (a DashboardLayout sprawdza `isAuthenticated: !!user`), następuje redirect z /dashboard z powrotem na /login.
-- Drugi klik już trafia, bo `user` zdążył się ustawić.
-
-Wniosek: bramka dostępu do dashboardu powinna bazować na **sesji** (session), a nie na tym czy profil użytkownika już się wczytał (user). Profil może ładować się chwilę dłużej.
+## Podsumowanie
+Na podstawie dostarczonych screenshotów, stworzę kompletny panel administracyjny dla konta admin, zawierający: dashboard z listą pacjentów, profil pacjenta z pełną funkcjonalnością, kreator zaleceń (rekomendacji) oraz zarządzanie partnerami.
 
 ---
 
-## Strategia naprawy (bez rozluźniania bezpieczeństwa)
-Zamiast przywracać niebezpieczne RLS typu “Anyone can insert referrals”, robimy stabilny mechanizm:
-1) Profil i referral tworzymy przez backendową funkcję (działającą z uprawnieniami serwisowymi) wywoływaną tuż po rejestracji.
-2) Dodatkowo robimy “self-healing” profilu przy logowaniu (upsert / uzupełnienie referral_code) dla już istniejących kont.
-3) Naprawiamy logowanie przez zmianę logiki “authenticated” i loaderów.
+## Nowe ekrany do stworzenia
+
+### 1. Admin Dashboard - Lista pacjentów
+- Tabela z pacjentami (Imię i nazwisko, Subskrypcja, Diagnoza, Akcja, Ostatnia komunikacja)
+- Przycisk "+" do dodawania nowego pacjenta
+- Modal tworzenia konta pacjenta (Imię, Nazwisko, Email, Numer telefonu)
+- Przycisk "Profil pacjenta" przy każdym wierszu
+
+### 2. Profil pacjenta (szczegóły)
+- Nagłowek: "Pacjent: [Imię Nazwisko]"
+- Sekcja "Zalecenia z dnia" z selektorem daty i przyciskiem "+"
+- Upload pliku zaleceń zdrowotnych
+- Sekcja "Pakiet Pacjenta" (info o platnosci)
+- Prawy sidebar z danymi pacjenta (awatar, imię, email, telefon)
+- Sekcja "Ankieta pacjenta" z przyciskiem "Przeglądaj"
+- Sekcja "Pliki z poprzednimi wynikami"
+- Sekcja "Notatki" z textarea i przyciskiem "Dodaj notatkę"
+- Sekcja "Komunikacja SMS" z przyciskiem "Wyślij SMS"
+- Sekcja "Pytania przez formularz" z przyciskiem "Odpowiedz"
+
+### 3. Kreator zaleceń (Recommendations Creator)
+- Checkbox lista ukladow ciala (limfatyczny, szkieletowy, nerwowy, miesniowy, oddechowy, pokarmowy, krazeniowy, moczowy, hormonalny, odpornosciowy, rozrodczy, powlokowy)
+- Obrazek "Avatar" po lewej stronie
+- Sekcja "Kreator PDF" z textarea:
+  - Podsumowanie diagnozy
+  - Zalecenia dietetyczne
+  - Kuracja Program suplementacji
+  - Linki do sklepu
+  - Terapie wspierajace
+- Przyciski "Powrot" i "Zapisz"
+
+### 4. Strona Partnerzy
+- Tabela "Partnerzy polecajacy" (Imie i nazwisko, Linki do sklepow, Ilosc zarejestrowanych kont)
+- Przycisk "Dodaj link +" przy kazdym partnerze
+- Modal "Dodaj link do sklepow"
 
 ---
 
-## Kroki implementacji
+## Struktura bazy danych (nowe tabele)
 
-### A. Naprawa logowania “na 2 razy”
-1) W `AuthContext`:
-   - Traktować użytkownika jako zalogowanego, jeśli istnieje `session` (np. `isAuthenticated: !!session`), a nie `!!user`.
-   - Rozdzielić “czy mamy sesję” od “czy profil jest gotowy”.
-   - Dodać stan typu `isProfileReady` / `isUserReady` (lub logicznie: `isLoading` pozostaje true aż do pobrania profilu, ale redirect ma używać sesji).
-2) W `DashboardLayout`:
-   - Redirect do `/login` robić na podstawie `session` (brak sesji), nie na podstawie `user`.
-   - Jeśli jest sesja, ale profil jeszcze się ładuje: pokazać spinner (zamiast wyrzucać na login).
-3) W `AuthContext` ograniczyć podwójne fetchowanie profilu:
-   - Aktualnie login robi `await fetchUserProfile(data.user)` i jednocześnie `onAuthStateChange` może odpalić kolejny fetch. Dodamy prosty “guard” (np. ref/flag/promise) aby jeden fetch nie dublował drugiego.
+### Tabela: `patients` (rozszerzenie profilu dla admina)
+```
+- id: uuid (PK)
+- user_id: uuid (FK do profiles)
+- admin_notes: text
+- subscription_status: text (Brak, Aktywna, etc.)
+- diagnosis_status: text
+- last_communication_at: timestamp
+- created_at: timestamp
+- updated_at: timestamp
+```
 
-Efekt: po 1. kliknięciu “Zaloguj się” użytkownik zostaje na /dashboard, a UI ewentualnie pokazuje spinner aż do wczytania profilu.
+### Tabela: `recommendations` (zalecenia zdrowotne)
+```
+- id: uuid (PK)
+- patient_id: uuid (FK)
+- created_by_admin_id: uuid
+- recommendation_date: date
+- body_systems: text[] (tablica wybranych ukladow)
+- diagnosis_summary: text
+- dietary_recommendations: text
+- supplementation_program: text
+- shop_links: text
+- supporting_therapies: text
+- pdf_url: text (wygenerowany PDF)
+- created_at: timestamp
+```
 
----
+### Tabela: `patient_notes` (notatki admina)
+```
+- id: uuid (PK)
+- patient_id: uuid (FK)
+- admin_id: uuid
+- note_text: text
+- created_at: timestamp
+```
 
-### B. Utrwalenie referral_code w profilu (self-healing dla istniejących kont)
-W `fetchUserProfile`:
-1) Jeśli profil w `profiles` nie istnieje → zrobić `insert/upsert` profilu dla bieżącego użytkownika.
-2) Jeśli profil istnieje, ale `referral_code` jest null/pusty, a w metadata istnieje `referralCode` → zrobić `update profiles set referral_code = ...`.
-3) Jeśli metadata nie ma referralCode (konto legacy), to:
-   - wygenerować nowy kod,
-   - zaktualizować metadata użytkownika (`supabase.auth.updateUser({ data: { referralCode: ... }})`),
-   - zapisać ten kod do `profiles.referral_code`.
+### Tabela: `patient_messages` (komunikacja SMS/pytania)
+```
+- id: uuid (PK)
+- patient_id: uuid (FK)
+- admin_id: uuid (null jesli od pacjenta)
+- message_type: text (sms, question, answer)
+- message_text: text
+- sent_at: timestamp
+```
 
-Efekt: referrer zawsze ma kod także w `profiles`, więc wyszukiwanie referrera po kodzie będzie działać.
+### Tabela: `partner_shop_links` (linki partnerow)
+```
+- id: uuid (PK)
+- partner_user_id: uuid (FK do profiles)
+- shop_url: text
+- added_by_admin_id: uuid
+- created_at: timestamp
+```
 
----
-
-### C. Pewne tworzenie poleceń przy rejestracji (bez zależności od sesji)
-Zrobimy backendową funkcję (server-side) np. `post-signup`:
-1) Wywoływana po `signUp()` (w momencie, gdy mamy `authData.user.id`, email, imię/nazwisko, generated referralCode i ewentualny referredBy).
-2) Funkcja:
-   - weryfikuje, że user faktycznie istnieje (admin getUserById),
-   - robi upsert profilu: `profiles(user_id, referral_code, avatar_url=null)` (idempotentnie),
-   - jeśli `referredBy` jest podane:
-     - znajduje referrera po `profiles.referral_code = referredBy`,
-     - tworzy rekord w `referrals` (idempotentnie, patrz niżej).
-
-3) Idempotencja (żeby nie tworzyć duplikatów):
-   - dodamy unikalny indeks np. na `referrals(referred_user_id)` (zakładamy 1 referrer na użytkownika),
-   - insert będzie robił “insert if not exists” (ON CONFLICT DO NOTHING).
-
-4) Zmiany w kodzie:
-   - W `AuthContext.signup` usunąć bezpośrednie `.from("profiles").insert(...)` i `.from("referrals").insert(...)` (bo to się wykłada na RLS/ braku sesji).
-   - Zastąpić to `supabase.functions.invoke("post-signup", { body: ... })`.
-   - Jeśli funkcja zwróci błąd → log + (opcjonalnie) toast “konto utworzone, ale nie udało się zarejestrować polecenia; spróbuj ponownie / skontaktuj się”.
-
-Efekt: polecenie zapisuje się już w momencie rejestracji (bez czekania na potwierdzenie email i bez ryzykownego rozluźniania RLS).
-
----
-
-### D. Migracje w bazie (bez niszczenia danych)
-1) `profiles`:
-   - dodać unikalny indeks na `referral_code` (z warunkiem, żeby nie blokować nulli/pustych):
-     - np. UNIQUE INDEX WHERE referral_code is not null and referral_code <> ''.
-2) `referrals`:
-   - dodać unikalny indeks na `referred_user_id` (lub parę `referrer_user_id, referred_user_id`).
-3) (Opcjonalnie, jeśli chcemy mocniej zabezpieczyć) – pozostawić obecny INSERT policy (auth.uid() = referred_user_id) albo docelowo nawet ją usunąć i tworzyć referrals tylko przez backendową funkcję. W praktyce: jeśli wszystko tworzy funkcja, polityka INSERT może być zbędna.
-
----
-
-### E. “Naprawa” poleceń, które zostały już utracone (np. Jan Kowalski)
-Ponieważ historyczne rejestracje mogły się odbyć w czasie, gdy insert do referrals nie działał, dodamy mechanizm “repair”:
-1) Backendowa funkcja `repair-referral`:
-   - wymaga zalogowania (sprawdza kto woła),
-   - sprawdza, czy caller faktycznie jest właścicielem `referrer_code` (profiles.user_id = caller && profiles.referral_code = …),
-   - przyjmuje `referredEmail`,
-   - odnajduje usera po emailu (admin API), weryfikuje że metadata `referredBy` pasuje do kodu,
-   - jeśli referral nie istnieje → tworzy go.
-2) UI w `Referrals`:
-   - mały link/sekcja “Nie widzisz polecenia? Napraw” + pole email + przycisk.
-
-Efekt: można odzyskać polecenia, które “zniknęły”, bez ręcznego grzebania w bazie.
+### Rozszerzenie tabeli `profiles`
+```
+- role: text (user, admin) - default 'user'
+- first_name: text
+- last_name: text
+- phone: text
+```
 
 ---
 
-## Live testing (dokładny scenariusz)
-Po wdrożeniu zmian wykonam test w preview:
-1) Zaloguję się na konto polecające (Twoje) i wejdę w /dashboard/referrals:
-   - sprawdzę, czy `profiles.referral_code` jest już zapisany (self-healing).
-2) Skopiuję link polecający.
-3) W nowym kontekście przeglądarki (incognito / druga sesja) wejdę w link i wykonam rejestrację testową:
-   - najlepiej email typu `alan.urban23+ref_test1@gmail.com` (Gmail wspiera “+”).
-4) Sprawdzę, że backendowa funkcja utworzyła rekord w `referrals`:
-   - weryfikacja w bazie (licznik referrals powinien wzrosnąć),
-   - następnie w UI u referrera odświeżę “Historia poleceń” i potwierdzę obecność wpisu.
-5) Test logowania:
-   - wyloguję,
-   - zaloguję się 1 raz,
-   - potwierdzę, że nie ma już powrotu na /login i nie trzeba 2 kliknięć.
+## Struktura plikow
 
-Jeśli którykolwiek krok nie przejdzie:
-- dołożę widoczne logi/komunikaty błędów (w UI i w konsoli) w miejscach, gdzie teraz błędy są “połykane”, żeby diagnoza była natychmiastowa (konkretnie: wyniki `invoke("post-signup")`, upsert profilu, i ewentualne konflikty indeksów).
+### Nowe strony (src/pages/admin/)
+```
+src/pages/admin/
+  AdminDashboard.tsx      - Lista pacjentow
+  PatientProfile.tsx      - Szczegoly pacjenta
+  RecommendationCreator.tsx - Kreator zalecen
+  Partners.tsx            - Zarzadzanie partnerami
+```
+
+### Nowe komponenty (src/components/admin/)
+```
+src/components/admin/
+  AdminSidebar.tsx        - Menu boczne dla admina
+  AdminLayout.tsx         - Layout panelu admina
+  PatientTable.tsx        - Tabela pacjentow
+  CreatePatientDialog.tsx - Modal tworzenia pacjenta
+  PatientNotesSection.tsx - Sekcja notatek
+  PatientSmsSection.tsx   - Sekcja SMS
+  PatientQuestionsSection.tsx - Sekcja pytan
+  BodySystemsSelector.tsx - Checkboxy ukladow ciala
+  RecommendationForm.tsx  - Formularz zalecen
+  PartnerTable.tsx        - Tabela partnerow
+  AddLinkDialog.tsx       - Modal dodawania linku
+```
+
+### Nowe funkcje backendowe (supabase/functions/)
+```
+supabase/functions/
+  admin-create-patient/   - Tworzenie konta pacjenta (z wysylka email)
+  admin-send-sms/         - Wysylka SMS
+  admin-generate-pdf/     - Generowanie PDF zalecen
+```
 
 ---
 
-## Zakres zmian w plikach (frontend)
-- `src/contexts/AuthContext.tsx`
-  - poprawa logiki auth (session vs user),
-  - self-healing profilu (referral_code),
-  - wywołanie backendowej funkcji po signUp,
-  - odduplikowanie fetchUserProfile.
-- `src/components/layout/DashboardLayout.tsx`
-  - redirect na podstawie session,
-  - spinner gdy session jest, ale user/profil się jeszcze ładuje.
-- `src/pages/Referrals.tsx`
-  - opcjonalny “Napraw polecenie” (email input + invoke repair),
-  - opcjonalny “Odśwież” (manual refresh).
+## Routing
 
-## Zakres zmian w backend (Lovable Cloud)
-- Nowe backendowe funkcje:
-  - `post-signup`
-  - `repair-referral`
-- Migracje:
-  - indeksy unikalne dla `profiles.referral_code` oraz `referrals` (idempotencja).
+Nowe trasy w `App.tsx`:
+```
+/admin                     -> AdminDashboard
+/admin/patient/:id         -> PatientProfile
+/admin/patient/:id/recommendation/new -> RecommendationCreator
+/admin/partners            -> Partners
+```
 
-## Dlaczego to naprawi problem “wcześniej działało”
-Wcześniej działało prawdopodobnie dlatego, że insert do `referrals` był chwilowo “otwarty” (policy WITH CHECK true) albo rejestracja dawała sesję od razu. Po uszczelnieniu RLS (i przy potwierdzaniu email) insert z frontendu przestał przechodzić. Zaproponowane rozwiązanie utrzymuje bezpieczeństwo i przywraca działanie niezależnie od tego, czy sesja jest już aktywna.
+---
+
+## Komponenty UI - mapowanie na istniejace
+
+| Element na screenie | Istniejacy komponent |
+|---------------------|---------------------|
+| Tabela pacjentow | Table, TableRow, etc. |
+| Modal tworzenia | Dialog, DialogContent |
+| Przyciski | Button |
+| Pola tekstowe | Input, Textarea |
+| Checkboxy | Checkbox |
+| Selektory | Select |
+| Karty | Card, CardContent |
+
+---
+
+## Bezpieczenstwo
+
+1. **RLS Policies**: Wszystkie nowe tabele beda mialy polityki ograniczajace dostep tylko do adminow
+2. **Weryfikacja roli**: Kazda operacja admin-only bedzie sprawdzac `profiles.role = 'admin'`
+3. **Edge Functions**: Operacje wrazliwe (tworzenie kont, SMS) wykonywane przez funkcje backendowe
+
+---
+
+## Kolejnosc implementacji
+
+1. Migracja bazy danych (nowe tabele + rozszerzenie profiles o role)
+2. AdminLayout i AdminSidebar
+3. AdminDashboard z tabela pacjentow
+4. CreatePatientDialog + edge function
+5. PatientProfile ze wszystkimi sekcjami
+6. RecommendationCreator
+7. Partners page
+8. Testowanie end-to-end
+
+---
+
+## Szacowany zakres
+
+- ~15 nowych plikow komponentow/stron
+- 5-6 nowych tabel w bazie
+- 2-3 nowe edge functions
+- Rozszerzenie routingu
 
