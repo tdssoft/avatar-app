@@ -1,34 +1,42 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface Referral {
   id: string;
-  referrerCode: string;
-  referredUserId: string;
-  referredEmail: string;
-  referredName: string;
+  referrer_code: string;
+  referred_user_id: string;
+  referred_email: string;
+  referred_name: string;
   status: "pending" | "active";
-  createdAt: string;
-  activatedAt?: string;
+  created_at: string;
+  activated_at?: string;
 }
 
-export const getReferralsByCode = (referralCode: string): Referral[] => {
-  const referrals = JSON.parse(localStorage.getItem("avatar_referrals") || "[]");
-  return referrals.filter((r: Referral) => r.referrerCode === referralCode);
-};
+export const getReferralsByCode = async (referralCode: string): Promise<Referral[]> => {
+  const { data, error } = await supabase
+    .from("referrals")
+    .select("*")
+    .eq("referrer_code", referralCode)
+    .order("created_at", { ascending: false });
 
-export const activateReferral = (referredUserId: string): boolean => {
-  const referrals = JSON.parse(localStorage.getItem("avatar_referrals") || "[]");
-  const index = referrals.findIndex((r: Referral) => r.referredUserId === referredUserId);
-  
-  if (index !== -1) {
-    referrals[index].status = "active";
-    referrals[index].activatedAt = new Date().toISOString();
-    localStorage.setItem("avatar_referrals", JSON.stringify(referrals));
-    return true;
+  if (error) {
+    console.error("Error fetching referrals:", error);
+    return [];
   }
-  return false;
+
+  return (data || []).map((r) => ({
+    id: r.id,
+    referrer_code: r.referrer_code,
+    referred_user_id: r.referred_user_id,
+    referred_email: r.referred_email,
+    referred_name: r.referred_name,
+    status: r.status as "pending" | "active",
+    created_at: r.created_at,
+    activated_at: r.activated_at || undefined,
+  }));
 };
 
-export const getReferralStats = (referralCode: string) => {
-  const referrals = getReferralsByCode(referralCode);
+export const getReferralStats = async (referralCode: string) => {
+  const referrals = await getReferralsByCode(referralCode);
   return {
     total: referrals.length,
     pending: referrals.filter((r) => r.status === "pending").length,
