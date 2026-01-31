@@ -1,7 +1,8 @@
-import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu } from "lucide-react";
+import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -18,6 +19,7 @@ const navItems = [
 const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { isAdmin } = useAdminRole();
 
   const handleLogout = () => {
     logout();
@@ -52,6 +54,20 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
               </NavLink>
             </li>
           ))}
+          {/* Admin Panel Link */}
+          {isAdmin && (
+            <li>
+              <NavLink
+                to="/admin"
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors"
+                activeClassName="bg-background text-foreground font-medium"
+                onClick={onItemClick}
+              >
+                <Settings className="h-5 w-5" />
+                <span>Panel admina</span>
+              </NavLink>
+            </li>
+          )}
           {/* Logout - directly after navigation items */}
           <li>
             <button
