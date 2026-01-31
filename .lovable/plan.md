@@ -1,118 +1,201 @@
 
 
-# Plan: Naprawa funkcjonalności wgrywania plików
+# Plan: 5 poprawek interfejsu
 
-## Zidentyfikowany problem
+## Podsumowanie zmian
 
-Wgrywanie plików i zdjęć nie działa z powodu **konfliktu między dwoma systemami autoryzacji**:
-
-1. **Obecny system logowania** (LoginForm + AuthContext) - używa `localStorage` do przechowywania danych użytkownika (mockowy system)
-2. **Komponenty wgrywania** (PhotoUpload + ResultsUpload) - używają `supabase.auth.getUser()` do weryfikacji użytkownika
-
-**Rezultat**: Po zalogowaniu przez formularz, komponenty wgrywania nie widzą użytkownika, ponieważ sprawdzają Supabase Auth, który jest pusty. Dlatego nic się nie dzieje po wybraniu pliku.
-
----
-
-## Rozwiązanie
-
-Zintegruję system autoryzacji z Supabase Auth, aby wszystkie komponenty korzystały z tego samego źródła prawdy o zalogowanym użytkowniku.
+Wdrożę 5 poprawek:
+1. Przekierowanie po aktywacji maila na /dashboard
+2. Dodanie podglądu i pobierania plików
+3. Przeniesienie "Twoje zdjęcie" do prawego górnego rogu
+4. Przycisk "Wyloguj" pod "Program polecający"
+5. Kolorystyka w odcieniach szarości/czerni (bez niebieskiego)
 
 ---
 
-## Zmiany do wprowadzenia
+## Zmiana 1: Przekierowanie po aktywacji maila
 
-### 1. Aktualizacja AuthContext
+### Plik: `src/contexts/AuthContext.tsx`
 
-Zmienię AuthContext aby używał Supabase Auth zamiast localStorage:
-- `login()` - wywoła `supabase.auth.signInWithPassword()`
-- `signup()` - wywoła `supabase.auth.signUp()`
-- `logout()` - wywoła `supabase.auth.signOut()`
-- Nasłuchiwanie na zmiany sesji przez `supabase.auth.onAuthStateChange()`
+Zmienię `emailRedirectTo` w funkcji `signup`:
+- Z: `${window.location.origin}/` (strona główna)
+- Na: `${window.location.origin}/dashboard`
 
-### 2. Aktualizacja LoginForm
-
-- Usunięcie mockowego logowania
-- Wykorzystanie Supabase Auth do prawdziwego logowania
-- Obsługa błędów z Supabase (np. "Invalid login credentials")
-
-### 3. Aktualizacja SignupWizard
-
-- Usunięcie mockowej rejestracji
-- Wykorzystanie Supabase Auth do rejestracji
-- Automatyczne tworzenie profilu użytkownika po rejestracji
-
-### 4. Włączenie auto-confirm dla emaili (opcjonalnie)
-
-Domyślnie Supabase wymaga weryfikacji email. Jeśli chcesz testować bez weryfikacji, możemy to wyłączyć.
+```typescript
+// Linia 139 - zmiana:
+const redirectUrl = `${window.location.origin}/dashboard`;
+```
 
 ---
 
-## Przepływ po naprawie
+## Zmiana 2: Podgląd i pobieranie plików
 
-1. Użytkownik wypełnia formularz logowania
-2. Aplikacja wywołuje `supabase.auth.signInWithPassword()`
-3. Supabase zwraca sesję z tokenem
-4. AuthContext aktualizuje stan użytkownika
-5. Użytkownik przechodzi na Dashboard
-6. PhotoUpload wywołuje `supabase.auth.getUser()` - **zwraca zalogowanego użytkownika**
-7. Użytkownik może wgrywać pliki
+### Plik: `src/components/dashboard/ResultsUpload.tsx`
+
+Dodam przyciski przy każdym pliku:
+- **Ikona oka** - podgląd (otwiera w nowej karcie)
+- **Ikona pobierania** - pobiera plik
+
+Dla podglądu/pobrania użyję `supabase.storage.from("results").createSignedUrl()` ponieważ bucket "results" jest prywatny.
+
+Struktura listy plików zmieni się z:
+```
+[ plik.pdf ] [ X ]
+```
+Na:
+```
+[ plik.pdf ] [ Podgląd ] [ Pobierz ] [ X ]
+```
 
 ---
 
-## Pliki do modyfikacji
+## Zmiana 3: "Twoje zdjęcie" w prawym górnym rogu
 
-1. **`src/contexts/AuthContext.tsx`** - integracja z Supabase Auth
-2. **`src/components/auth/LoginForm.tsx`** - dostosowanie do nowego AuthContext
-3. **`src/components/auth/SignupWizard.tsx`** - dostosowanie do Supabase Auth
+### Plik: `src/pages/Results.tsx`
+
+Obecnie:
+```jsx
+<div className="fixed bottom-6 right-6 hidden lg:block">
+  <PhotoUpload className="w-48" />
+</div>
+```
+
+Zmienię na:
+```jsx
+<div className="fixed top-20 right-6 hidden lg:block">
+  <PhotoUpload className="w-48" />
+</div>
+```
+
+Użyję `top-20` aby zmieścić się pod nagłówkiem (header ma 64px = h-16).
+
+---
+
+## Zmiana 4: Przycisk "Wyloguj" pod "Program polecający"
+
+### Plik: `src/components/layout/Sidebar.tsx`
+
+Obecnie "Wyloguj" jest w osobnej sekcji na samym dole z border-top.
+
+Przeniosę przycisk "Wyloguj" jako ostatni element listy nawigacji, zaraz po "Program polecający":
+
+```typescript
+const navItems = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
+  { title: "Wyniki badań", url: "/dashboard/results", icon: Shield },
+  { title: "Mój profil", url: "/dashboard/profile", icon: User },
+  { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
+  { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
+];
+
+// Przycisk Wyloguj będzie renderowany tuż pod listą nawigacji,
+// bez border-top i bez osobnej sekcji
+```
+
+Usunę:
+```jsx
+{/* Logout */}
+<div className="p-4 border-t border-border">
+```
+
+I dodam przycisk wylogowania bezpośrednio pod listą nawigacji w sekcji `<nav>`.
+
+---
+
+## Zmiana 5: Kolorystyka szarości/czerni (bez niebieskiego)
+
+### Plik: `src/index.css`
+
+Zmienię kolor akcentu z niebieskiego na czarny/szary:
+
+Obecnie:
+```css
+--accent: 197 100% 42%;  /* niebieski */
+--accent-foreground: 0 0% 100%;
+```
+
+Zmienię na:
+```css
+--accent: 0 0% 20%;  /* ciemnoszary */
+--accent-foreground: 0 0% 100%;
+```
+
+### Pliki do przejrzenia pod kątem klas niebieskich:
+
+Sprawdzę następujące pliki i zamienię `bg-accent/10`, `text-accent` na wersje szare:
+
+1. **`src/pages/Referrals.tsx`** - ikony w sekcji nagród używają `text-accent` i `bg-accent/10`
+
+Po zmianie zmiennej CSS `--accent` wszystkie te elementy automatycznie przyjmą nowy kolor.
+
+---
+
+## Podsumowanie plików do modyfikacji
+
+| Plik | Zmiana |
+|------|--------|
+| `src/contexts/AuthContext.tsx` | Zmiana redirectUrl na /dashboard |
+| `src/components/dashboard/ResultsUpload.tsx` | Dodanie podglądu i pobierania |
+| `src/pages/Results.tsx` | Zmiana pozycji PhotoUpload z bottom na top |
+| `src/components/layout/Sidebar.tsx` | Wyloguj pod Program polecający |
+| `src/index.css` | Accent color na szary zamiast niebieskiego |
 
 ---
 
 ## Szczegóły techniczne
 
-### Nowy AuthContext:
+### Podgląd i pobieranie plików (Zmiana 2)
 
 ```typescript
-// Nasłuchiwanie zmian sesji
-useEffect(() => {
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (session?.user) {
-        // Pobierz profil użytkownika z bazy
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .single();
-        
-        setUser({
-          id: session.user.id,
-          email: session.user.email,
-          ...profile
-        });
-      } else {
-        setUser(null);
-      }
-    }
-  );
+// Funkcja do pobrania signed URL
+const getSignedUrl = async (filePath: string): Promise<string | null> => {
+  const { data, error } = await supabase.storage
+    .from("results")
+    .createSignedUrl(filePath, 60); // 60 sekund ważności
   
-  return () => subscription.unsubscribe();
-}, []);
+  if (error) return null;
+  return data.signedUrl;
+};
 
-// Login
-const login = async (email: string, password: string) => {
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  return !error;
+// Funkcja podglądu
+const handlePreview = async (filePath: string) => {
+  const url = await getSignedUrl(filePath);
+  if (url) {
+    window.open(url, "_blank");
+  }
+};
+
+// Funkcja pobierania
+const handleDownload = async (filePath: string, fileName: string) => {
+  const url = await getSignedUrl(filePath);
+  if (url) {
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+  }
 };
 ```
 
----
+### Nowy układ listy plików
 
-## Uwaga dotycząca testowania
-
-Po wdrożeniu tej zmiany:
-- Będziesz musiał **utworzyć nowe konto** przez formularz rejestracji (stare konta z localStorage nie będą działać)
-- Lub możemy włączyć auto-confirm dla emaili, aby nie musieć weryfikować adresu email podczas testów
+```jsx
+<li className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-2">
+  <div className="flex items-center gap-2">
+    <FileCheck className="h-4 w-4 text-foreground" />
+    <span className="text-sm text-foreground">{file.file_name}</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <button onClick={() => handlePreview(file.file_path)} title="Podgląd">
+      <Eye className="h-4 w-4" />
+    </button>
+    <button onClick={() => handleDownload(file.file_path, file.file_name)} title="Pobierz">
+      <Download className="h-4 w-4" />
+    </button>
+    <button onClick={() => handleDeleteFile(file.id, file.file_path)} title="Usuń">
+      <X className="h-4 w-4" />
+    </button>
+  </div>
+</li>
+```
 
