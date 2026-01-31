@@ -1,1 +1,7 @@
 project_id = "llrmskcwsfmubooswatz"
+
+[functions.post-signup]
+verify_jwt = false
+
+[functions.repair-referral]
+verify_jwt = false

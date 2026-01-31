@@ -21,7 +21,8 @@ import {
   Referral,
 } from "@/lib/referral";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Gift, Users, UserCheck, Clock, Share2, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Copy, Gift, Users, UserCheck, Clock, Share2, Loader2, RefreshCw, Wrench } from "lucide-react";
 
 const Referrals = () => {
   const { user } = useAuth();
@@ -30,30 +31,47 @@ const Referrals = () => {
   const [stats, setStats] = useState({ total: 0, pending: 0, active: 0 });
   const [referralLink, setReferralLink] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Repair referral state
+  const [showRepair, setShowRepair] = useState(false);
+  const [repairEmail, setRepairEmail] = useState("");
+  const [isRepairing, setIsRepairing] = useState(false);
+
+  const loadReferrals = async () => {
+    if (user?.referralCode) {
+      try {
+        const [fetchedReferrals, fetchedStats] = await Promise.all([
+          getReferralsByCode(user.referralCode),
+          getReferralStats(user.referralCode),
+        ]);
+        setReferrals(fetchedReferrals);
+        setStats(fetchedStats);
+        setReferralLink(generateReferralLink(user.referralCode));
+      } catch (error) {
+        console.error("Error loading referrals:", error);
+      }
+    }
+  };
 
   useEffect(() => {
-    const loadReferrals = async () => {
-      if (user?.referralCode) {
-        setIsLoading(true);
-        try {
-          const [fetchedReferrals, fetchedStats] = await Promise.all([
-            getReferralsByCode(user.referralCode),
-            getReferralStats(user.referralCode),
-          ]);
-          setReferrals(fetchedReferrals);
-          setStats(fetchedStats);
-          setReferralLink(generateReferralLink(user.referralCode));
-        } catch (error) {
-          console.error("Error loading referrals:", error);
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
-      }
+    const initialLoad = async () => {
+      setIsLoading(true);
+      await loadReferrals();
+      setIsLoading(false);
     };
-    loadReferrals();
+    initialLoad();
   }, [user?.referralCode]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadReferrals();
+    setIsRefreshing(false);
+    toast({
+      title: "Odświeżono",
+      description: "Lista poleceń została zaktualizowana",
+    });
+  };
 
   const handleCopyLink = async () => {
     const success = await copyToClipboard(referralLink);
@@ -80,6 +98,53 @@ const Referrals = () => {
           description: "Kod polecający został skopiowany do schowka",
         });
       }
+    }
+  };
+
+  const handleRepairReferral = async () => {
+    if (!repairEmail.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: "Podaj email poleconej osoby",
+      });
+      return;
+    }
+
+    setIsRepairing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("repair-referral", {
+        body: { referredEmail: repairEmail.trim() },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.error) {
+        toast({
+          variant: "destructive",
+          title: "Nie udało się naprawić",
+          description: data.error,
+        });
+      } else {
+        toast({
+          title: "Sukces!",
+          description: "Polecenie zostało naprawione i dodane do listy",
+        });
+        setRepairEmail("");
+        setShowRepair(false);
+        await loadReferrals();
+      }
+    } catch (error: any) {
+      console.error("Repair referral error:", error);
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: error.message || "Nie udało się naprawić polecenia",
+      });
+    } finally {
+      setIsRepairing(false);
     }
   };
 
@@ -277,7 +342,18 @@ const Referrals = () => {
           {/* Referrals list */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Historia poleceń</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Historia poleceń</CardTitle>
+                <Button
+                  onClick={handleRefresh}
+                  variant="ghost"
+                  size="sm"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                  Odśwież
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {referrals.length > 0 ? (
@@ -336,6 +412,55 @@ const Referrals = () => {
                   </Button>
                 </div>
               )}
+
+              {/* Repair referral section */}
+              <div className="mt-6 pt-4 border-t border-border">
+                {!showRepair ? (
+                  <button
+                    onClick={() => setShowRepair(true)}
+                    className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Nie widzisz polecenia? Napraw ręcznie
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Jeśli ktoś zarejestrował się z Twojego linku, ale nie pojawia się na liście,
+                      podaj jego adres email:
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder="Email poleconej osoby"
+                        value={repairEmail}
+                        onChange={(e) => setRepairEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleRepairReferral}
+                        disabled={isRepairing}
+                        variant="outline"
+                      >
+                        {isRepairing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Napraw"
+                        )}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowRepair(false);
+                          setRepairEmail("");
+                        }}
+                        variant="ghost"
+                      >
+                        Anuluj
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

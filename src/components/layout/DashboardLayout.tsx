@@ -10,15 +10,16 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Wait until loading is complete before checking authentication
-    if (!isLoading && !isAuthenticated) {
+    // Use session for redirect check (not user) to avoid race condition
+    // Session loads faster than profile, preventing the double-click bug
+    if (!isLoading && !session) {
       navigate("/login");
     }
-  }, [isLoading, isAuthenticated, navigate]);
+  }, [isLoading, session, navigate]);
 
   // Show loading spinner while session is being recovered
   if (isLoading) {
@@ -29,7 +30,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     );
   }
 
-  if (!isAuthenticated) {
+  // No session = redirect handled by useEffect, just render null
+  if (!session) {
     return null;
   }
 
