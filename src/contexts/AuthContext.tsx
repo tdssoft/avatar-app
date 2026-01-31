@@ -1,3 +1,4 @@
+// AuthContext - Supabase Auth integration
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
