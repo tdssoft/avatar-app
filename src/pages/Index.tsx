@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogIn } from "lucide-react";
 import PackageCard from "@/components/PackageCard";
 import avatarLogo from "@/assets/avatar-logo.svg";
 
@@ -100,13 +100,20 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
           {/* Left Card - Main Content */}
           <div className="bg-card rounded-2xl shadow-sm p-8 md:p-12">
-            {/* Logo */}
-            <div className="mb-10">
+            {/* Logo and Login Link */}
+            <div className="flex items-center justify-between mb-10">
               <img
                 src={avatarLogo}
                 alt="Avatar centrum zdrowia"
                 className="h-12 w-auto"
               />
+              <Link 
+                to="/login" 
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <LogIn className="h-4 w-4" />
+                Zaloguj się
+              </Link>
             </div>
 
             {/* Header */}
