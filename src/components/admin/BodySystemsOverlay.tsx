@@ -55,7 +55,7 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
       )}
 
       {/* Responsive grid of image tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 max-w-3xl">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {bodySystemsOptions.map((system) => {
           const isSelected = selectedSystems.includes(system.id);
           const image = systemImages[system.id];
@@ -65,7 +65,7 @@ const BodySystemsOverlay = ({ selectedSystems, onToggle }: BodySystemsOverlayPro
               key={system.id}
               onClick={() => onToggle(system.id)}
               className={cn(
-                "group relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all duration-200",
+                "group relative aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200 min-w-[100px]",
                 "hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]",
                 isSelected
                   ? "border-primary ring-2 ring-primary/30"
