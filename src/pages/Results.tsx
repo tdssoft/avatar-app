@@ -75,7 +75,7 @@ const Results = () => {
       </div>
 
       {/* Panel boczny - Twoje zdjęcie */}
-      <div className="fixed bottom-6 right-6 hidden lg:block">
+      <div className="fixed top-20 right-6 hidden lg:block">
         <PhotoUpload className="w-48" />
       </div>
     </DashboardLayout>

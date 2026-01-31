@@ -52,19 +52,21 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
               </NavLink>
             </li>
           ))}
+          {/* Logout - directly after navigation items */}
+          <li>
+            <button
+              onClick={() => {
+                handleLogout();
+                onItemClick?.();
+              }}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors w-full"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Wyloguj</span>
+            </button>
+          </li>
         </ul>
       </nav>
-
-      {/* Logout */}
-      <div className="p-4 border-t border-border">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-colors w-full"
-        >
-          <LogOut className="h-5 w-5" />
-          <span>Wyloguj</span>
-        </button>
-      </div>
     </div>
   );
 };

@@ -136,7 +136,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (data: SignupData): Promise<{ success: boolean; error?: string }> => {
     const referralCode = generateReferralCode();
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/dashboard`;
 
     const { data: authData, error } = await supabase.auth.signUp({
       email: data.email,
