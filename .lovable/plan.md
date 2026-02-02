@@ -1,137 +1,125 @@
 
-# Plan uzupełnienia brakujących funkcjonalności
 
-## Przegląd
+# Plan naprawy widoku wywiadu żywieniowego dla pacjenta
 
-Analiza kodu względem planu projektu (`.lovable/plan.md`) wykazała kilka brakujących lub niekompletnych funkcjonalności. Poniżej przedstawiam szczegółowy plan ich implementacji.
+## Problem
 
----
+Obecna strona wywiadu żywieniowego (`/dashboard/interview`) dla pacjenta ma następujące problemy:
 
-## 1. Edycja wywiadu przez admina (Priorytet: WYSOKI)
+1. **Brak widoku historii** - strona zawsze pokazuje formularz edycji, nawet gdy wywiad został już zapisany
+2. **Brak rozróżnienia stanów** - nie ma różnicy między:
+   - Podglądem zapisanego wywiadu (tylko do odczytu)
+   - Edycją istniejącego wywiadu
+   - Tworzeniem nowego wywiadu
+3. **Zapisany wywiad niewidoczny** - użytkownik nie widzi że wywiad został zapisany, tylko pusty formularz
 
-### Problem
-Komponent `AdminInterviewView.tsx` wyświetla dane wywiadu w trybie tylko do odczytu. Admin nie może edytować wywiadu żywieniowego pacjenta.
+## Oczekiwane zachowanie
 
-### Rozwiązanie
-Rozbudować `AdminInterviewView.tsx` o tryb edycji:
-- Dodać przycisk "Edytuj wywiad" przełączający widok w tryb formularza
-- Wykorzystać strukturę formularza z `NutritionInterview.tsx` (te same pola)
-- Zapisywać zmiany z oznaczeniem `last_updated_by` jako ID admina
-- Dodać przycisk "Anuluj" do powrotu do trybu podglądu
-
-### Pliki do modyfikacji
-- `src/components/admin/AdminInterviewView.tsx` - dodanie trybu edycji
-
----
-
-## 2. Obsługa wygaśnięcia tokenu zaleceń (Priorytet: ŚREDNI)
-
-### Problem
-Tokeny do pobierania zaleceń mają datę wygaśnięcia (`token_expires_at`), ale:
-- Edge function `verify-download-token` nie sprawdza wygaśnięcia
-- Brak możliwości regeneracji wygasłego tokenu
-
-### Rozwiązanie
-- W `verify-download-token/index.ts` dodać walidację `token_expires_at`
-- W panelu admina dodać przycisk "Odnów token" dla wygasłych zaleceń
-- W widoku pacjenta wyświetlać status tokenu (aktywny/wygasły)
-
-### Pliki do modyfikacji
-- `supabase/functions/verify-download-token/index.ts` - walidacja daty
-- `src/pages/admin/PatientProfile.tsx` - przycisk regeneracji tokenu
-- `src/pages/Recommendations.tsx` - wyświetlanie statusu tokenu
-
----
-
-## 3. Filtry zaleceń (data, tagi) dla pacjenta (Priorytet: ŚREDNI)
-
-### Problem
-Strona "Moje zalecenia" (`Recommendations.tsx`) filtruje tylko po profilu. Brak filtrów po dacie i tagach zgodnie z planem (Faza 3.4).
-
-### Rozwiązanie
-Dodać sekcję filtrów:
-- Filtr zakresu dat (od-do) z komponentem Calendar/DatePicker
-- Filtr tagów (multi-select z dostępnych tagów)
-- Zachować istniejący filtr profilu
-
-### Pliki do modyfikacji
-- `src/pages/Recommendations.tsx` - dodanie filtrów
-
----
-
-## 4. System tagów dla pacjentów (Priorytet: NISKI)
-
-### Problem
-Plan (Faza 8.3) zakłada system tagów dla pacjentów/profili umożliwiający kategoryzację i filtrowanie. Obecnie tagi istnieją tylko w zaleceniach.
-
-### Rozwiązanie
-- Utworzyć tabelę `patient_tags` lub dodać kolumnę `tags` do `patients`
-- W panelu admina dodać zarządzanie tagami pacjenta
-- W liście pacjentów dodać filtrowanie po tagach
-
-### Wymagane zmiany w bazie
-```sql
-ALTER TABLE patients ADD COLUMN tags text[] DEFAULT '{}';
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    WIDOK DOMYŚLNY                           │
+│                                                             │
+│  Jeśli wywiad istnieje:                                     │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Podgląd zapisanego wywiadu (tylko do odczytu)      │   │
+│  │  - Wyświetla wypełnione dane                        │   │
+│  │  - Przycisk "Edytuj wywiad" → tryb formularza       │   │
+│  │  - Data ostatniej aktualizacji                      │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  Jeśli wywiad nie istnieje:                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Komunikat "Brak wywiadu"                           │   │
+│  │  Przycisk "Rozpocznij wywiad" → tryb formularza     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│                    TRYB EDYCJI                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Formularz z polami do wypełnienia                  │   │
+│  │  - Przycisk "Zapisz wywiad"                         │   │
+│  │  - Przycisk "Anuluj" (powrót do podglądu)          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Pliki do modyfikacji
-- Migracja bazy danych
-- `src/pages/admin/AdminDashboard.tsx` - filtr po tagach
-- `src/pages/admin/PatientProfile.tsx` - zarządzanie tagami
+## Rozwiązanie techniczne
 
----
+### Modyfikacja `src/pages/NutritionInterview.tsx`
 
-## 5. Audio w kreatorze zaleceń (Priorytet: NISKI)
-
-### Problem
-Komponent `AudioRecorder` obsługuje `recommendationId`, ale nie jest używany w `RecommendationCreator.tsx`.
-
-### Rozwiązanie
-Po zapisaniu zalecenia, wyświetlić opcję nagrania audio dla tego zalecenia lub przenieść użytkownika do zakładki audio z powiązaniem.
-
-### Pliki do modyfikacji
-- `src/pages/admin/RecommendationCreator.tsx` - dodanie sekcji audio po zapisie
-
----
-
-## 6. Historia zmian wywiadu (Priorytet: NISKI)
-
-### Problem
-Plan zakłada historię zmian wywiadu. Obecnie zapisujemy tylko ostatnią aktualizację.
-
-### Rozwiązanie
-- Utworzyć tabelę `nutrition_interview_history`
-- Przed każdą aktualizacją zapisywać poprzednią wersję
-- W panelu admina dodać przycisk "Historia zmian"
-
-### Wymagane zmiany w bazie
-```sql
-CREATE TABLE nutrition_interview_history (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  interview_id uuid REFERENCES nutrition_interviews(id),
-  content jsonb NOT NULL,
-  changed_by uuid,
-  changed_at timestamptz DEFAULT now()
-);
+1. **Dodać stan trybu edycji**:
+```typescript
+const [isEditing, setIsEditing] = useState(false);
 ```
 
----
+2. **Logika wyświetlania**:
+   - Jeśli `interview === null` → pokaż komunikat "Brak wywiadu" + przycisk "Rozpocznij"
+   - Jeśli `interview !== null && !isEditing` → pokaż podgląd danych (tylko odczyt) + przycisk "Edytuj"
+   - Jeśli `isEditing === true` → pokaż formularz edycji + przyciski "Zapisz" i "Anuluj"
 
-## Kolejność implementacji (rekomendowana)
+3. **Wykorzystać istniejące komponenty**:
+   - Skopiować logikę wyświetlania z `AdminInterviewView.tsx` (komponenty `InfoRow`, `TextSection`)
+   - Użyć tych samych etykiet i formatowania
 
-| Priorytet | Funkcjonalność | Czas szacowany |
-|-----------|----------------|----------------|
-| 1 | Edycja wywiadu przez admina | 20 min |
-| 2 | Walidacja wygaśnięcia tokenu | 10 min |
-| 3 | Filtry zaleceń (data, tagi) | 15 min |
-| 4 | System tagów pacjentów | 25 min |
-| 5 | Audio w kreatorze zaleceń | 10 min |
-| 6 | Historia zmian wywiadu | 30 min |
+4. **Przepływ użytkownika**:
+   - Po kliknięciu "Rozpocznij wywiad" lub "Edytuj" → `setIsEditing(true)`
+   - Po zapisaniu → `setIsEditing(false)` + odśwież dane
+   - Po kliknięciu "Anuluj" → `setIsEditing(false)` + przywróć oryginalne dane
 
----
+## Szczegółowe zmiany
 
-## Podsumowanie
+### Plik: `src/pages/NutritionInterview.tsx`
 
-Najważniejszą brakującą funkcjonalnością jest **edycja wywiadu przez admina** - to blokuje codzienną pracę z systemem. Rekomenduję rozpoczęcie od punktów 1-3 jako priorytetowych, a punkty 4-6 potraktować jako opcjonalne ulepszenia.
+**Dodać:**
+- Stan `isEditing: boolean` (domyślnie `false`)
+- Komponenty pomocnicze `InfoRow` i `TextSection` (skopiowane z AdminInterviewView)
+- Mapowania etykiet dla wartości select (`activityLabels`, `stressLabels`, `dietLabels`, itp.)
+- Widok podglądu (read-only) z przyciskiem "Edytuj wywiad"
+- Komunikat "Brak wywiadu" z przyciskiem "Rozpocznij wywiad"
+- Przycisk "Anuluj" w trybie edycji
 
-Po zatwierdzeniu planu mogę przystąpić do implementacji wybranych elementów.
+**Zmienić:**
+- Logika `fetchInterview`:
+  - Jeśli wywiad istnieje → `setIsEditing(false)` (pokaż podgląd)
+  - Jeśli nie istnieje → `setIsEditing(true)` (pokaż formularz do tworzenia)
+- Logika `handleSave`:
+  - Po zapisaniu → `setIsEditing(false)` + refetch
+
+**Struktura renderowania:**
+```tsx
+{isLoading ? (
+  <Loader />
+) : !interview && !isEditing ? (
+  // Stan: Brak wywiadu
+  <EmptyState onStart={() => setIsEditing(true)} />
+) : isEditing ? (
+  // Stan: Tryb edycji/tworzenia
+  <EditForm onSave={handleSave} onCancel={() => setIsEditing(false)} />
+) : (
+  // Stan: Podgląd zapisanego wywiadu
+  <InterviewView interview={interview} onEdit={() => setIsEditing(true)} />
+)}
+```
+
+## Dodatkowe poprawki
+
+### Konsola - ostrzeżenia o ref
+
+W logach konsoli widzę ostrzeżenia:
+```
+Function components cannot be given refs. Check the render method of `Sidebar`
+Function components cannot be given refs. Check the render method of `SidebarContent`
+```
+
+Te błędy są związane z komponentami `SidebarContent` i `ProfileSelector`, które nie są opakowane w `React.forwardRef()`. Naprawię to również.
+
+### Pliki do modyfikacji:
+1. `src/pages/NutritionInterview.tsx` - główna przebudowa logiki widoku
+2. `src/components/layout/Sidebar.tsx` - naprawić ref dla SidebarContent
+3. `src/components/profile/ProfileSelector.tsx` - naprawić ref
+
+## Czas realizacji
+
+- Przebudowa NutritionInterview.tsx: ~15 min
+- Naprawa ostrzeżeń ref: ~5 min
+- **Łącznie: ~20 min**
+
