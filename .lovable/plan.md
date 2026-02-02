@@ -1,126 +1,182 @@
 
-# Plan naprawy strony "Wyniki badań" (/dashboard/results)
+# Plan: Eliminacja wszystkich placeholderów i wdrożenie funkcjonalnych wersji
 
-## Zdiagnozowany problem
+## Podsumowanie zidentyfikowanych problemów
 
-Strona `Results.tsx` jest **statycznym placeholderem** - nie pobiera żadnych danych z bazy danych. Zawiera tylko hardcoded `<SelectItem value="none">Brak zaleceń</SelectItem>`.
+Przeanalizowałem całą aplikację i znalazłem **12 głównych placeholderów/niedziałających elementów**, które wymagają naprawy.
 
-Strona `Recommendations.tsx` działa poprawnie, bo:
-1. Pobiera `patient.id` na podstawie `user?.id`
-2. Pobiera zalecenia z tabeli `recommendations` filtrowane po `patient_id`
+---
 
-## Rozwiązanie
+## 1. Strona Help.tsx - Przyciski kontaktowe (niedziałające)
 
-Muszę przebudować `Results.tsx`, aby:
-1. Pobierał aktywny profil (Kowal) z kontekstu/localStorage
-2. Pobierał zalecenia dla tego profilu z bazy danych
-3. Wyświetlał je w dropdown "Zalecenia z dnia"
-4. Po wybraniu zalecenia pokazywał szczegóły
+**Problem:** Trzy przyciski kontaktowe ("Napisz email", "Zadzwoń", "Rozpocznij czat") nie wykonują żadnej akcji.
 
-## Szczegółowe zmiany w `src/pages/Results.tsx`
+**Rozwiązanie:**
+- "Napisz email" → `window.location.href = 'mailto:kontakt@avatar.pl'`
+- "Zadzwoń" → `window.location.href = 'tel:+48123456789'`
+- "Rozpocznij czat" → Otwiera popup/modal z formularzem kontaktowym (zapisuje do tabeli `support_tickets`)
 
-### Dodać importy
-```typescript
-import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { pl } from "date-fns/locale";
+**Nowe elementy:**
+- Tabela `support_tickets` w bazie danych
+- Modal kontaktowy z formularzem
+
+---
+
+## 2. Strona Profile.tsx - Przyciski "Zmień hasło" i "Edytuj dane" (niedziałające)
+
+**Problem:** Oba przyciski na dole strony profilu nie wykonują żadnej akcji.
+
+**Rozwiązanie:**
+- "Zmień hasło" → Otwiera modal z formularzem zmiany hasła (używa `supabase.auth.updateUser`)
+- "Edytuj dane" → Aktywuje tryb edycji formularza (odblokowanie inputów + przycisk "Zapisz")
+
+**Nowe komponenty:**
+- `ChangePasswordDialog.tsx`
+- Stan `isEditing` z możliwością edycji pól
+
+---
+
+## 3. Strona Results.tsx - Przycisk "Wyślij" pytanie (niedziałający)
+
+**Problem:** Przycisk "Wyślij" pod tekstarea do zadawania pytań nie wykonuje żadnej akcji.
+
+**Rozwiązanie:**
+- Zapisuje pytanie do tabeli `patient_messages` z `message_type = 'question'`
+- Wyświetla toast sukcesu
+- Czyści pole tekstowe
+
+---
+
+## 4. Strona Results.tsx - Sekcja "Zleć kolejną diagnostykę" (pusty placeholder)
+
+**Problem:** Sekcja zawiera tylko komentarz `{/* Placeholder dla kart pakietów */}` - nic nie wyświetla.
+
+**Rozwiązanie:**
+- Wyświetla te same karty pakietów co na Dashboard.tsx
+- Każda karta kieruje do `/payment`
+
+---
+
+## 5. Strona Dashboard.tsx - Sekcja "Zalecenia zdrowotne" (statyczny tekst)
+
+**Problem:** Sekcja zawiera tylko statyczny tekst bez żadnych dokumentów do pobrania.
+
+**Rozwiązanie:**
+- Pobiera zalecenia z tabeli `recommendations` dla aktywnego profilu
+- Wyświetla listę dokumentów do pobrania (z linkiem do `/dashboard/recommendations`)
+- Jeśli brak zaleceń - wyświetla komunikat "Brak zaleceń"
+
+---
+
+## 6. Admin PatientProfile.tsx - Brak możliwości wysłania wiadomości
+
+**Problem:** Zakładka "Notatki" pozwala tylko przeglądać wiadomości pacjenta, ale admin nie może odpowiedzieć.
+
+**Rozwiązanie:**
+- Dodać formularz odpowiedzi w sekcji wiadomości
+- Zapisuje odpowiedź do `patient_messages` z `message_type = 'answer'`
+
+---
+
+## 7. Strona NutritionInterview.tsx - Hardcoded labels (częściowy placeholder)
+
+**Problem:** Etykiety dla aktywności fizycznej, stresu i diety są zahardcodowane w kodzie.
+
+**Status:** To jest akceptowalne dla MVP - te wartości rzadko się zmieniają.
+
+---
+
+## 8. Hardcoded dane kontaktowe
+
+**Problem:** Email (kontakt@avatar.pl) i telefon (+48 123 456 789) są zahardcodowane w kilku miejscach.
+
+**Rozwiązanie:**
+- Stworzyć plik konfiguracyjny `src/config/contact.ts` z centralnymi danymi kontaktowymi
+- Importować w Help.tsx i innych miejscach
+
+---
+
+## Nowe tabele bazy danych
+
+```text
+Tabela: support_tickets
+-----------------------
+- id: uuid (PK)
+- user_id: uuid (FK)
+- person_profile_id: uuid (FK, nullable)
+- subject: text
+- message: text
+- status: text (default: 'open')
+- created_at: timestamp
+- updated_at: timestamp
+
+RLS:
+- Users can INSERT own tickets
+- Users can SELECT own tickets
+- Admins can SELECT/UPDATE all tickets
 ```
 
-### Dodać stany i logikę pobierania
-```typescript
-interface Recommendation {
-  id: string;
-  title: string | null;
-  recommendation_date: string;
-  diagnosis_summary: string | null;
-}
+---
 
-const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-const [selectedRecommendation, setSelectedRecommendation] = useState<string>("");
-const [isLoading, setIsLoading] = useState(true);
-const { user } = useAuth();
-```
+## Szczegółowy plan implementacji
 
-### Funkcja pobierania zaleceń
-```typescript
-useEffect(() => {
-  if (user) {
-    fetchRecommendations();
-  }
-}, [user]);
+### Etap 1: Baza danych
+1. Utworzyć tabelę `support_tickets`
+2. Dodać polityki RLS
 
-const fetchRecommendations = async () => {
-  setIsLoading(true);
-  
-  // 1. Pobierz patient_id
-  const { data: patient } = await supabase
-    .from("patients")
-    .select("id")
-    .eq("user_id", user?.id)
-    .single();
+### Etap 2: Komponenty pomocnicze
+1. `src/config/contact.ts` - centralne dane kontaktowe
+2. `src/components/profile/ChangePasswordDialog.tsx` - modal zmiany hasła
+3. `src/components/support/ContactFormDialog.tsx` - modal formularza kontaktowego
 
-  if (!patient) {
-    setIsLoading(false);
-    return;
-  }
+### Etap 3: Naprawić strony
+1. **Help.tsx:**
+   - Podłączyć przyciski email i telefon
+   - Dodać modal czatu/kontaktu
 
-  // 2. Opcjonalnie: pobierz aktywny profil z localStorage
-  const activeProfileId = localStorage.getItem('activeProfileId');
+2. **Profile.tsx:**
+   - Dodać dialog zmiany hasła
+   - Dodać tryb edycji z zapisem do bazy
 
-  // 3. Pobierz zalecenia
-  let query = supabase
-    .from("recommendations")
-    .select("id, title, recommendation_date, diagnosis_summary")
-    .eq("patient_id", patient.id)
-    .order("recommendation_date", { ascending: false });
+3. **Results.tsx:**
+   - Podłączyć wysyłanie pytań do bazy
+   - Wyświetlić karty pakietów w sekcji "Zleć diagnostykę"
 
-  // Filtruj po profilu jeśli jest wybrany
-  if (activeProfileId) {
-    query = query.eq("person_profile_id", activeProfileId);
-  }
+4. **Dashboard.tsx:**
+   - Pobrać i wyświetlić zalecenia w sekcji "Zalecenia zdrowotne"
 
-  const { data } = await query;
-  setRecommendations(data || []);
-  setIsLoading(false);
-};
-```
+5. **PatientProfile.tsx (admin):**
+   - Dodać formularz odpowiedzi na wiadomości pacjenta
 
-### Zaktualizować dropdown
-```tsx
-<Select 
-  value={selectedRecommendation} 
-  onValueChange={setSelectedRecommendation}
->
-  <SelectTrigger className="w-[200px] bg-background">
-    <SelectValue placeholder="Wybierz zalecenie" />
-  </SelectTrigger>
-  <SelectContent className="bg-background">
-    {recommendations.length === 0 ? (
-      <SelectItem value="none" disabled>Brak zaleceń</SelectItem>
-    ) : (
-      recommendations.map((rec) => (
-        <SelectItem key={rec.id} value={rec.id}>
-          {format(new Date(rec.recommendation_date), "d MMM yyyy", { locale: pl })}
-          {rec.title ? ` - ${rec.title}` : ""}
-        </SelectItem>
-      ))
-    )}
-  </SelectContent>
-</Select>
-```
+---
 
-### Wyświetlić szczegóły wybranego zalecenia
-Gdy użytkownik wybierze zalecenie, poniżej wyświetlić jego szczegóły (diagnosis_summary).
+## Pliki do utworzenia
+- `supabase/migrations/xxx_support_tickets.sql`
+- `src/config/contact.ts`
+- `src/components/profile/ChangePasswordDialog.tsx`
+- `src/components/support/ContactFormDialog.tsx`
 
 ## Pliki do modyfikacji
+- `src/pages/Help.tsx`
+- `src/pages/Profile.tsx`
+- `src/pages/Results.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/pages/admin/PatientProfile.tsx`
 
-1. `src/pages/Results.tsx` - pełna przebudowa z dodaniem pobierania danych
+---
 
-## Oczekiwany rezultat
+## Podsumowanie zmian
 
-Po wejściu na stronę "Wyniki badań" dla profilu Kowal:
-- Dropdown pokaże 2 zalecenia (te same co na stronie "Moje zalecenia")
-- Użytkownik może wybrać zalecenie z listy
-- Po wyborze wyświetlą się szczegóły zalecenia
+| Element | Stan przed | Stan po |
+|---------|------------|---------|
+| Help - Email button | Niedziałający | Otwiera mailto: |
+| Help - Phone button | Niedziałający | Otwiera tel: |
+| Help - Chat button | Niedziałający | Otwiera formularz kontaktowy |
+| Profile - Zmień hasło | Niedziałający | Modal z formularzem |
+| Profile - Edytuj dane | Niedziałający | Tryb edycji + zapis |
+| Results - Wyślij pytanie | Niedziałający | Zapisuje do bazy |
+| Results - Pakiety | Pusty placeholder | Karty pakietów |
+| Dashboard - Zalecenia | Statyczny tekst | Lista dokumentów |
+| Admin - Odpowiedz pacjentowi | Brak | Formularz odpowiedzi |
+
+Po zatwierdzeniu planu wdrożę wszystkie funkcjonalne wersje.
