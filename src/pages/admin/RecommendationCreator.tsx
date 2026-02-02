@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Mail, X } from "lucide-react";
+import { ArrowLeft, Save, Mail, X, Mic } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
+import AudioRecorder from "@/components/audio/AudioRecorder";
+import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
 
 interface PersonProfile {
   id: string;
@@ -37,6 +39,8 @@ const RecommendationCreator = () => {
   const [profiles, setProfiles] = useState<PersonProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [tagInput, setTagInput] = useState("");
+  const [savedRecommendationId, setSavedRecommendationId] = useState<string | null>(null);
+  const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
   const [formData, setFormData] = useState({
     title: "",
     diagnosisSummary: "",
@@ -138,6 +142,7 @@ const RecommendationCreator = () => {
       if (error) throw error;
 
       toast.success("Zalecenia zostały zapisane");
+      setSavedRecommendationId(recommendation.id);
 
       // Send email if enabled
       if (sendEmail && recommendation) {
@@ -164,7 +169,6 @@ const RecommendationCreator = () => {
         }
       }
 
-      navigate(`/admin/patient/${id}`);
     } catch (error) {
       console.error("[RecommendationCreator] Error:", error);
       toast.error("Nie udało się zapisać zaleceń");
@@ -172,6 +176,63 @@ const RecommendationCreator = () => {
       setIsLoading(false);
     }
   };
+
+  const handleFinish = () => {
+    navigate(`/admin/patient/${id}`);
+  };
+
+  // If recommendation is saved, show audio recording section
+  if (savedRecommendationId && selectedProfileId) {
+    return (
+      <AdminLayout>
+        <div className="h-full flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 shrink-0">
+            <Button variant="ghost" size="icon" onClick={handleFinish}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">Zalecenie zapisane</h1>
+              <p className="text-muted-foreground">Opcjonalnie możesz nagrać komentarz audio do zalecenia</p>
+            </div>
+          </div>
+
+          <div className="max-w-2xl mx-auto w-full space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Mic className="h-5 w-5" />
+                  Nagranie audio do zalecenia
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Możesz nagrać komentarz audio, który zostanie powiązany z tym zaleceniem.
+                  Pacjent będzie mógł go odsłuchać wraz z dokumentem.
+                </p>
+                <AudioRecorder
+                  personProfileId={selectedProfileId}
+                  recommendationId={savedRecommendationId}
+                  onSaved={() => setAudioRefreshTrigger((prev) => prev + 1)}
+                />
+                <AudioRecordingsList
+                  personProfileId={selectedProfileId}
+                  recommendationId={savedRecommendationId}
+                  refreshTrigger={audioRefreshTrigger}
+                />
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-3">
+              <Button onClick={handleFinish} className="gap-2">
+                Zakończ
+              </Button>
+            </div>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>

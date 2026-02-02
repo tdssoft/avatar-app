@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Tag, X } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import PatientTable from "@/components/admin/PatientTable";
 import CreatePatientDialog from "@/components/admin/CreatePatientDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -12,6 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
@@ -21,6 +27,7 @@ interface Patient {
   diagnosis_status: string;
   last_communication_at: string | null;
   created_at: string;
+  tags: string[] | null;
   profiles?: {
     first_name: string | null;
     last_name: string | null;
@@ -35,6 +42,7 @@ const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [subscriptionFilter, setSubscriptionFilter] = useState("all");
   const [diagnosisFilter, setDiagnosisFilter] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const fetchPatients = async () => {
     setIsLoading(true);
@@ -81,6 +89,15 @@ const AdminDashboard = () => {
     fetchPatients();
   }, []);
 
+  // Get all unique tags from patients
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    patients.forEach((p) => {
+      p.tags?.forEach((tag) => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }, [patients]);
+
   // Filter patients based on search and filters
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
@@ -101,9 +118,25 @@ const AdminDashboard = () => {
       const matchesDiagnosis = diagnosisFilter === "all" || 
         patient.diagnosis_status === diagnosisFilter;
 
-      return matchesSearch && matchesSubscription && matchesDiagnosis;
+      // Tags filter
+      const matchesTags = selectedTags.length === 0 ||
+        selectedTags.some((tag) => patient.tags?.includes(tag));
+
+      return matchesSearch && matchesSubscription && matchesDiagnosis && matchesTags;
     });
-  }, [patients, searchQuery, subscriptionFilter, diagnosisFilter]);
+  }, [patients, searchQuery, subscriptionFilter, diagnosisFilter, selectedTags]);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTags([]);
+  };
+
+  const hasActiveFilters = subscriptionFilter !== "all" || diagnosisFilter !== "all" || selectedTags.length > 0;
 
   return (
     <AdminLayout>
@@ -155,10 +188,52 @@ const AdminDashboard = () => {
               <SelectItem value="Brak">Brak</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Tags Filter */}
+          {allTags.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Tag className="h-4 w-4" />
+                  Tagi
+                  {selectedTags.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">
+                      {selectedTags.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Filtruj po tagach</span>
+                    {selectedTags.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={clearTagFilters}>
+                        <X className="h-3 w-3 mr-1" />
+                        Wyczyść
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map((tag) => (
+                      <Badge
+                        key={tag}
+                        variant={selectedTags.includes(tag) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => handleTagToggle(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
         {/* Results count */}
-        {searchQuery || subscriptionFilter !== "all" || diagnosisFilter !== "all" ? (
+        {searchQuery || hasActiveFilters ? (
           <p className="text-sm text-muted-foreground">
             Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
           </p>
