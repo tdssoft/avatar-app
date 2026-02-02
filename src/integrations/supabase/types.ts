@@ -75,6 +75,38 @@ export type Database = {
           },
         ]
       }
+      nutrition_interview_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          content: Json
+          id: string
+          interview_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          content: Json
+          id?: string
+          interview_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          content?: Json
+          id?: string
+          interview_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutrition_interview_history_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "nutrition_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nutrition_interviews: {
         Row: {
           content: Json
@@ -232,6 +264,7 @@ export type Database = {
           id: string
           last_communication_at: string | null
           subscription_status: string | null
+          tags: string[] | null
           updated_at: string | null
           user_id: string
         }
@@ -242,6 +275,7 @@ export type Database = {
           id?: string
           last_communication_at?: string | null
           subscription_status?: string | null
+          tags?: string[] | null
           updated_at?: string | null
           user_id: string
         }
@@ -252,6 +286,7 @@ export type Database = {
           id?: string
           last_communication_at?: string | null
           subscription_status?: string | null
+          tags?: string[] | null
           updated_at?: string | null
           user_id?: string
         }

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -16,6 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -31,6 +37,7 @@ interface PatientData {
   diagnosis_status: string;
   last_communication_at: string | null;
   admin_notes: string | null;
+  tags: string[] | null;
 }
 
 interface ProfileData {
@@ -55,6 +62,8 @@ interface Recommendation {
   created_at: string;
   title: string | null;
   person_profile_id: string | null;
+  download_token: string | null;
+  token_expires_at: string | null;
 }
 
 interface Note {
@@ -85,6 +94,8 @@ const PatientProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
+  const [newTag, setNewTag] = useState("");
+  const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -137,7 +148,7 @@ const PatientProfile = () => {
       // Fetch recommendations
       const { data: recsData } = await supabase
         .from("recommendations")
-        .select("id, recommendation_date, body_systems, diagnosis_summary, pdf_url, created_at, title, person_profile_id")
+        .select("id, recommendation_date, body_systems, diagnosis_summary, pdf_url, created_at, title, person_profile_id, download_token, token_expires_at")
         .eq("patient_id", id)
         .order("recommendation_date", { ascending: false });
 
@@ -196,6 +207,86 @@ const PatientProfile = () => {
     } finally {
       setIsAddingNote(false);
     }
+  };
+
+  const handleAddTag = async () => {
+    if (!newTag.trim() || !id || !patient) return;
+
+    const currentTags = patient.tags || [];
+    if (currentTags.includes(newTag.trim())) {
+      toast.error("Ten tag już istnieje");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("patients")
+        .update({ tags: [...currentTags, newTag.trim()] })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setPatient({ ...patient, tags: [...currentTags, newTag.trim()] });
+      setNewTag("");
+      toast.success("Tag został dodany");
+    } catch (error) {
+      console.error("[PatientProfile] Error adding tag:", error);
+      toast.error("Nie udało się dodać tagu");
+    }
+  };
+
+  const handleRemoveTag = async (tagToRemove: string) => {
+    if (!id || !patient) return;
+
+    const currentTags = patient.tags || [];
+    const newTags = currentTags.filter((t) => t !== tagToRemove);
+
+    try {
+      const { error } = await supabase
+        .from("patients")
+        .update({ tags: newTags })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setPatient({ ...patient, tags: newTags });
+      toast.success("Tag został usunięty");
+    } catch (error) {
+      console.error("[PatientProfile] Error removing tag:", error);
+      toast.error("Nie udało się usunąć tagu");
+    }
+  };
+
+  const handleRegenerateToken = async (recommendationId: string) => {
+    setIsRegeneratingToken(recommendationId);
+    try {
+      // Generate new token and expiry (7 days from now)
+      const newExpiryDate = new Date();
+      newExpiryDate.setDate(newExpiryDate.getDate() + 7);
+
+      const { error } = await supabase
+        .from("recommendations")
+        .update({
+          download_token: crypto.randomUUID(),
+          token_expires_at: newExpiryDate.toISOString(),
+        })
+        .eq("id", recommendationId);
+
+      if (error) throw error;
+
+      toast.success("Token został odnowiony na 7 dni");
+      fetchPatientData();
+    } catch (error) {
+      console.error("[PatientProfile] Error regenerating token:", error);
+      toast.error("Nie udało się odnowić tokenu");
+    } finally {
+      setIsRegeneratingToken(null);
+    }
+  };
+
+  const isTokenExpired = (expiresAt: string | null): boolean => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt) < new Date();
   };
 
   const getProfileName = (profileId: string | null): string => {
@@ -305,29 +396,54 @@ const PatientProfile = () => {
                       <p className="text-muted-foreground text-center py-4">Brak zaleceń</p>
                     ) : (
                       <div className="space-y-3">
-                        {filteredRecommendations.map((rec) => (
-                          <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <FileText className="h-5 w-5 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium">
-                                  {rec.title || `Zalecenia z dnia ${format(new Date(rec.recommendation_date), "dd.MM.yyyy", { locale: pl })}`}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {rec.body_systems?.length || 0} układów ciała
-                                  {rec.person_profile_id && ` • ${getProfileName(rec.person_profile_id)}`}
-                                </p>
+                        {filteredRecommendations.map((rec) => {
+                          const tokenExpired = isTokenExpired(rec.token_expires_at);
+                          
+                          return (
+                            <div key={rec.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-3">
+                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-medium">
+                                      {rec.title || `Zalecenia z dnia ${format(new Date(rec.recommendation_date), "dd.MM.yyyy", { locale: pl })}`}
+                                    </p>
+                                    {tokenExpired && (
+                                      <Badge variant="destructive" className="text-xs">
+                                        Token wygasł
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {rec.body_systems?.length || 0} układów ciała
+                                    {rec.person_profile_id && ` • ${getProfileName(rec.person_profile_id)}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                {tokenExpired && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleRegenerateToken(rec.id)}
+                                    disabled={isRegeneratingToken === rec.id}
+                                    className="gap-1"
+                                  >
+                                    <RefreshCw className={`h-4 w-4 ${isRegeneratingToken === rec.id ? "animate-spin" : ""}`} />
+                                    Odnów token
+                                  </Button>
+                                )}
+                                {rec.pdf_url && (
+                                  <Button variant="outline" size="sm" asChild>
+                                    <a href={rec.pdf_url} target="_blank" rel="noopener noreferrer">
+                                      Pobierz PDF
+                                    </a>
+                                  </Button>
+                                )}
                               </div>
                             </div>
-                            {rec.pdf_url && (
-                              <Button variant="outline" size="sm" asChild>
-                                <a href={rec.pdf_url} target="_blank" rel="noopener noreferrer">
-                                  Pobierz PDF
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
@@ -517,6 +633,50 @@ const PatientProfile = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tags Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  Tagi pacjenta
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {(patient?.tags || []).map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1">
+                      {tag}
+                      <button
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-1 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {(!patient?.tags || patient.tags.length === 0) && (
+                    <p className="text-sm text-muted-foreground">Brak tagów</p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nowy tag..."
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
+                  />
+                  <Button variant="outline" size="icon" onClick={handleAddTag}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
