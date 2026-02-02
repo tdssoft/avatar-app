@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -99,6 +110,7 @@ const PatientProfile = () => {
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
   const [newTag, setNewTag] = useState("");
   const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -180,6 +192,36 @@ const PatientProfile = () => {
       toast.error("Nie udało się załadować danych pacjenta");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDeletePatient = async () => {
+    if (!id) return;
+
+    setIsDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { patient_id: id },
+      });
+
+      if (error) {
+        console.error("[PatientProfile] Delete error:", error);
+        toast.error("Nie udało się usunąć pacjenta");
+        return;
+      }
+
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success("Pacjent został usunięty");
+      navigate("/admin");
+    } catch (error) {
+      console.error("[PatientProfile] Delete error:", error);
+      toast.error("Nie udało się usunąć pacjenta");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -765,6 +807,40 @@ const PatientProfile = () => {
                   <FileText className="h-4 w-4" />
                   Poprzednie wyniki
                 </Button>
+                
+                <Separator className="my-3" />
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive" 
+                      className="w-full justify-start gap-2"
+                      disabled={isDeleting}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {isDeleting ? "Usuwanie..." : "Usuń pacjenta"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Czy na pewno chcesz usunąć tego pacjenta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Ta akcja jest nieodwracalna. Zostaną usunięte wszystkie dane pacjenta, 
+                        w tym profile, zalecenia, wyniki badań, notatki i wiadomości. 
+                        Konto użytkownika zostanie trwale usunięte z systemu.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeletePatient}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Usuń pacjenta
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </div>
