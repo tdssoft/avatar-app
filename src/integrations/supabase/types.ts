@@ -115,6 +115,7 @@ export type Database = {
           last_updated_at: string
           last_updated_by: string | null
           person_profile_id: string
+          status: string
         }
         Insert: {
           content?: Json
@@ -123,6 +124,7 @@ export type Database = {
           last_updated_at?: string
           last_updated_by?: string | null
           person_profile_id: string
+          status?: string
         }
         Update: {
           content?: Json
@@ -131,6 +133,7 @@ export type Database = {
           last_updated_at?: string
           last_updated_by?: string | null
           person_profile_id?: string
+          status?: string
         }
         Relationships: [
           {

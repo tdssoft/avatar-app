@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Save, User, Loader2, Edit, X, ClipboardList, AlertCircle } from "lucide-react";
+import { Save, User, Loader2, Edit, X, ClipboardList, AlertCircle, Plus, Eye, Send, ArrowLeft, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
 interface PersonProfile {
   id: string;
@@ -69,6 +70,16 @@ interface InterviewData {
   weight_goals: string;
   additional_notes: string;
 }
+
+interface Interview {
+  id: string;
+  content: InterviewData;
+  status: 'draft' | 'sent';
+  created_at: string;
+  last_updated_at: string;
+}
+
+type ViewMode = 'list' | 'view' | 'edit' | 'create';
 
 const defaultInterviewData: InterviewData = {
   height: "",
@@ -182,15 +193,15 @@ const NutritionInterview = () => {
   const { user } = useAuth();
   const [profiles, setProfiles] = useState<PersonProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [interviewId, setInterviewId] = useState<string | null>(null);
-  const [interview, setInterview] = useState<{
-    content: InterviewData;
-    last_updated_at: string;
-  } | null>(null);
+  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
   const [formData, setFormData] = useState<InterviewData>(defaultInterviewData);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Check if there's already a draft
+  const hasDraft = interviews.some(i => i.status === 'draft');
 
   useEffect(() => {
     if (user) {
@@ -200,7 +211,7 @@ const NutritionInterview = () => {
 
   useEffect(() => {
     if (selectedProfileId) {
-      fetchInterview();
+      fetchInterviews();
     }
   }, [selectedProfileId]);
 
@@ -213,10 +224,17 @@ const NutritionInterview = () => {
 
     if (error) {
       console.error("Error fetching profiles:", error);
+      setIsLoading(false);
       return;
     }
 
     setProfiles(data || []);
+    
+    if (!data || data.length === 0) {
+      // No profiles - stop loading and show message
+      setIsLoading(false);
+      return;
+    }
     
     // Auto-select primary profile
     const primaryProfile = data?.find((p) => p.is_primary);
@@ -227,41 +245,37 @@ const NutritionInterview = () => {
     }
   };
 
-  const fetchInterview = async () => {
+  const fetchInterviews = async () => {
     setIsLoading(true);
-    setIsEditing(false);
+    setViewMode('list');
+    setSelectedInterview(null);
     
     const { data, error } = await supabase
       .from("nutrition_interviews")
-      .select("id, content, last_updated_at")
+      .select("id, content, status, created_at, last_updated_at")
       .eq("person_profile_id", selectedProfileId)
-      .maybeSingle();
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching interview:", error);
-      toast.error("Nie udało się pobrać wywiadu");
+      console.error("Error fetching interviews:", error);
+      toast.error("Nie udało się pobrać wywiadów");
       setIsLoading(false);
       return;
     }
 
-    if (data) {
-      setInterviewId(data.id);
-      const content = data.content as unknown as InterviewData;
-      setInterview({
-        content: { ...defaultInterviewData, ...content },
-        last_updated_at: data.last_updated_at,
-      });
-      setFormData({ ...defaultInterviewData, ...content });
-    } else {
-      setInterviewId(null);
-      setInterview(null);
-      setFormData(defaultInterviewData);
-    }
+    const typedData: Interview[] = (data || []).map(item => ({
+      id: item.id,
+      content: { ...defaultInterviewData, ...(item.content as unknown as InterviewData) },
+      status: (item.status as 'draft' | 'sent') || 'draft',
+      created_at: item.created_at,
+      last_updated_at: item.last_updated_at,
+    }));
 
+    setInterviews(typedData);
     setIsLoading(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (sendAfterSave: boolean = false) => {
     if (!selectedProfileId) {
       toast.error("Wybierz profil");
       return;
@@ -270,40 +284,41 @@ const NutritionInterview = () => {
     setIsSaving(true);
 
     try {
-      // Cast to Json type for Supabase
       const contentJson = JSON.parse(JSON.stringify(formData));
+      const newStatus = sendAfterSave ? 'sent' : 'draft';
       
-      if (interviewId) {
+      if (selectedInterview) {
         // Update existing
         const { error } = await supabase
           .from("nutrition_interviews")
           .update({
             content: contentJson,
+            status: newStatus,
             last_updated_at: new Date().toISOString(),
             last_updated_by: user?.id,
           })
-          .eq("id", interviewId);
+          .eq("id", selectedInterview.id);
 
         if (error) throw error;
+        
+        toast.success(sendAfterSave ? "Wywiad został wysłany" : "Wywiad został zapisany");
       } else {
         // Create new
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("nutrition_interviews")
           .insert([{
             person_profile_id: selectedProfileId,
             content: contentJson,
+            status: newStatus,
             last_updated_by: user?.id,
-          }])
-          .select("id")
-          .single();
+          }]);
 
         if (error) throw error;
-        setInterviewId(data.id);
+        
+        toast.success(sendAfterSave ? "Wywiad został utworzony i wysłany" : "Wywiad został zapisany jako roboczy");
       }
 
-      toast.success("Wywiad został zapisany");
-      setIsEditing(false);
-      fetchInterview();
+      fetchInterviews();
     } catch (error) {
       console.error("Error saving interview:", error);
       toast.error("Nie udało się zapisać wywiadu");
@@ -312,25 +327,31 @@ const NutritionInterview = () => {
     }
   };
 
-  const handleEdit = () => {
-    if (interview) {
-      setFormData({ ...defaultInterviewData, ...interview.content });
-    }
-    setIsEditing(true);
+  const handleViewInterview = (interview: Interview) => {
+    setSelectedInterview(interview);
+    setFormData({ ...defaultInterviewData, ...interview.content });
+    setViewMode('view');
   };
 
-  const handleCancel = () => {
-    if (interview) {
-      setFormData({ ...defaultInterviewData, ...interview.content });
-    } else {
-      setFormData(defaultInterviewData);
-    }
-    setIsEditing(false);
+  const handleEditInterview = (interview: Interview) => {
+    setSelectedInterview(interview);
+    setFormData({ ...defaultInterviewData, ...interview.content });
+    setViewMode('edit');
   };
 
-  const handleStartNew = () => {
+  const handleCreateNew = () => {
+    if (hasDraft) {
+      toast.error("Masz już roboczy wywiad. Dokończ go lub wyślij przed utworzeniem nowego.");
+      return;
+    }
+    setSelectedInterview(null);
     setFormData(defaultInterviewData);
-    setIsEditing(true);
+    setViewMode('create');
+  };
+
+  const handleBackToList = () => {
+    setViewMode('list');
+    setSelectedInterview(null);
   };
 
   const handleCheckboxChange = (
@@ -348,42 +369,144 @@ const NutritionInterview = () => {
     }
   };
 
-  // Empty state - no interview exists
-  const renderEmptyState = () => (
+  // No profiles state
+  const renderNoProfiles = () => (
     <Card>
       <CardContent className="py-12 text-center">
-        <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <h3 className="text-lg font-medium text-foreground mb-2">
-          Brak wywiadu żywieniowego
+          Brak przypisanych profili
         </h3>
         <p className="text-muted-foreground mb-6">
-          Wypełnij wywiad żywieniowy, aby otrzymać spersonalizowane zalecenia.
+          Aby wypełnić wywiad żywieniowy, najpierw utwórz profil.
         </p>
-        <Button onClick={handleStartNew} className="gap-2">
-          <Edit className="h-4 w-4" />
-          Rozpocznij wywiad
+        <Button asChild>
+          <Link to="/dashboard/profile">
+            <User className="h-4 w-4 mr-2" />
+            Przejdź do profili
+          </Link>
         </Button>
       </CardContent>
     </Card>
   );
 
-  // Read-only view of saved interview
+  // Interview list view
+  const renderInterviewList = () => (
+    <div className="space-y-6">
+      {/* New interview button */}
+      <div className="flex justify-end">
+        <Button onClick={handleCreateNew} disabled={hasDraft} className="gap-2">
+          <Plus className="h-4 w-4" />
+          Nowy wywiad
+        </Button>
+      </div>
+
+      {interviews.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              Brak wywiadów żywieniowych
+            </h3>
+            <p className="text-muted-foreground mb-6">
+              Wypełnij wywiad żywieniowy, aby otrzymać spersonalizowane zalecenia.
+            </p>
+            <Button onClick={handleCreateNew} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Rozpocznij wywiad
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {interviews.map((interview) => (
+            <Card key={interview.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="py-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`p-2 rounded-lg ${interview.status === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                      {interview.status === 'draft' ? (
+                        <FileText className="h-5 w-5" />
+                      ) : (
+                        <Send className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-foreground">
+                          Wywiad z {format(new Date(interview.created_at), "d MMMM yyyy", { locale: pl })}
+                        </h3>
+                        <Badge variant={interview.status === 'draft' ? 'secondary' : 'default'}>
+                          {interview.status === 'draft' ? 'Roboczy' : 'Wysłany'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Ostatnia aktualizacja: {format(new Date(interview.last_updated_at), "d MMM yyyy, HH:mm", { locale: pl })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 ml-auto sm:ml-0">
+                    {interview.status === 'draft' ? (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => handleEditInterview(interview)}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edytuj
+                        </Button>
+                        <Button size="sm" onClick={() => {
+                          setSelectedInterview(interview);
+                          setFormData({ ...defaultInterviewData, ...interview.content });
+                          handleSave(true);
+                        }}>
+                          <Send className="h-4 w-4 mr-1" />
+                          Wyślij
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => handleViewInterview(interview)}>
+                        <Eye className="h-4 w-4 mr-1" />
+                        Podgląd
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Read-only view of interview
   const renderInterviewView = () => {
-    if (!interview) return null;
-    const data = interview.content;
+    if (!selectedInterview) return null;
+    const data = selectedInterview.content;
 
     return (
       <div className="space-y-6">
-        {/* Header with edit button */}
+        {/* Header with back button */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" onClick={handleBackToList} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Powrót do listy
+          </Button>
+          <Badge variant={selectedInterview.status === 'draft' ? 'secondary' : 'default'}>
+            {selectedInterview.status === 'draft' ? 'Roboczy' : 'Wysłany'}
+          </Badge>
+        </div>
+
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Ostatnia aktualizacja:{" "}
-            {format(new Date(interview.last_updated_at), "d MMMM yyyy, HH:mm", { locale: pl })}
+            Utworzono: {format(new Date(selectedInterview.created_at), "d MMMM yyyy, HH:mm", { locale: pl })}
+            <br />
+            Ostatnia aktualizacja: {format(new Date(selectedInterview.last_updated_at), "d MMMM yyyy, HH:mm", { locale: pl })}
           </div>
-          <Button onClick={handleEdit} variant="outline" className="gap-2">
-            <Edit className="h-4 w-4" />
-            Edytuj wywiad
-          </Button>
+          {selectedInterview.status === 'draft' && (
+            <Button onClick={() => handleEditInterview(selectedInterview)} variant="outline" className="gap-2">
+              <Edit className="h-4 w-4" />
+              Edytuj wywiad
+            </Button>
+          )}
         </div>
 
         {/* General info */}
@@ -490,18 +613,33 @@ const NutritionInterview = () => {
     );
   };
 
-  // Edit form
+  // Edit/Create form
   const renderEditForm = () => (
     <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={handleBackToList} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Powrót do listy
+        </Button>
+        <Badge variant="secondary">
+          {viewMode === 'create' ? 'Nowy wywiad' : 'Edycja'}
+        </Badge>
+      </div>
+
       {/* Action buttons */}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+        <Button variant="outline" onClick={handleBackToList} disabled={isSaving}>
           <X className="h-4 w-4 mr-2" />
           Anuluj
         </Button>
-        <Button onClick={handleSave} disabled={isSaving}>
+        <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
           <Save className="h-4 w-4 mr-2" />
-          {isSaving ? "Zapisywanie..." : "Zapisz wywiad"}
+          {isSaving ? "Zapisywanie..." : "Zapisz jako roboczy"}
+        </Button>
+        <Button onClick={() => handleSave(true)} disabled={isSaving}>
+          <Send className="h-4 w-4 mr-2" />
+          {isSaving ? "Wysyłanie..." : "Wyślij wywiad"}
         </Button>
       </div>
 
@@ -843,20 +981,28 @@ const NutritionInterview = () => {
         </AccordionItem>
       </Accordion>
 
-      {/* Bottom save button */}
+      {/* Bottom save buttons */}
       <Card>
         <CardContent className="flex flex-col sm:flex-row items-center justify-end gap-4 py-4">
-          <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+          <Button variant="outline" onClick={handleBackToList} disabled={isSaving}>
             <X className="h-4 w-4 mr-2" />
             Anuluj
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+          <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            Zapisz jako roboczy
+          </Button>
+          <Button onClick={() => handleSave(true)} disabled={isSaving} className="gap-2">
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Save className="h-4 w-4" />
+              <Send className="h-4 w-4" />
             )}
-            {isSaving ? "Zapisywanie..." : "Zapisz wywiad"}
+            Wyślij wywiad
           </Button>
         </CardContent>
       </Card>
@@ -872,11 +1018,14 @@ const NutritionInterview = () => {
               Wywiad żywieniowy
             </h1>
             <p className="text-muted-foreground mt-1">
-              {interview ? "Podgląd i edycja Twojego wywiadu" : "Uzupełnij informacje o swoich preferencjach i zdrowiu"}
+              {viewMode === 'list' && "Historia wywiadów żywieniowych"}
+              {viewMode === 'view' && "Podgląd wywiadu"}
+              {viewMode === 'edit' && "Edycja wywiadu"}
+              {viewMode === 'create' && "Nowy wywiad żywieniowy"}
             </p>
           </div>
 
-          {profiles.length > 1 && (
+          {profiles.length > 1 && viewMode === 'list' && (
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
@@ -900,12 +1049,14 @@ const NutritionInterview = () => {
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : !interview && !isEditing ? (
-          renderEmptyState()
-        ) : isEditing ? (
-          renderEditForm()
-        ) : (
+        ) : profiles.length === 0 ? (
+          renderNoProfiles()
+        ) : viewMode === 'list' ? (
+          renderInterviewList()
+        ) : viewMode === 'view' ? (
           renderInterviewView()
+        ) : (
+          renderEditForm()
         )}
       </div>
     </DashboardLayout>
