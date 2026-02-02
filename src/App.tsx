@@ -15,6 +15,8 @@ import Help from "./pages/Help";
 import Referrals from "./pages/Referrals";
 import Payment from "./pages/Payment";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import Recommendations from "./pages/Recommendations";
+import RecommendationDownload from "./pages/RecommendationDownload";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PatientProfile from "./pages/admin/PatientProfile";
 import RecommendationCreator from "./pages/admin/RecommendationCreator";
@@ -38,8 +40,11 @@ const App = () => (
             <Route path="/dashboard/profile" element={<Profile />} />
             <Route path="/dashboard/help" element={<Help />} />
             <Route path="/dashboard/referrals" element={<Referrals />} />
+            <Route path="/dashboard/recommendations" element={<Recommendations />} />
             <Route path="/payment" element={<Payment />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
+            {/* Public recommendation download page */}
+            <Route path="/recommendation/download" element={<RecommendationDownload />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/patient/:id" element={<PatientProfile />} />
