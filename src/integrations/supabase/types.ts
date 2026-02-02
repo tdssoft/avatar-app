@@ -48,6 +48,7 @@ export type Database = {
           message_text: string
           message_type: string
           patient_id: string
+          person_profile_id: string | null
           sent_at: string | null
         }
         Insert: {
@@ -56,6 +57,7 @@ export type Database = {
           message_text: string
           message_type: string
           patient_id: string
+          person_profile_id?: string | null
           sent_at?: string | null
         }
         Update: {
@@ -64,6 +66,7 @@ export type Database = {
           message_text?: string
           message_type?: string
           patient_id?: string
+          person_profile_id?: string | null
           sent_at?: string | null
         }
         Relationships: [
@@ -72,6 +75,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_messages_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -83,6 +93,7 @@ export type Database = {
           id: string
           note_text: string
           patient_id: string
+          person_profile_id: string | null
         }
         Insert: {
           admin_id: string
@@ -90,6 +101,7 @@ export type Database = {
           id?: string
           note_text: string
           patient_id: string
+          person_profile_id?: string | null
         }
         Update: {
           admin_id?: string
@@ -97,6 +109,7 @@ export type Database = {
           id?: string
           note_text?: string
           patient_id?: string
+          person_profile_id?: string | null
         }
         Relationships: [
           {
@@ -104,6 +117,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_notes_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -138,6 +158,42 @@ export type Database = {
           subscription_status?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      person_profiles: {
+        Row: {
+          account_user_id: string
+          birth_date: string | null
+          created_at: string
+          gender: string | null
+          id: string
+          is_primary: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_user_id: string
+          birth_date?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_user_id?: string
+          birth_date?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -187,6 +243,7 @@ export type Database = {
           id: string
           patient_id: string
           pdf_url: string | null
+          person_profile_id: string | null
           recommendation_date: string
           shop_links: string | null
           supplementation_program: string | null
@@ -202,6 +259,7 @@ export type Database = {
           id?: string
           patient_id: string
           pdf_url?: string | null
+          person_profile_id?: string | null
           recommendation_date?: string
           shop_links?: string | null
           supplementation_program?: string | null
@@ -217,6 +275,7 @@ export type Database = {
           id?: string
           patient_id?: string
           pdf_url?: string | null
+          person_profile_id?: string | null
           recommendation_date?: string
           shop_links?: string | null
           supplementation_program?: string | null
@@ -229,6 +288,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendations_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
             referencedColumns: ["id"]
           },
         ]
