@@ -1,29 +1,88 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Mail, X } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 
+interface PersonProfile {
+  id: string;
+  name: string;
+  is_primary: boolean;
+}
+
 const RecommendationCreator = () => {
-  // Avoid TSX generic parsing edge-cases by typing via assertion.
   const { id } = useParams() as { id: string };
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
+  const [sendEmail, setSendEmail] = useState(true);
+  const [profiles, setProfiles] = useState<PersonProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const [tagInput, setTagInput] = useState("");
   const [formData, setFormData] = useState({
+    title: "",
     diagnosisSummary: "",
     dietaryRecommendations: "",
     supplementationProgram: "",
     shopLinks: "",
     supportingTherapies: "",
+    tags: [] as string[],
   });
+
+  useEffect(() => {
+    fetchPatientProfiles();
+  }, [id]);
+
+  const fetchPatientProfiles = async () => {
+    // Get patient's user_id first
+    const { data: patient, error: patientError } = await supabase
+      .from("patients")
+      .select("user_id")
+      .eq("id", id)
+      .single();
+
+    if (patientError || !patient) {
+      console.error("Error fetching patient:", patientError);
+      return;
+    }
+
+    // Get profiles for this user
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("person_profiles")
+      .select("id, name, is_primary")
+      .eq("account_user_id", patient.user_id)
+      .order("is_primary", { ascending: false });
+
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      return;
+    }
+
+    setProfiles(profilesData || []);
+    // Auto-select primary profile if exists
+    const primaryProfile = profilesData?.find((p) => p.is_primary);
+    if (primaryProfile) {
+      setSelectedProfileId(primaryProfile.id);
+    }
+  };
 
   const handleSystemToggle = (systemId: string) => {
     setSelectedSystems((prev) =>
@@ -31,6 +90,21 @@ const RecommendationCreator = () => {
         ? prev.filter((s) => s !== systemId)
         : [...prev, systemId]
     );
+  };
+
+  const handleAddTag = () => {
+    const tag = tagInput.trim();
+    if (tag && !formData.tags.includes(tag)) {
+      setFormData({ ...formData, tags: [...formData.tags, tag] });
+      setTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags.filter((tag) => tag !== tagToRemove),
+    });
   };
 
   const handleSubmit = async () => {
@@ -43,22 +117,53 @@ const RecommendationCreator = () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { error } = await supabase
+      const { data: recommendation, error } = await supabase
         .from("recommendations")
         .insert({
           patient_id: id,
           created_by_admin_id: userData.user?.id,
           body_systems: selectedSystems,
+          title: formData.title || null,
           diagnosis_summary: formData.diagnosisSummary || null,
           dietary_recommendations: formData.dietaryRecommendations || null,
           supplementation_program: formData.supplementationProgram || null,
           shop_links: formData.shopLinks || null,
           supporting_therapies: formData.supportingTherapies || null,
-        });
+          tags: formData.tags.length > 0 ? formData.tags : null,
+          person_profile_id: selectedProfileId || null,
+        })
+        .select("id")
+        .single();
 
       if (error) throw error;
 
       toast.success("Zalecenia zostały zapisane");
+
+      // Send email if enabled
+      if (sendEmail && recommendation) {
+        setIsSendingEmail(true);
+        try {
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+            "send-recommendation-email",
+            {
+              body: { recommendation_id: recommendation.id },
+            }
+          );
+
+          if (emailError) {
+            console.error("Email error:", emailError);
+            toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
+          } else {
+            toast.success("Email z zaleceniem został wysłany");
+          }
+        } catch (emailErr) {
+          console.error("Email send error:", emailErr);
+          toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
+        } finally {
+          setIsSendingEmail(false);
+        }
+      }
+
       navigate(`/admin/patient/${id}`);
     } catch (error) {
       console.error("[RecommendationCreator] Error:", error);
@@ -103,7 +208,73 @@ const RecommendationCreator = () => {
               <CardHeader>
                 <CardTitle className="text-lg">Kreator PDF</CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 min-h-0 flex flex-col gap-4">
+              <CardContent className="flex-1 min-h-0 flex flex-col gap-4 overflow-auto">
+                {/* Title and Profile Selection */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-2">
+                    <Label htmlFor="title">Tytuł zalecenia</Label>
+                    <Input
+                      id="title"
+                      placeholder="Np. Zalecenie regeneracyjne - styczeń 2025"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Profil osoby</Label>
+                    <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz profil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.name}
+                            {profile.is_primary && " (główny)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div className="flex flex-col gap-2">
+                  <Label>Tagi</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Dodaj tag..."
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" onClick={handleAddTag}>
+                      Dodaj
+                    </Button>
+                  </div>
+                  {formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="gap-1">
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <Tabs defaultValue="diagnosis" className="flex-1 min-h-0 flex flex-col">
                   <TabsList className="w-full justify-start flex-wrap h-auto">
                     <TabsTrigger value="diagnosis">Diagnoza</TabsTrigger>
@@ -123,7 +294,7 @@ const RecommendationCreator = () => {
                         onChange={(e) =>
                           setFormData({ ...formData, diagnosisSummary: e.target.value })
                         }
-                        className="flex-1 min-h-0 resize-none"
+                        className="flex-1 min-h-[200px] resize-none"
                       />
                     </div>
                   </TabsContent>
@@ -138,7 +309,7 @@ const RecommendationCreator = () => {
                         onChange={(e) =>
                           setFormData({ ...formData, dietaryRecommendations: e.target.value })
                         }
-                        className="flex-1 min-h-0 resize-none"
+                        className="flex-1 min-h-[200px] resize-none"
                       />
                     </div>
                   </TabsContent>
@@ -153,7 +324,7 @@ const RecommendationCreator = () => {
                         onChange={(e) =>
                           setFormData({ ...formData, supplementationProgram: e.target.value })
                         }
-                        className="flex-1 min-h-0 resize-none"
+                        className="flex-1 min-h-[200px] resize-none"
                       />
                     </div>
                   </TabsContent>
@@ -168,7 +339,7 @@ const RecommendationCreator = () => {
                         onChange={(e) =>
                           setFormData({ ...formData, supportingTherapies: e.target.value })
                         }
-                        className="flex-1 min-h-0 resize-none"
+                        className="flex-1 min-h-[200px] resize-none"
                       />
                     </div>
                   </TabsContent>
@@ -181,21 +352,38 @@ const RecommendationCreator = () => {
                         placeholder="Wprowadź linki do produktów..."
                         value={formData.shopLinks}
                         onChange={(e) => setFormData({ ...formData, shopLinks: e.target.value })}
-                        className="flex-1 min-h-0 resize-none"
+                        className="flex-1 min-h-[200px] resize-none"
                       />
                     </div>
                   </TabsContent>
                 </Tabs>
 
-                {/* Actions (kept in view) */}
-                <div className="flex justify-end gap-3 pt-2 shrink-0">
-                  <Button variant="outline" onClick={() => navigate(`/admin/patient/${id}`)}>
-                    Powrót
-                  </Button>
-                  <Button onClick={handleSubmit} disabled={isLoading} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    {isLoading ? "Zapisywanie..." : "Zapisz"}
-                  </Button>
+                {/* Email toggle and Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2 shrink-0 border-t border-border">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      id="send-email"
+                      checked={sendEmail}
+                      onCheckedChange={setSendEmail}
+                    />
+                    <Label htmlFor="send-email" className="flex items-center gap-2 cursor-pointer">
+                      <Mail className="h-4 w-4" />
+                      Wyślij email z powiadomieniem
+                    </Label>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => navigate(`/admin/patient/${id}`)}>
+                      Powrót
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit} 
+                      disabled={isLoading || isSendingEmail} 
+                      className="gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {isLoading ? "Zapisywanie..." : isSendingEmail ? "Wysyłanie..." : "Zapisz"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

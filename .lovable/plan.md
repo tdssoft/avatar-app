@@ -291,10 +291,10 @@ Aktualnie hardkodowany link do Stripe checkout z powrotem na eavatar.diet
 
 - [ ] Import CSV z poprawnymi danymi
 - [ ] Import CSV z błędami (raport)
-- [ ] Dodawanie profilu dziecka
-- [ ] Przełączanie aktywnego profilu
-- [ ] Tworzenie zalecenia z emailem
-- [ ] Pobieranie zalecenia przez token
+- [x] Dodawanie profilu dziecka
+- [x] Przełączanie aktywnego profilu
+- [x] Tworzenie zalecenia z emailem
+- [x] Pobieranie zalecenia przez token
 - [ ] Wygaśnięcie tokenu
 - [ ] Edycja wywiadu przez pacjenta
 - [ ] Edycja wywiadu przez admina
