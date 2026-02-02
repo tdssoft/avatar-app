@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      audio_recordings: {
+        Row: {
+          duration_seconds: number | null
+          file_name: string
+          file_path: string
+          id: string
+          interview_id: string | null
+          notes: string | null
+          person_profile_id: string
+          recommendation_id: string | null
+          recorded_at: string
+          recorded_by: string
+        }
+        Insert: {
+          duration_seconds?: number | null
+          file_name: string
+          file_path: string
+          id?: string
+          interview_id?: string | null
+          notes?: string | null
+          person_profile_id: string
+          recommendation_id?: string | null
+          recorded_at?: string
+          recorded_by: string
+        }
+        Update: {
+          duration_seconds?: number | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          interview_id?: string | null
+          notes?: string | null
+          person_profile_id?: string
+          recommendation_id?: string | null
+          recorded_at?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_recordings_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "nutrition_interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_recordings_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_recordings_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nutrition_interviews: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          last_updated_at: string
+          last_updated_by: string | null
+          person_profile_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by?: string | null
+          person_profile_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by?: string | null
+          person_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutrition_interviews_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_shop_links: {
         Row: {
           added_by_admin_id: string

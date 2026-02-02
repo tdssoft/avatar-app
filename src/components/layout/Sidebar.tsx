@@ -1,4 +1,4 @@
-import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu, Settings, FileText } from "lucide-react";
+import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu, Settings, FileText, ClipboardList } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -12,6 +12,7 @@ import { ProfileSelector } from "@/components/profile/ProfileSelector";
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
   { title: "Moje zalecenia", url: "/dashboard/recommendations", icon: FileText },
+  { title: "Wywiad żywieniowy", url: "/dashboard/interview", icon: ClipboardList },
   { title: "Wyniki badań", url: "/dashboard/results", icon: Shield },
   { title: "Mój profil", url: "/dashboard/profile", icon: User },
   { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
