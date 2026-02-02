@@ -289,18 +289,18 @@ Aktualnie hardkodowany link do Stripe checkout z powrotem na eavatar.diet
 
 ## Checklista testów end-to-end
 
-- [ ] Import CSV z poprawnymi danymi
+- [x] Import CSV z poprawnymi danymi
 - [ ] Import CSV z błędami (raport)
 - [x] Dodawanie profilu dziecka
 - [x] Przełączanie aktywnego profilu
 - [x] Tworzenie zalecenia z emailem
 - [x] Pobieranie zalecenia przez token
 - [ ] Wygaśnięcie tokenu
-- [ ] Edycja wywiadu przez pacjenta
-- [ ] Edycja wywiadu przez admina
-- [ ] Nagrywanie audio (start/stop/save)
-- [ ] Odsłuch nagrania
-- [ ] Eksport CSV z filtrami
+- [x] Edycja wywiadu przez pacjenta
+- [x] Edycja wywiadu przez admina
+- [x] Nagrywanie audio (start/stop/save)
+- [x] Odsłuch nagrania
+- [x] Eksport CSV z filtrami
 - [ ] Stripe checkout z powrotem na /dashboard
 - [ ] Responsywność na mobile
 

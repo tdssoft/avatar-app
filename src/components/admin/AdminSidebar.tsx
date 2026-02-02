@@ -1,4 +1,4 @@
-import { Users, FileText, Handshake, LogOut, Menu, LayoutGrid } from "lucide-react";
+import { Users, FileText, Handshake, LogOut, Menu, LayoutGrid, Upload, Download } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,8 @@ import { useState } from "react";
 const adminNavItems = [
   { title: "Pacjenci", url: "/admin", icon: Users },
   { title: "Partnerzy", url: "/admin/partners", icon: Handshake },
+  { title: "Import CSV", url: "/admin/import", icon: Upload },
+  { title: "Eksport CSV", url: "/admin/export", icon: Download },
 ];
 
 const AdminSidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {

@@ -17,10 +17,13 @@ import Payment from "./pages/Payment";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Recommendations from "./pages/Recommendations";
 import RecommendationDownload from "./pages/RecommendationDownload";
+import NutritionInterview from "./pages/NutritionInterview";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PatientProfile from "./pages/admin/PatientProfile";
 import RecommendationCreator from "./pages/admin/RecommendationCreator";
 import Partners from "./pages/admin/Partners";
+import ImportPatients from "./pages/admin/ImportPatients";
+import ExportData from "./pages/admin/ExportData";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +44,7 @@ const App = () => (
             <Route path="/dashboard/help" element={<Help />} />
             <Route path="/dashboard/referrals" element={<Referrals />} />
             <Route path="/dashboard/recommendations" element={<Recommendations />} />
+            <Route path="/dashboard/interview" element={<NutritionInterview />} />
             <Route path="/payment" element={<Payment />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             {/* Public recommendation download page */}
@@ -50,6 +54,8 @@ const App = () => (
             <Route path="/admin/patient/:id" element={<PatientProfile />} />
             <Route path="/admin/patient/:id/recommendation/new" element={<RecommendationCreator />} />
             <Route path="/admin/partners" element={<Partners />} />
+            <Route path="/admin/import" element={<ImportPatients />} />
+            <Route path="/admin/export" element={<ExportData />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
