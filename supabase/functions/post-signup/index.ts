@@ -1,10 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const ADMIN_EMAIL = "alan.urban23@gmail.com";
 
 interface PostSignupRequest {
   userId: string;
@@ -27,6 +30,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
     const body: PostSignupRequest = await req.json();
     const { userId, email, firstName, lastName, referralCode, referredBy } = body;
@@ -106,6 +112,161 @@ Deno.serve(async (req) => {
       } else {
         console.log("[post-signup] Referrer not found for code:", referredBy);
       }
+    }
+
+    // Send email notifications
+    if (resend) {
+      const fullName = `${firstName} ${lastName}`.trim() || "Nowy użytkownik";
+      const registrationDate = new Date().toLocaleString("pl-PL", {
+        timeZone: "Europe/Warsaw",
+        dateStyle: "full",
+        timeStyle: "short",
+      });
+
+      // 1. Send notification to admin about new registration
+      try {
+        const adminEmailResult = await resend.emails.send({
+          from: "AVATAR <noreply@eavatar.diet>",
+          to: [ADMIN_EMAIL],
+          subject: `🎉 Nowa rejestracja: ${fullName}`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+                .info-box { background: white; padding: 20px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #667eea; }
+                .label { font-weight: 600; color: #666; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+                .value { font-size: 16px; color: #333; }
+                .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1 style="margin: 0;">🎉 Nowa rejestracja!</h1>
+                  <p style="margin: 10px 0 0 0; opacity: 0.9;">Ktoś właśnie dołączył do AVATAR</p>
+                </div>
+                <div class="content">
+                  <div class="info-box">
+                    <div class="label">Imię i nazwisko</div>
+                    <div class="value">${fullName}</div>
+                  </div>
+                  <div class="info-box">
+                    <div class="label">Adres email</div>
+                    <div class="value">${email}</div>
+                  </div>
+                  <div class="info-box">
+                    <div class="label">Data rejestracji</div>
+                    <div class="value">${registrationDate}</div>
+                  </div>
+                  ${referredBy ? `
+                  <div class="info-box">
+                    <div class="label">Kod polecenia</div>
+                    <div class="value">${referredBy}</div>
+                  </div>
+                  ` : ''}
+                  <div class="footer">
+                    <p>Ten email został wysłany automatycznie przez system AVATAR.</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+          `,
+        });
+        console.log("[post-signup] Admin notification email sent:", adminEmailResult);
+      } catch (emailError) {
+        console.error("[post-signup] Error sending admin notification email:", emailError);
+        // Don't fail the whole request if email fails
+      }
+
+      // 2. Send welcome email to new user
+      try {
+        const welcomeEmailResult = await resend.emails.send({
+          from: "AVATAR <noreply@eavatar.diet>",
+          to: [email],
+          subject: `Witamy w AVATAR, ${firstName}! 🌟`,
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; border-radius: 10px 10px 0 0; text-align: center; }
+                .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+                .welcome-text { font-size: 18px; margin-bottom: 25px; }
+                .feature { display: flex; align-items: flex-start; margin: 15px 0; background: white; padding: 15px; border-radius: 8px; }
+                .feature-icon { font-size: 24px; margin-right: 15px; }
+                .feature-text h3 { margin: 0 0 5px 0; font-size: 16px; }
+                .feature-text p { margin: 0; color: #666; font-size: 14px; }
+                .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 25px 0; }
+                .footer { text-align: center; margin-top: 20px; color: #888; font-size: 12px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1 style="margin: 0; font-size: 28px;">Witamy w AVATAR! 🌟</h1>
+                  <p style="margin: 15px 0 0 0; opacity: 0.9; font-size: 16px;">Twoja droga do lepszego zdrowia zaczyna się tutaj</p>
+                </div>
+                <div class="content">
+                  <p class="welcome-text">
+                    Cześć <strong>${firstName}</strong>! 👋<br><br>
+                    Dziękujemy za rejestrację w systemie AVATAR. Jesteśmy podekscytowani, że dołączasz do naszej społeczności osób dbających o swoje zdrowie!
+                  </p>
+                  
+                  <div class="feature">
+                    <div class="feature-icon">📋</div>
+                    <div class="feature-text">
+                      <h3>Wywiad żywieniowy</h3>
+                      <p>Wypełnij szczegółowy wywiad, abyśmy mogli poznać Twoje potrzeby</p>
+                    </div>
+                  </div>
+                  
+                  <div class="feature">
+                    <div class="feature-icon">🔬</div>
+                    <div class="feature-text">
+                      <h3>Diagnostyka</h3>
+                      <p>Prześlij wyniki badań lub zamów pakiet diagnostyczny</p>
+                    </div>
+                  </div>
+                  
+                  <div class="feature">
+                    <div class="feature-icon">💊</div>
+                    <div class="feature-text">
+                      <h3>Spersonalizowane zalecenia</h3>
+                      <p>Otrzymaj indywidualne zalecenia dietetyczne i suplementacyjne</p>
+                    </div>
+                  </div>
+                  
+                  <div style="text-align: center;">
+                    <a href="https://avatar-app.lovable.app/dashboard" class="cta-button">Przejdź do panelu →</a>
+                  </div>
+                  
+                  <div class="footer">
+                    <p>Masz pytania? Odpowiedz na ten email lub skontaktuj się z nami.</p>
+                    <p style="margin-top: 15px;">Pozdrawiamy,<br><strong>Zespół AVATAR</strong></p>
+                  </div>
+                </div>
+              </div>
+            </body>
+            </html>
+          `,
+        });
+        console.log("[post-signup] Welcome email sent to user:", welcomeEmailResult);
+      } catch (emailError) {
+        console.error("[post-signup] Error sending welcome email:", emailError);
+        // Don't fail the whole request if email fails
+      }
+    } else {
+      console.log("[post-signup] Resend API key not configured, skipping email notifications");
     }
 
     return new Response(
