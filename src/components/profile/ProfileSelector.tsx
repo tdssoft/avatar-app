@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { ChevronDown, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,8 @@ interface ProfileSelectorProps {
   className?: string;
 }
 
-export function ProfileSelector({ compact = false, className }: ProfileSelectorProps) {
+export const ProfileSelector = forwardRef<HTMLDivElement, ProfileSelectorProps>(
+  function ProfileSelector({ compact = false, className }, ref) {
   const { profiles, activeProfile, switchActiveProfile, isLoading } = usePersonProfiles();
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -26,7 +27,7 @@ export function ProfileSelector({ compact = false, className }: ProfileSelectorP
   }
 
   return (
-    <>
+    <div ref={ref}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -87,6 +88,6 @@ export function ProfileSelector({ compact = false, className }: ProfileSelectorP
       </DropdownMenu>
 
       <AddProfileDialog open={dialogOpen} onOpenChange={setDialogOpen} />
-    </>
+    </div>
   );
-}
+});

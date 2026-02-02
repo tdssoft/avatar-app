@@ -6,7 +6,7 @@ import { useAdminRole } from "@/hooks/useAdminRole";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { ProfileSelector } from "@/components/profile/ProfileSelector";
 
 const navItems = [
@@ -19,7 +19,8 @@ const navItems = [
   { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
 ];
 
-const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
+const SidebarContent = forwardRef<HTMLDivElement, { onItemClick?: () => void }>(
+  function SidebarContent({ onItemClick }, ref) {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const { isAdmin } = useAdminRole();
@@ -30,7 +31,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div ref={ref} className="flex flex-col h-full">
       {/* Logo */}
       <div className="p-6 border-b border-border">
         <img
@@ -93,7 +94,7 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
       </nav>
     </div>
   );
-};
+});
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
