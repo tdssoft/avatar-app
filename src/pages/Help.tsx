@@ -1,3 +1,4 @@
+import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Mail, Phone, MessageCircle } from "lucide-react";
+import { CONTACT_CONFIG } from "@/config/contact";
+import { ContactFormDialog } from "@/components/support/ContactFormDialog";
 
 const faqs = [
   {
@@ -38,6 +41,16 @@ const faqs = [
 ];
 
 const Help = () => {
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+
+  const handleEmailClick = () => {
+    window.location.href = `mailto:${CONTACT_CONFIG.email}`;
+  };
+
+  const handlePhoneClick = () => {
+    window.location.href = `tel:${CONTACT_CONFIG.phone}`;
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-3xl">
@@ -83,9 +96,14 @@ const Help = () => {
                   <Mail className="h-8 w-8 text-accent mx-auto mb-3" />
                   <h4 className="font-medium mb-1">Email</h4>
                   <p className="text-sm text-muted-foreground mb-3">
-                    kontakt@avatar.pl
+                    {CONTACT_CONFIG.email}
                   </p>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={handleEmailClick}
+                  >
                     Napisz email
                   </Button>
                 </div>
@@ -94,9 +112,14 @@ const Help = () => {
                   <Phone className="h-8 w-8 text-accent mx-auto mb-3" />
                   <h4 className="font-medium mb-1">Telefon</h4>
                   <p className="text-sm text-muted-foreground mb-3">
-                    +48 123 456 789
+                    {CONTACT_CONFIG.phoneDisplay}
                   </p>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={handlePhoneClick}
+                  >
                     Zadzwoń
                   </Button>
                 </div>
@@ -107,7 +130,12 @@ const Help = () => {
                   <p className="text-sm text-muted-foreground mb-3">
                     Szybka pomoc online
                   </p>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                    onClick={() => setIsContactDialogOpen(true)}
+                  >
                     Rozpocznij czat
                   </Button>
                 </div>
@@ -116,6 +144,11 @@ const Help = () => {
           </Card>
         </div>
       </div>
+
+      <ContactFormDialog 
+        open={isContactDialogOpen} 
+        onOpenChange={setIsContactDialogOpen} 
+      />
     </DashboardLayout>
   );
 };
