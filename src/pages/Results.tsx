@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PhotoUpload from "@/components/dashboard/PhotoUpload";
+import PlanCard from "@/components/dashboard/PlanCard";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { Loader2 } from "lucide-react";
+import { Loader2, Send } from "lucide-react";
+import { toast } from "sonner";
 
 interface Recommendation {
   id: string;
@@ -30,7 +33,10 @@ const Results = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedRecommendationId, setSelectedRecommendationId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSendingQuestion, setIsSendingQuestion] = useState(false);
+  const [patientId, setPatientId] = useState<string | null>(null);
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -53,6 +59,8 @@ const Results = () => {
       return;
     }
 
+    setPatientId(patient.id);
+
     // 2. Pobierz aktywny profil z localStorage
     const activeProfileId = localStorage.getItem('activeProfileId');
 
@@ -71,6 +79,40 @@ const Results = () => {
     const { data } = await query;
     setRecommendations(data || []);
     setIsLoading(false);
+  };
+
+  const handleSendQuestion = async () => {
+    if (!question.trim()) {
+      toast.error("Wpisz treść pytania");
+      return;
+    }
+
+    if (!patientId) {
+      toast.error("Nie można wysłać pytania - brak danych pacjenta");
+      return;
+    }
+
+    setIsSendingQuestion(true);
+    try {
+      const activeProfileId = localStorage.getItem('activeProfileId');
+
+      const { error } = await supabase.from("patient_messages").insert({
+        patient_id: patientId,
+        message_type: "question",
+        message_text: question.trim(),
+        person_profile_id: activeProfileId || null,
+      });
+
+      if (error) throw error;
+
+      toast.success("Pytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.");
+      setQuestion("");
+    } catch (error: any) {
+      console.error("[Results] Error sending question:", error);
+      toast.error(error.message || "Nie udało się wysłać pytania");
+    } finally {
+      setIsSendingQuestion(false);
+    }
   };
 
   const selectedRecommendation = recommendations.find(
@@ -160,9 +202,25 @@ const Results = () => {
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             className="min-h-[120px] mb-4 bg-background"
+            disabled={isSendingQuestion}
           />
-          <Button variant="default" className="bg-foreground text-background hover:bg-foreground/90">
-            Wyślij
+          <Button 
+            variant="default" 
+            className="bg-foreground text-background hover:bg-foreground/90"
+            onClick={handleSendQuestion}
+            disabled={isSendingQuestion || !question.trim()}
+          >
+            {isSendingQuestion ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Wysyłanie...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Wyślij
+              </>
+            )}
           </Button>
         </div>
 
@@ -171,7 +229,21 @@ const Results = () => {
           <h2 className="text-xl font-bold text-foreground mb-4">
             Zleć kolejną diagnostykę:
           </h2>
-          {/* Placeholder dla kart pakietów */}
+          <div className="space-y-4">
+            <PlanCard
+              title="Indywidualny program wsparcia ciała"
+              description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia. Zawiera: jadłospis, analiza niedoborów, plan suplementacji."
+              price="90 zł"
+              priceUnit="miesiąc"
+              onSelect={() => navigate("/payment")}
+            />
+            <PlanCard
+              title="Pakiet regeneracyjny jednorazowy"
+              description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia. Zawiera: jadłospis, analiza niedoborów, zalecenia dietetyczne."
+              price="150 zł"
+              onSelect={() => navigate("/payment")}
+            />
+          </div>
         </div>
       </div>
 

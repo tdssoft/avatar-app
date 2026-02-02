@@ -77,6 +77,7 @@ interface Message {
   message_type: string;
   message_text: string;
   sent_at: string;
+  person_profile_id: string | null;
 }
 
 const PatientProfile = () => {
@@ -91,8 +92,10 @@ const PatientProfile = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newNote, setNewNote] = useState("");
+  const [newReply, setNewReply] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isSendingReply, setIsSendingReply] = useState(false);
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
   const [newTag, setNewTag] = useState("");
   const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
@@ -206,6 +209,36 @@ const PatientProfile = () => {
       toast.error("Nie udało się dodać notatki");
     } finally {
       setIsAddingNote(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!newReply.trim() || !id) return;
+
+    setIsSendingReply(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from("patient_messages")
+        .insert({
+          patient_id: id,
+          admin_id: userData.user?.id,
+          message_type: "answer",
+          message_text: newReply.trim(),
+          person_profile_id: selectedProfileId || null,
+        });
+
+      if (error) throw error;
+
+      toast.success("Odpowiedź została wysłana");
+      setNewReply("");
+      fetchPatientData();
+    } catch (error) {
+      console.error("[PatientProfile] Error sending reply:", error);
+      toast.error("Nie udało się wysłać odpowiedzi");
+    } finally {
+      setIsSendingReply(false);
     }
   };
 
@@ -541,45 +574,59 @@ const PatientProfile = () => {
 
                 {/* Messages Section */}
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
+                  <CardHeader>
                     <CardTitle className="text-lg">Komunikacja</CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="gap-2">
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Reply form */}
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Napisz odpowiedź do pacjenta..."
+                        value={newReply}
+                        onChange={(e) => setNewReply(e.target.value)}
+                        className="min-h-[80px]"
+                        disabled={isSendingReply}
+                      />
+                      <Button 
+                        onClick={handleSendReply} 
+                        disabled={!newReply.trim() || isSendingReply}
+                        className="gap-2"
+                      >
                         <Send className="h-4 w-4" />
-                        Wyślij SMS
-                      </Button>
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <MessageSquare className="h-4 w-4" />
-                        Odpowiedz
+                        {isSendingReply ? "Wysyłanie..." : "Wyślij odpowiedź"}
                       </Button>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    {messages.length === 0 ? (
-                      <p className="text-muted-foreground text-center py-4">Brak wiadomości</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {messages.map((msg) => (
-                          <div 
-                            key={msg.id} 
-                            className={`p-3 rounded-lg ${
-                              msg.message_type === 'question' 
-                                ? 'bg-muted/50' 
-                                : 'bg-primary/5 border border-primary/20'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {msg.message_type === 'sms' ? 'SMS' : msg.message_type === 'question' ? 'Pytanie' : 'Odpowiedź'}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(msg.sent_at), "dd.MM.yyyy HH:mm", { locale: pl })}
-                              </span>
+
+                    {messages.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-3">
+                          {messages.map((msg) => (
+                            <div 
+                              key={msg.id} 
+                              className={`p-3 rounded-lg ${
+                                msg.message_type === 'question' 
+                                  ? 'bg-muted/50' 
+                                  : 'bg-primary/5 border border-primary/20'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {msg.message_type === 'sms' ? 'SMS' : msg.message_type === 'question' ? 'Pytanie' : 'Odpowiedź'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(msg.sent_at), "dd.MM.yyyy HH:mm", { locale: pl })}
+                                </span>
+                              </div>
+                              <p className="text-sm">{msg.message_text}</p>
                             </div>
-                            <p className="text-sm">{msg.message_text}</p>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {messages.length === 0 && (
+                      <p className="text-muted-foreground text-center py-4">Brak wiadomości od pacjenta</p>
                     )}
                   </CardContent>
                 </Card>
