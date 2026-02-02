@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import PackageCard from "@/components/PackageCard";
 import avatarLogo from "@/assets/avatar-logo.svg";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const packages = [
   {
@@ -50,7 +53,9 @@ const packages = [
 
 const Payment = () => {
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const totalCost = packages
     .filter((p) => selectedPackages.includes(p.id))
@@ -66,8 +71,35 @@ const Payment = () => {
     navigate("/dashboard");
   };
 
-  const handleNext = () => {
-    window.location.href = "https://checkout.stripe.com/c/pay/cs_live_b1pksXYYnD860UJL1Mmg53A2rDcnHwhzpHEQICuq2DLClP6Y6omeBUdEjY#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdkdWxOYHwnPyd1blppbHNgWjA0VGlrUTdCdkc3Sk51NzV2dkRPPFVgN31JMGNPSURcbk5gXzE8T1BQRmZzMEZpVWNkaFYwNWM0clJobHdcd0ZrM1VOZ31idWJITmtHU1Z3YGRLXXZxTX9iNTU2dl1SNW5%2FXycpJ2N3amhWYHdzYHcnP3F3cGApJ2dkZm5id2pwa2FGamlqdyc%2FJyZjY2NjY2MnKSdpZHxqcHFRfHVgJz8naHBpcWxabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl";
+  const handleNext = async () => {
+    if (selectedPackages.length === 0) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          packages: selectedPackages,
+          origin: window.location.origin,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Błąd płatności",
+        description: error.message || "Nie udało się utworzyć sesji płatności",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -126,9 +158,10 @@ const Payment = () => {
 
             <Button
               onClick={handleNext}
-              disabled={selectedPackages.length === 0}
+              disabled={selectedPackages.length === 0 || isLoading}
               className="px-8"
             >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Dalej
             </Button>
           </div>

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Calendar } from "lucide-react";
+import { PersonProfilesSection } from "@/components/profile/PersonProfilesSection";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -22,6 +23,9 @@ const Profile = () => {
         </div>
 
         <div className="space-y-6">
+          {/* Person profiles section */}
+          <PersonProfilesSection />
+
           {/* Personal info */}
           <Card>
             <CardHeader>

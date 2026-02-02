@@ -7,6 +7,7 @@ import avatarLogo from "@/assets/avatar-logo.svg";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
+import { ProfileSelector } from "@/components/profile/ProfileSelector";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
@@ -35,6 +36,11 @@ const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => {
           alt="Avatar centrum zdrowia"
           className="h-10 w-auto"
         />
+      </div>
+
+      {/* Profile Selector */}
+      <div className="px-4 py-3 border-b border-border">
+        <ProfileSelector />
       </div>
 
       {/* Navigation */}
