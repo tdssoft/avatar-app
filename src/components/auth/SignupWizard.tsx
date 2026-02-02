@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Upload, Clock } from "lucide-react";
+import { ArrowLeft, Upload, Clock, Eye, EyeOff } from "lucide-react";
 
 // Step 1 - Photo option
 const step1Schema = z.object({
@@ -47,6 +47,8 @@ const SignupWizard = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Partial<SignupData>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -343,12 +345,27 @@ const SignupWizard = () => {
 
             <div className="space-y-2">
               <Label htmlFor="password">Hasło</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Minimum 8 znaków"
-                {...step3Form.register("password")}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Minimum 8 znaków"
+                  {...step3Form.register("password")}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {step3Form.formState.errors.password && (
                 <p className="text-sm text-destructive">
                   {step3Form.formState.errors.password.message}
@@ -358,12 +375,27 @@ const SignupWizard = () => {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Powtórz hasło</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Powtórz hasło"
-                {...step3Form.register("confirmPassword")}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Powtórz hasło"
+                  {...step3Form.register("confirmPassword")}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {step3Form.formState.errors.confirmPassword && (
                 <p className="text-sm text-destructive">
                   {step3Form.formState.errors.confirmPassword.message}
