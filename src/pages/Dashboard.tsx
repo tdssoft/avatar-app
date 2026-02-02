@@ -27,19 +27,19 @@ const Dashboard = () => {
           {/* Right column - Plans selection */}
           <div className="lg:col-span-2">
             <h2 className="text-lg font-bold text-foreground mb-4">
-              Wybierz odpowiedni plan aby rozpocząć diagnostykę:
+              Twoja ścieżka pracy z ciałem – wybierz plan, aby rozpocząć diagnostykę:
             </h2>
             <div className="space-y-4">
               <PlanCard
-                title="Diagnostyka i kuracja miesięczna"
-                description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia."
+                title="Indywidualny program wsparcia ciała"
+                description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia. Zawiera: jadłospis, analiza niedoborów, plan suplementacji."
                 price="90 zł"
                 priceUnit="miesiąc"
                 onSelect={() => navigate("/payment")}
               />
               <PlanCard
-                title="Diagnostyka i kuracja jednorazowa"
-                description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia."
+                title="Pakiet regeneracyjny jednorazowy"
+                description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia. Zawiera: jadłospis, analiza niedoborów, zalecenia dietetyczne."
                 price="150 zł"
                 onSelect={() => navigate("/payment")}
               />
