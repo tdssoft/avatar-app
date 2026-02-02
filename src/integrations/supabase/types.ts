@@ -233,13 +233,60 @@ export type Database = {
         }
         Relationships: []
       }
+      recommendation_access_log: {
+        Row: {
+          access_type: string
+          accessed_at: string
+          id: string
+          ip_address: unknown
+          person_profile_id: string | null
+          recommendation_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          access_type: string
+          accessed_at?: string
+          id?: string
+          ip_address?: unknown
+          person_profile_id?: string | null
+          recommendation_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string
+          accessed_at?: string
+          id?: string
+          ip_address?: unknown
+          person_profile_id?: string | null
+          recommendation_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_access_log_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_access_log_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recommendations: {
         Row: {
           body_systems: string[] | null
+          content: string | null
           created_at: string | null
           created_by_admin_id: string
           diagnosis_summary: string | null
           dietary_recommendations: string | null
+          download_token: string | null
           id: string
           patient_id: string
           pdf_url: string | null
@@ -248,14 +295,19 @@ export type Database = {
           shop_links: string | null
           supplementation_program: string | null
           supporting_therapies: string | null
+          tags: string[] | null
+          title: string | null
+          token_expires_at: string | null
           updated_at: string | null
         }
         Insert: {
           body_systems?: string[] | null
+          content?: string | null
           created_at?: string | null
           created_by_admin_id: string
           diagnosis_summary?: string | null
           dietary_recommendations?: string | null
+          download_token?: string | null
           id?: string
           patient_id: string
           pdf_url?: string | null
@@ -264,14 +316,19 @@ export type Database = {
           shop_links?: string | null
           supplementation_program?: string | null
           supporting_therapies?: string | null
+          tags?: string[] | null
+          title?: string | null
+          token_expires_at?: string | null
           updated_at?: string | null
         }
         Update: {
           body_systems?: string[] | null
+          content?: string | null
           created_at?: string | null
           created_by_admin_id?: string
           diagnosis_summary?: string | null
           dietary_recommendations?: string | null
+          download_token?: string | null
           id?: string
           patient_id?: string
           pdf_url?: string | null
@@ -280,6 +337,9 @@ export type Database = {
           shop_links?: string | null
           supplementation_program?: string | null
           supporting_therapies?: string | null
+          tags?: string[] | null
+          title?: string | null
+          token_expires_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
