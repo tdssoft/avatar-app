@@ -1,125 +1,215 @@
 
+# Plan naprawy systemu wywiadu żywieniowego
 
-# Plan naprawy widoku wywiadu żywieniowego dla pacjenta
+## Zdiagnozowane problemy
 
-## Problem
+### Problem 1: Nieskończone ładowanie (infinite loading spinner)
+Gdy użytkownik nie ma przypisanych `person_profiles`, strona wyświetla spinner w nieskończoność.
 
-Obecna strona wywiadu żywieniowego (`/dashboard/interview`) dla pacjenta ma następujące problemy:
+**Przyczyna techniczna:**
+```typescript
+// fetchProfiles zwraca pustą tablicę
+setProfiles(data || []);  // profiles = []
+// selectedProfileId nigdy nie jest ustawiane
+// useEffect z fetchInterview nigdy się nie odpala
+// isLoading = true pozostaje na zawsze
+```
 
-1. **Brak widoku historii** - strona zawsze pokazuje formularz edycji, nawet gdy wywiad został już zapisany
-2. **Brak rozróżnienia stanów** - nie ma różnicy między:
-   - Podglądem zapisanego wywiadu (tylko do odczytu)
-   - Edycją istniejącego wywiadu
-   - Tworzeniem nowego wywiadu
-3. **Zapisany wywiad niewidoczny** - użytkownik nie widzi że wywiad został zapisany, tylko pusty formularz
+**Rozwiązanie:** Po pobraniu profili, jeśli lista jest pusta, ustawić `isLoading = false` i wyświetlić komunikat "Brak profili".
 
-## Oczekiwane zachowanie
+### Problem 2: Brak historii wywiadów
+Obecna implementacja zakłada **1 wywiad na profil** (używa `maybeSingle()`). Użytkownik oczekuje:
+- Lista wszystkich wywiadów dla profilu (historia)
+- Status wywiadu: **draft** (roboczy, edytowalny) lub **sent** (wysłany, tylko do odczytu)
+- Możliwość tworzenia nowych wywiadów
+
+---
+
+## Plan implementacji
+
+### Etap 1: Rozszerzenie bazy danych
+
+Dodać kolumnę `status` do tabeli `nutrition_interviews`:
+
+```sql
+ALTER TABLE nutrition_interviews 
+ADD COLUMN status text NOT NULL DEFAULT 'draft' 
+CHECK (status IN ('draft', 'sent'));
+```
+
+### Etap 2: Zmiana architektury widoku
+
+Nowa struktura strony NutritionInterview:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                    WIDOK DOMYŚLNY                           │
-│                                                             │
-│  Jeśli wywiad istnieje:                                     │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Podgląd zapisanego wywiadu (tylko do odczytu)      │   │
-│  │  - Wyświetla wypełnione dane                        │   │
-│  │  - Przycisk "Edytuj wywiad" → tryb formularza       │   │
-│  │  - Data ostatniej aktualizacji                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Jeśli wywiad nie istnieje:                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Komunikat "Brak wywiadu"                           │   │
-│  │  Przycisk "Rozpocznij wywiad" → tryb formularza     │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│                    TRYB EDYCJI                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  Formularz z polami do wypełnienia                  │   │
-│  │  - Przycisk "Zapisz wywiad"                         │   │
-│  │  - Przycisk "Anuluj" (powrót do podglądu)          │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│  NAGŁÓWEK: "Wywiad żywieniowy" + selektor profilu                 │
+├───────────────────────────────────────────────────────────────────┤
+│  [+ Nowy wywiad]  (tylko jeśli nie ma aktywnego draftu)           │
+├───────────────────────────────────────────────────────────────────┤
+│  LISTA WYWIADÓW:                                                  │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📝 Roboczy wywiad       Data: 02.02.2026                    │ │
+│  │  Status: Roboczy         [Edytuj] [Wyślij]                   │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  ✓ Wywiad #1             Data: 15.01.2026                    │ │
+│  │  Status: Wysłany         [Podgląd]                           │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+├───────────────────────────────────────────────────────────────────┤
+│  WIDOK SZCZEGÓŁOWY (gdy wybrany wywiad):                          │
+│  - Podgląd danych (tylko odczyt dla status=sent)                  │
+│  - Formularz edycji (dla status=draft)                            │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-## Rozwiązanie techniczne
+### Etap 3: Stany widoku
 
-### Modyfikacja `src/pages/NutritionInterview.tsx`
+```text
+1. LISTA (domyślny):
+   - Wyświetla listę wywiadów dla wybranego profilu
+   - Przycisk "Nowy wywiad" (ukryty jeśli istnieje draft)
+   - Kliknięcie na wywiad -> przejście do PODGLĄD lub EDYCJA
 
-1. **Dodać stan trybu edycji**:
+2. PODGLĄD (status = 'sent'):
+   - Wyświetla dane tylko do odczytu
+   - Przycisk "Powrót do listy"
+
+3. EDYCJA (status = 'draft'):
+   - Formularz z polami do edycji
+   - Przyciski: "Zapisz" (zachowuje draft), "Wyślij" (zmienia na sent), "Anuluj"
+
+4. TWORZENIE:
+   - Formularz pusty
+   - Przyciski: "Zapisz jako roboczy", "Anuluj"
+
+5. BRAK PROFILI:
+   - Komunikat "Nie masz przypisanych profili"
+   - Link do strony profili
+```
+
+### Etap 4: Zmiany w pliku src/pages/NutritionInterview.tsx
+
+**Nowe stany:**
 ```typescript
-const [isEditing, setIsEditing] = useState(false);
+type ViewMode = 'list' | 'view' | 'edit' | 'create';
+
+const [viewMode, setViewMode] = useState<ViewMode>('list');
+const [interviews, setInterviews] = useState<Interview[]>([]);
+const [selectedInterviewId, setSelectedInterviewId] = useState<string | null>(null);
 ```
 
-2. **Logika wyświetlania**:
-   - Jeśli `interview === null` → pokaż komunikat "Brak wywiadu" + przycisk "Rozpocznij"
-   - Jeśli `interview !== null && !isEditing` → pokaż podgląd danych (tylko odczyt) + przycisk "Edytuj"
-   - Jeśli `isEditing === true` → pokaż formularz edycji + przyciski "Zapisz" i "Anuluj"
-
-3. **Wykorzystać istniejące komponenty**:
-   - Skopiować logikę wyświetlania z `AdminInterviewView.tsx` (komponenty `InfoRow`, `TextSection`)
-   - Użyć tych samych etykiet i formatowania
-
-4. **Przepływ użytkownika**:
-   - Po kliknięciu "Rozpocznij wywiad" lub "Edytuj" → `setIsEditing(true)`
-   - Po zapisaniu → `setIsEditing(false)` + odśwież dane
-   - Po kliknięciu "Anuluj" → `setIsEditing(false)` + przywróć oryginalne dane
-
-## Szczegółowe zmiany
-
-### Plik: `src/pages/NutritionInterview.tsx`
-
-**Dodać:**
-- Stan `isEditing: boolean` (domyślnie `false`)
-- Komponenty pomocnicze `InfoRow` i `TextSection` (skopiowane z AdminInterviewView)
-- Mapowania etykiet dla wartości select (`activityLabels`, `stressLabels`, `dietLabels`, itp.)
-- Widok podglądu (read-only) z przyciskiem "Edytuj wywiad"
-- Komunikat "Brak wywiadu" z przyciskiem "Rozpocznij wywiad"
-- Przycisk "Anuluj" w trybie edycji
-
-**Zmienić:**
-- Logika `fetchInterview`:
-  - Jeśli wywiad istnieje → `setIsEditing(false)` (pokaż podgląd)
-  - Jeśli nie istnieje → `setIsEditing(true)` (pokaż formularz do tworzenia)
-- Logika `handleSave`:
-  - Po zapisaniu → `setIsEditing(false)` + refetch
-
-**Struktura renderowania:**
-```tsx
-{isLoading ? (
-  <Loader />
-) : !interview && !isEditing ? (
-  // Stan: Brak wywiadu
-  <EmptyState onStart={() => setIsEditing(true)} />
-) : isEditing ? (
-  // Stan: Tryb edycji/tworzenia
-  <EditForm onSave={handleSave} onCancel={() => setIsEditing(false)} />
-) : (
-  // Stan: Podgląd zapisanego wywiadu
-  <InterviewView interview={interview} onEdit={() => setIsEditing(true)} />
-)}
+**Nowe typy:**
+```typescript
+interface Interview {
+  id: string;
+  content: InterviewData;
+  status: 'draft' | 'sent';
+  created_at: string;
+  last_updated_at: string;
+}
 ```
 
-## Dodatkowe poprawki
+**Nowe funkcje:**
+- `fetchInterviews()` - pobiera wszystkie wywiady dla profilu (nie tylko jeden)
+- `handleSendInterview()` - zmienia status na 'sent'
+- `handleCreateNew()` - przechodzi do tworzenia nowego (tylko jeśli nie ma draftu)
+- `handleViewInterview(id)` - otwiera podgląd
+- `handleEditInterview(id)` - otwiera edycję (tylko dla draft)
 
-### Konsola - ostrzeżenia o ref
+### Etap 5: Naprawienie problemu z brakiem profili
 
-W logach konsoli widzę ostrzeżenia:
+W `fetchProfiles()` dodać obsługę pustej listy:
+```typescript
+const fetchProfiles = async () => {
+  // ... istniejący kod ...
+  
+  setProfiles(data || []);
+  
+  if (!data || data.length === 0) {
+    // Brak profili - zakończ ładowanie
+    setIsLoading(false);
+    return;
+  }
+  
+  // Auto-select primary profile
+  const primaryProfile = data.find((p) => p.is_primary);
+  // ...
+};
 ```
-Function components cannot be given refs. Check the render method of `Sidebar`
-Function components cannot be given refs. Check the render method of `SidebarContent`
+
+---
+
+## Przepływ użytkownika
+
+```text
+1. Pacjent wchodzi na stronę wywiadu
+   ↓
+2. System pobiera profile i wywiady
+   ↓
+3a. Brak profili → Komunikat + link do tworzenia profilu
+3b. Ma profile → Wyświetla listę wywiadów
+   ↓
+4. Kliknięcie "Nowy wywiad":
+   - Sprawdza czy nie ma aktywnego draftu
+   - Jeśli nie ma → formularz tworzenia
+   - Jeśli jest → komunikat "Masz już roboczy wywiad"
+   ↓
+5. Edycja draftu:
+   - "Zapisz" → zapisuje zmiany, pozostaje draft
+   - "Wyślij" → zmienia status na sent, blokuje edycję
+   ↓
+6. Podgląd wysłanego wywiadu:
+   - Tylko odczyt
+   - Przycisk "Powrót do listy"
 ```
 
-Te błędy są związane z komponentami `SidebarContent` i `ProfileSelector`, które nie są opakowane w `React.forwardRef()`. Naprawię to również.
+---
+
+## Szczegóły techniczne
+
+### Migracja bazy danych
+```sql
+-- Dodanie kolumny status
+ALTER TABLE nutrition_interviews 
+ADD COLUMN status text NOT NULL DEFAULT 'draft';
+
+-- Dodanie constrainta
+ALTER TABLE nutrition_interviews 
+ADD CONSTRAINT nutrition_interviews_status_check 
+CHECK (status IN ('draft', 'sent'));
+
+-- Istniejące wywiady oznacz jako wysłane (opcjonalnie)
+UPDATE nutrition_interviews SET status = 'sent' WHERE status = 'draft';
+```
+
+### Zmodyfikowane komponenty
+
+**renderInterviewList()** - nowy komponent listy:
+- Wyświetla karty z wywiadami
+- Badge statusu (Roboczy / Wysłany)
+- Akcje zależne od statusu
+
+**renderInterviewForm()** - ujednolicony formularz:
+- Parametr `isReadOnly` dla wysłanych wywiadów
+- Przyciski zależne od trybu (create/edit/view)
 
 ### Pliki do modyfikacji:
-1. `src/pages/NutritionInterview.tsx` - główna przebudowa logiki widoku
-2. `src/components/layout/Sidebar.tsx` - naprawić ref dla SidebarContent
-3. `src/components/profile/ProfileSelector.tsx` - naprawić ref
+1. `supabase/migrations/xxx.sql` - dodanie kolumny status
+2. `src/pages/NutritionInterview.tsx` - przebudowa logiki i widoków
+3. `src/integrations/supabase/types.ts` - automatycznie się zaktualizuje
 
-## Czas realizacji
+---
 
-- Przebudowa NutritionInterview.tsx: ~15 min
-- Naprawa ostrzeżeń ref: ~5 min
-- **Łącznie: ~20 min**
+## Podsumowanie zmian
 
+| Element | Obecny stan | Po zmianach |
+|---------|-------------|-------------|
+| Liczba wywiadów | 1 per profil | Wiele per profil |
+| Status | Brak | draft / sent |
+| Widok domyślny | Formularz/podgląd | Lista wywiadów |
+| Edycja wysłanego | Możliwa | Zablokowana |
+| Brak profili | Infinite loading | Komunikat + link |
+| Tworzenie nowego | Nadpisuje istniejący | Dodaje do listy |
+
+Po zatwierdzeniu planu implementuję wszystkie zmiany.
