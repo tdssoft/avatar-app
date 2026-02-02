@@ -1,9 +1,17 @@
-import { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Search } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import PatientTable from "@/components/admin/PatientTable";
 import CreatePatientDialog from "@/components/admin/CreatePatientDialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
@@ -24,6 +32,9 @@ const AdminDashboard = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+  const [diagnosisFilter, setDiagnosisFilter] = useState("all");
 
   const fetchPatients = async () => {
     setIsLoading(true);
@@ -70,11 +81,35 @@ const AdminDashboard = () => {
     fetchPatients();
   }, []);
 
+  // Filter patients based on search and filters
+  const filteredPatients = useMemo(() => {
+    return patients.filter((patient) => {
+      // Search filter
+      const fullName = `${patient.profiles?.first_name || ""} ${patient.profiles?.last_name || ""}`.toLowerCase();
+      const phone = patient.profiles?.phone?.toLowerCase() || "";
+      const searchLower = searchQuery.toLowerCase();
+      
+      const matchesSearch = searchQuery === "" || 
+        fullName.includes(searchLower) || 
+        phone.includes(searchLower);
+
+      // Subscription filter
+      const matchesSubscription = subscriptionFilter === "all" || 
+        patient.subscription_status === subscriptionFilter;
+
+      // Diagnosis filter
+      const matchesDiagnosis = diagnosisFilter === "all" || 
+        patient.diagnosis_status === diagnosisFilter;
+
+      return matchesSearch && matchesSubscription && matchesDiagnosis;
+    });
+  }, [patients, searchQuery, subscriptionFilter, diagnosisFilter]);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Lista pacjentów</h1>
             <p className="text-muted-foreground mt-1">
@@ -87,8 +122,50 @@ const AdminDashboard = () => {
           </Button>
         </div>
 
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Szukaj po imieniu, nazwisku lub telefonie..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={subscriptionFilter} onValueChange={setSubscriptionFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Subskrypcja" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie</SelectItem>
+              <SelectItem value="Aktywna">Aktywna</SelectItem>
+              <SelectItem value="Wygasła">Wygasła</SelectItem>
+              <SelectItem value="Brak">Brak</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={diagnosisFilter} onValueChange={setDiagnosisFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Diagnoza" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Wszystkie</SelectItem>
+              <SelectItem value="Wykonana">Wykonana</SelectItem>
+              <SelectItem value="Oczekuje">Oczekuje</SelectItem>
+              <SelectItem value="Brak">Brak</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Results count */}
+        {searchQuery || subscriptionFilter !== "all" || diagnosisFilter !== "all" ? (
+          <p className="text-sm text-muted-foreground">
+            Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
+          </p>
+        ) : null}
+
         {/* Patient Table */}
-        <PatientTable patients={patients} isLoading={isLoading} />
+        <PatientTable patients={filteredPatients} isLoading={isLoading} />
 
         {/* Create Patient Dialog */}
         <CreatePatientDialog

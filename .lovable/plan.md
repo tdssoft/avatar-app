@@ -290,7 +290,7 @@ Aktualnie hardkodowany link do Stripe checkout z powrotem na eavatar.diet
 ## Checklista testów end-to-end
 
 - [x] Import CSV z poprawnymi danymi
-- [ ] Import CSV z błędami (raport)
+- [x] Import CSV z błędami (raport)
 - [x] Dodawanie profilu dziecka
 - [x] Przełączanie aktywnego profilu
 - [x] Tworzenie zalecenia z emailem
@@ -301,7 +301,9 @@ Aktualnie hardkodowany link do Stripe checkout z powrotem na eavatar.diet
 - [x] Nagrywanie audio (start/stop/save)
 - [x] Odsłuch nagrania
 - [x] Eksport CSV z filtrami
-- [ ] Stripe checkout z powrotem na /dashboard
+- [x] Stripe checkout z powrotem na /dashboard
+- [x] Zmiany UI i nazewnictwa (Faza 7)
+- [x] Wyszukiwarka i filtry w panelu admin (Faza 8.2)
 - [ ] Responsywność na mobile
 
 ---
