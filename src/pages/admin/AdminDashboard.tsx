@@ -33,6 +33,10 @@ interface Patient {
     last_name: string | null;
     phone: string | null;
   };
+  referral?: {
+    referrer_code: string;
+    referrer_name: string | null;
+  } | null;
 }
 
 const AdminDashboard = () => {
@@ -58,6 +62,8 @@ const AdminDashboard = () => {
       // Then get profiles for each patient
       if (patientsData && patientsData.length > 0) {
         const userIds = patientsData.map(p => p.user_id);
+        
+        // Fetch profiles
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select("user_id, first_name, last_name, phone")
@@ -65,12 +71,49 @@ const AdminDashboard = () => {
 
         if (profilesError) throw profilesError;
 
-        // Merge profiles with patients
+        // Fetch referrals - who referred each patient
+        const { data: referralsData, error: referralsError } = await supabase
+          .from("referrals")
+          .select("referred_user_id, referrer_code, referrer_user_id")
+          .in("referred_user_id", userIds);
+
+        if (referralsError) {
+          console.error("[AdminDashboard] Error fetching referrals:", referralsError);
+        }
+
+        // Get referrer profiles (names of partners who made referrals)
+        let referrerProfiles: { user_id: string; first_name: string | null; last_name: string | null }[] = [];
+        if (referralsData && referralsData.length > 0) {
+          const referrerUserIds = [...new Set(referralsData.map(r => r.referrer_user_id))];
+          const { data: referrerProfilesData } = await supabase
+            .from("profiles")
+            .select("user_id, first_name, last_name")
+            .in("user_id", referrerUserIds);
+          
+          referrerProfiles = referrerProfilesData || [];
+        }
+
+        // Merge profiles and referrals with patients
         const patientsWithProfiles = patientsData.map(patient => {
           const profile = profilesData?.find(p => p.user_id === patient.user_id);
+          const referral = referralsData?.find(r => r.referred_user_id === patient.user_id);
+          
+          let referralInfo = null;
+          if (referral) {
+            const referrerProfile = referrerProfiles.find(p => p.user_id === referral.referrer_user_id);
+            const referrerName = referrerProfile?.first_name && referrerProfile?.last_name
+              ? `${referrerProfile.first_name} ${referrerProfile.last_name}`
+              : null;
+            referralInfo = {
+              referrer_code: referral.referrer_code,
+              referrer_name: referrerName
+            };
+          }
+
           return {
             ...patient,
-            profiles: profile || { first_name: null, last_name: null, phone: null }
+            profiles: profile || { first_name: null, last_name: null, phone: null },
+            referral: referralInfo
           };
         });
 

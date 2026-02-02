@@ -12,11 +12,16 @@ interface Patient {
   diagnosis_status: string;
   last_communication_at: string | null;
   created_at: string;
+  tags?: string[] | null;
   profiles?: {
     first_name: string | null;
     last_name: string | null;
     phone: string | null;
   };
+  referral?: {
+    referrer_code: string;
+    referrer_name: string | null;
+  } | null;
 }
 
 interface PatientTableProps {
@@ -71,6 +76,7 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead className="font-semibold">Imię i nazwisko</TableHead>
+            <TableHead className="font-semibold">Polecony przez</TableHead>
             <TableHead className="font-semibold">Subskrypcja</TableHead>
             <TableHead className="font-semibold">Diagnoza</TableHead>
             <TableHead className="font-semibold">Akcja</TableHead>
@@ -86,6 +92,20 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
             return (
               <TableRow key={patient.id} className="hover:bg-muted/30">
                 <TableCell className="font-medium">{fullName}</TableCell>
+                <TableCell>
+                  {patient.referral ? (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-primary">
+                        {patient.referral.referrer_name || "Partner"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {patient.referral.referrer_code}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
                 <TableCell>{getStatusBadge(patient.subscription_status)}</TableCell>
                 <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
                 <TableCell>
