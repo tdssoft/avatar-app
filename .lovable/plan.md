@@ -1,200 +1,139 @@
 
-# Plan: Pełna funkcjonalność panelu Partnerzy z zarządzaniem i widocznością poleceń
+# Plan: Naprawa i test przepływu tworzenia partnerów
 
-## Zidentyfikowane problemy
+## Zidentyfikowane problemy podczas testowania
 
-### 1. Pusta lista partnerów - brak dostępu RLS
-**Główny problem**: Tabela `referrals` ma politykę RLS, która pozwala użytkownikom widzieć tylko SWOJE polecenia:
-```sql
-Policy: "Users can view referrals they made"
-Using: (auth.uid() = referrer_user_id)
-```
+### Problem 1: Brak możliwości zalogowania jako admin
+**Sytuacja:** Hasło do konta admin (`admin@admin.pl`) jest nieznane, a aktualnie zalogowany użytkownik (`alan.urban23@gmail.com`) nie ma roli admina.
 
-Admin NIE MA polityki SELECT dla tabeli `referrals`, więc zapytanie w `Partners.tsx` (linia 52-54) zwraca pustą tablicę i lista partnerów wychodzi pusta.
+**Rozwiązanie:** Dodanie skryptu/migracji SQL do nadania roli admina użytkownikowi lub resetowania hasła.
 
-### 2. Brak funkcji zarządzania partnerami
-Obecnie strona Partners pozwala tylko:
-- Wyświetlać partnerów (gdy RLS pozwoli)
-- Dodawać linki do sklepów
-
-**Brakuje**:
-- Ręcznego dodawania partnerów
-- Usuwania linków do sklepów
-- Edycji danych partnera
-- Widoku szczegółów partnera (lista poleconych klientów)
-
-### 3. Brakujące imię/nazwisko partnera
-Użytkownik `c2a69448-3c62-4e0c-8d2a-a0f1df823899` (który ma 2 polecenia) nie ma wypełnionego `first_name` i `last_name` w profilu - wyświetli się jako "Nieznany partner".
+### Problem 2: Przepływ tworzenia partnera wymaga weryfikacji
+Kod wygląda poprawnie, ale wymaga rzeczywistego testu end-to-end.
 
 ---
 
-## Rozwiązanie
+## Stan obecny w bazie danych
 
-### Część 1: Naprawienie RLS dla tabeli `referrals`
+**Partnerzy z kodem polecającym:**
+- `alan.urban23@gmail.com` - kod `0YV2NV22` - 2 polecenia
 
-Dodanie polityki pozwalającej adminom widzieć wszystkie polecenia:
+**Polecone osoby:**
+| Imię | Email | Status | Data |
+|------|-------|--------|------|
+| Artur | aurban@liveengage.io | pending | 2026-01-31 |
+| Jan | alan@airecepcjonistka.pl | pending | 2026-01-31 |
 
-```sql
-CREATE POLICY "Admins can view all referrals"
-ON public.referrals
-FOR SELECT
-TO authenticated
-USING (has_role(auth.uid(), 'admin'::app_role));
-```
-
-### Część 2: Rozszerzenie funkcjonalności strony Partners
-
-#### A. Wyświetlanie wszystkich użytkowników z kodem polecającym
-Zmiana logiki filtrowania - pokazywać WSZYSTKICH użytkowników z `referral_code`, nie tylko tych z poleceniami.
-
-#### B. Dodanie przycisków zarządzania:
-- **Usuń link** - przy każdym linku do sklepu (ikona kosza)
-- **Zobacz poleconych** - przycisk otwierający dialog z listą klientów poleconych przez tego partnera
-
-#### C. Rozszerzenie tabeli o kolumny:
-- Kod polecający (widoczny dla admina)
-- Status partnera (aktywny/nieaktywny)
-
-### Część 3: Widok poleconych klientów
-
-Dialog pokazujący:
-- Imię i nazwisko poleconego klienta
-- Email
-- Data rejestracji
-- Status (pending/active)
+**Admin:**
+- `admin@admin.pl` (hasło nieznane)
 
 ---
 
-## Zmiany w plikach
+## Plan naprawy
 
-### 1. Migracja SQL
+### Część 1: Przywrócenie dostępu do panelu admina
+
+**Opcja A - Nadanie roli admina istniejącemu użytkownikowi:**
 ```sql
--- Dodanie polityki RLS dla adminów na tabelę referrals
-CREATE POLICY "Admins can view all referrals"
-ON public.referrals
-FOR SELECT
-TO authenticated
-USING (has_role(auth.uid(), 'admin'::app_role));
-
--- Dodanie polityki UPDATE dla adminów (do zmiany statusu)
-CREATE POLICY "Admins can update referrals"
-ON public.referrals
-FOR UPDATE
-TO authenticated
-USING (has_role(auth.uid(), 'admin'::app_role));
+INSERT INTO public.user_roles (user_id, role)
+VALUES ('c2a69448-3c62-4e0c-8d2a-a0f1df823899', 'admin')
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
-### 2. `src/pages/admin/Partners.tsx`
+**Opcja B - Reset hasła admina przez Edge Function:**
+Stworzenie tymczasowej edge function do resetu hasła.
 
-**Zmiany:**
-- Usunięcie filtra `referralCounts[p.user_id] > 0` - pokazać wszystkich z kodem polecającym
-- Dodanie kolumny "Kod polecający"
-- Dodanie przycisku "Usuń" przy linkach do sklepów
-- Dodanie przycisku "Zobacz poleconych" otwierającego nowy dialog
-- Dodanie funkcji `handleDeleteLink(linkId)`
-- Dodanie dialogu `ReferredClientsDialog` z listą poleconych klientów
+### Część 2: Test przepływu po naprawie
 
-**Nowa struktura tabeli:**
-| Imię i nazwisko | Kod polecający | Linki do sklepów | Poleceni | Akcje |
-|-----------------|----------------|------------------|----------|-------|
-| Partner X       | ABC123         | Link1 🗑, Link2 🗑 | 5        | Dodaj link, Zobacz poleconych |
-
-### 3. Nowy komponent: Dialog "Poleceni klienci"
-
-Wyświetla listę osób poleconych przez danego partnera:
-- Pobiera dane z `referrals` WHERE `referrer_user_id = partnerId`
-- Pokazuje imię, email, datę rejestracji, status
-
----
-
-## Przepływ po zmianach
+Po uzyskaniu dostępu do panelu admina, test będzie wyglądał następująco:
 
 ```text
-Administrator wchodzi na /admin/partners
+1. Zaloguj się jako admin
          │
          ▼
-┌─────────────────────────────────────┐
-│  Zapytanie do profiles              │
-│  WHERE referral_code IS NOT NULL    │
-└─────────────────┬───────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────┐
-│  Zapytanie do referrals             │
-│  (teraz działa - admin ma RLS)      │
-└─────────────────┬───────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────┐
-│  Wyświetl WSZYSTKICH partnerów      │
-│  z ich kodami i liczbą poleceń      │
-└─────────────────┬───────────────────┘
-                  │
-      ┌───────────┼───────────┐
-      ▼           ▼           ▼
-┌──────────┐ ┌──────────┐ ┌────────────┐
-│ Dodaj    │ │ Usuń     │ │ Zobacz     │
-│ link     │ │ link     │ │ poleconych │
-└──────────┘ └──────────┘ └────────────┘
+2. Przejdź do /admin/partners
+         │
+         ▼
+3. Kliknij "Dodaj partnera"
+   - Imię: Test
+   - Nazwisko: Partner
+   - Email: testpartner@example.com
+         │
+         ▼
+4. Skopiuj dane logowania (email + hasło tymczasowe)
+         │
+         ▼
+5. Wyloguj się z konta admina
+         │
+         ▼
+6. Zaloguj się jako nowy partner
+         │
+         ▼
+7. Przejdź do /dashboard/referrals
+   - Skopiuj link polecający
+         │
+         ▼
+8. Otwórz link w trybie prywatnym
+   - Zarejestruj nowego użytkownika przez polecenie
+         │
+         ▼
+9. Aktywuj email w bazie (SET email_confirmed_at)
+         │
+         ▼
+10. Zaloguj się ponownie jako partner
+    - Sprawdź czy widzi poleconą osobę
+         │
+         ▼
+11. Zaloguj się jako admin
+    - Sprawdź czy widzi:
+      a) Nowego partnera na liście
+      b) Poleconą osobę przy partnerze
 ```
 
 ---
 
-## Szczegóły techniczne
+## Techniczne szczegóły do wdrożenia
 
-### Usuwanie linków do sklepów
-```typescript
-const handleDeleteLink = async (linkId: string) => {
-  const { error } = await supabase
-    .from("partner_shop_links")
-    .delete()
-    .eq("id", linkId);
-  
-  if (error) {
-    toast.error("Nie udało się usunąć linku");
-    return;
-  }
-  
-  toast.success("Link został usunięty");
-  fetchPartners();
-};
+### 1. Migracja SQL - nadanie roli admina
+```sql
+-- Opcja: Nadaj rolę admina użytkownikowi do testów
+INSERT INTO public.user_roles (user_id, role)
+SELECT 'c2a69448-3c62-4e0c-8d2a-a0f1df823899', 'admin'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.user_roles 
+  WHERE user_id = 'c2a69448-3c62-4e0c-8d2a-a0f1df823899' 
+  AND role = 'admin'
+);
 ```
 
-### Dialog z poleconymi klientami
-```typescript
-interface ReferredClient {
-  id: string;
-  referred_email: string;
-  referred_name: string;
-  status: "pending" | "active";
-  created_at: string;
-}
-
-const fetchReferredClients = async (partnerId: string) => {
-  const { data } = await supabase
-    .from("referrals")
-    .select("id, referred_email, referred_name, status, created_at")
-    .eq("referrer_user_id", partnerId)
-    .order("created_at", { ascending: false });
-  
-  return data || [];
-};
+### 2. Alternatywa - Reset hasła admina
+```sql
+-- Można też stworzyć nowe konto admina z Edge Function
+-- lub użyć supabase dashboard do resetu hasła
 ```
 
 ---
 
-## Korzyści
+## Rekomendacja
 
-1. **Widoczność partnerów** - admin widzi wszystkich użytkowników z kodem polecającym
-2. **Pełne zarządzanie** - dodawanie/usuwanie linków, podgląd poleconych
-3. **Przejrzystość** - widoczne kody polecające i statystyki
-4. **Spójność z widokiem pacjentów** - kolumna "Polecony przez" w tabeli pacjentów pokazuje dane partnera
+**Zalecam Opcję A** - nadanie roli admina użytkownikowi `alan.urban23@gmail.com`, ponieważ:
+1. Ten użytkownik jest już zalogowany
+2. Ma działające hasło
+3. Można natychmiast przetestować funkcjonalność
+
+Po zatwierdzeniu tego planu:
+1. Wykonam migrację SQL nadającą rolę admina
+2. Przeprowadzę pełny test E2E tworzenia partnera i poleceń
+3. Zweryfikuję widoczność danych dla admina i partnera
 
 ---
 
-## Szacowany czas implementacji
+## Oczekiwane rezultaty po teście
 
-~15 minut:
-- Migracja SQL: 2 min
-- Modyfikacja Partners.tsx: 10 min
-- Testowanie: 3 min
+| Krok | Oczekiwany rezultat |
+|------|---------------------|
+| Tworzenie partnera | Partner widoczny na liście z kodem polecającym |
+| Logowanie partnera | Partner widzi stronę /dashboard/referrals |
+| Polecenie osoby | Nowa osoba rejestruje się z ?ref=KOD |
+| Widok partnera | Partner widzi poleconą osobę w statystykach |
+| Widok admina | Admin widzi partnera + liczbę poleceń + przycisk "Zobacz poleconych" |
