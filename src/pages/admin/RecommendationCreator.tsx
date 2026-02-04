@@ -188,12 +188,12 @@ const RecommendationCreator = () => {
         <div className="h-full flex flex-col gap-6">
           {/* Header */}
           <div className="flex items-center gap-4 shrink-0">
-            <Button variant="ghost" size="icon" onClick={handleFinish}>
+            <Button variant="ghost" size="icon" onClick={handleFinish} className="text-white hover:bg-white/10">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Zalecenie zapisane</h1>
-              <p className="text-muted-foreground">Opcjonalnie możesz nagrać komentarz audio do zalecenia</p>
+              <h1 className="text-2xl font-semibold text-white">Zalecenie zapisane</h1>
+              <p className="text-white/80">Opcjonalnie możesz nagrać komentarz audio do zalecenia</p>
             </div>
           </div>
 
@@ -239,12 +239,12 @@ const RecommendationCreator = () => {
       <div className="h-full flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-center gap-4 shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/patient/${id}`)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/patient/${id}`)} className="text-white hover:bg-white/10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Kreator zaleceń</h1>
-            <p className="text-muted-foreground">Utwórz nowe zalecenia dla pacjenta</p>
+            <h1 className="text-2xl font-semibold text-white">Kreator zaleceń</h1>
+            <p className="text-white/80">Utwórz nowe zalecenia dla pacjenta</p>
           </div>
         </div>
 

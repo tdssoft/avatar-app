@@ -243,12 +243,12 @@ const Partners = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Partnerzy polecający</h1>
-            <p className="text-muted-foreground mt-1">
+            <h1 className="text-2xl font-semibold text-white">Partnerzy polecający</h1>
+            <p className="text-white/80 mt-1">
               Zarządzaj partnerami i ich linkami do sklepów
             </p>
           </div>
-          <Button onClick={() => setCreatePartnerDialogOpen(true)} className="gap-2">
+          <Button onClick={() => setCreatePartnerDialogOpen(true)} className="gap-2 bg-white text-primary hover:bg-white/90">
             <UserPlus className="h-4 w-4" />
             Dodaj partnera
           </Button>

@@ -193,12 +193,12 @@ const ImportPatients = () => {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-white hover:bg-white/10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Import pacjentów</h1>
-            <p className="text-muted-foreground">Importuj dane pacjentów z pliku CSV</p>
+            <h1 className="text-2xl font-semibold text-white">Import pacjentów</h1>
+            <p className="text-white/80">Importuj dane pacjentów z pliku CSV</p>
           </div>
         </div>
 

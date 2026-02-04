@@ -115,12 +115,12 @@ const ExportData = () => {
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-white hover:bg-white/10">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-foreground">Eksport danych</h1>
-            <p className="text-muted-foreground">Eksportuj dane pacjentów do pliku CSV</p>
+            <h1 className="text-2xl font-semibold text-white">Eksport danych</h1>
+            <p className="text-white/80">Eksportuj dane pacjentów do pliku CSV</p>
           </div>
         </div>
 
