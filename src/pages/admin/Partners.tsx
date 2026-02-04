@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Link as LinkIcon } from "lucide-react";
+import { Plus, Link as LinkIcon, Trash2, Users } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +7,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import ReferredClientsDialog from "@/components/admin/ReferredClientsDialog";
 
 interface Partner {
   user_id: string;
@@ -32,6 +34,13 @@ const Partners = () => {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [newLinkData, setNewLinkData] = useState({ shopName: "", shopUrl: "" });
   const [isAddingLink, setIsAddingLink] = useState(false);
+  
+  // State for referred clients dialog
+  const [referredDialogOpen, setReferredDialogOpen] = useState(false);
+  const [selectedPartnerForReferred, setSelectedPartnerForReferred] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchPartners();
@@ -81,17 +90,15 @@ const Partners = () => {
         });
       });
 
-      // Filter to only show users who have referrals or shop links
-      const partnersData = profiles
-        ?.filter((p) => referralCounts[p.user_id] > 0 || linksByPartner[p.user_id]?.length > 0)
-        .map((p) => ({
-          user_id: p.user_id,
-          first_name: p.first_name,
-          last_name: p.last_name,
-          referral_code: p.referral_code,
-          referrals_count: referralCounts[p.user_id] || 0,
-          shop_links: linksByPartner[p.user_id] || [],
-        })) || [];
+      // Show ALL users with referral code (not just those with referrals)
+      const partnersData = profiles?.map((p) => ({
+        user_id: p.user_id,
+        first_name: p.first_name,
+        last_name: p.last_name,
+        referral_code: p.referral_code,
+        referrals_count: referralCounts[p.user_id] || 0,
+        shop_links: linksByPartner[p.user_id] || [],
+      })) || [];
 
       setPartners(partnersData);
     } catch (error) {
@@ -133,9 +140,35 @@ const Partners = () => {
     }
   };
 
+  const handleDeleteLink = async (linkId: string) => {
+    try {
+      const { error } = await supabase
+        .from("partner_shop_links")
+        .delete()
+        .eq("id", linkId);
+
+      if (error) throw error;
+
+      toast.success("Link został usunięty");
+      fetchPartners();
+    } catch (error) {
+      console.error("[Partners] Error deleting link:", error);
+      toast.error("Nie udało się usunąć linku");
+    }
+  };
+
   const openAddLinkDialog = (userId: string) => {
     setSelectedPartnerId(userId);
     setDialogOpen(true);
+  };
+
+  const openReferredDialog = (partner: Partner) => {
+    const fullName = partner.first_name && partner.last_name
+      ? `${partner.first_name} ${partner.last_name}`
+      : "Nieznany partner";
+    
+    setSelectedPartnerForReferred({ id: partner.user_id, name: fullName });
+    setReferredDialogOpen(true);
   };
 
   return (
@@ -161,7 +194,7 @@ const Partners = () => {
               </div>
             ) : partners.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Brak partnerów do wyświetlenia. Partnerzy pojawią się tutaj po poleceniu pierwszego użytkownika.
+                Brak partnerów do wyświetlenia. Partnerzy pojawią się tutaj gdy użytkownicy otrzymają kod polecający.
               </p>
             ) : (
               <div className="border rounded-lg overflow-hidden">
@@ -169,8 +202,9 @@ const Partners = () => {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="font-semibold">Imię i nazwisko</TableHead>
+                      <TableHead className="font-semibold">Kod polecający</TableHead>
                       <TableHead className="font-semibold">Linki do sklepów</TableHead>
-                      <TableHead className="font-semibold">Ilość zarejestrowanych kont</TableHead>
+                      <TableHead className="font-semibold">Poleceni klienci</TableHead>
                       <TableHead className="font-semibold">Akcje</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -184,21 +218,37 @@ const Partners = () => {
                         <TableRow key={partner.user_id} className="hover:bg-muted/30">
                           <TableCell className="font-medium">{fullName}</TableCell>
                           <TableCell>
+                            <Badge variant="outline" className="font-mono">
+                              {partner.referral_code}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             {partner.shop_links.length === 0 ? (
                               <span className="text-muted-foreground">Brak linków</span>
                             ) : (
                               <div className="flex flex-wrap gap-2">
                                 {partner.shop_links.map((link) => (
-                                  <a
+                                  <div
                                     key={link.id}
-                                    href={link.shop_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                                    className="inline-flex items-center gap-1 text-sm bg-muted/50 rounded px-2 py-1"
                                   >
-                                    <LinkIcon className="h-3 w-3" />
-                                    {link.shop_name || "Link"}
-                                  </a>
+                                    <a
+                                      href={link.shop_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                                    >
+                                      <LinkIcon className="h-3 w-3" />
+                                      {link.shop_name || "Link"}
+                                    </a>
+                                    <button
+                                      onClick={() => handleDeleteLink(link.id)}
+                                      className="ml-1 text-muted-foreground hover:text-destructive transition-colors"
+                                      title="Usuń link"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </div>
                                 ))}
                               </div>
                             )}
@@ -207,15 +257,28 @@ const Partners = () => {
                             <span className="font-medium">{partner.referrals_count}</span>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1"
-                              onClick={() => openAddLinkDialog(partner.user_id)}
-                            >
-                              <Plus className="h-3 w-3" />
-                              Dodaj link
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => openAddLinkDialog(partner.user_id)}
+                              >
+                                <Plus className="h-3 w-3" />
+                                Dodaj link
+                              </Button>
+                              {partner.referrals_count > 0 && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-1"
+                                  onClick={() => openReferredDialog(partner)}
+                                >
+                                  <Users className="h-3 w-3" />
+                                  Zobacz poleconych
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -265,6 +328,14 @@ const Partners = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Referred Clients Dialog */}
+        <ReferredClientsDialog
+          open={referredDialogOpen}
+          onOpenChange={setReferredDialogOpen}
+          partnerId={selectedPartnerForReferred?.id || null}
+          partnerName={selectedPartnerForReferred?.name || ""}
+        />
       </div>
     </AdminLayout>
   );
