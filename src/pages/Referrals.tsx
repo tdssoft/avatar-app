@@ -152,10 +152,10 @@ const Referrals = () => {
     <DashboardLayout>
       <div className="max-w-4xl">
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Program polecający
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-white/80">
             Poleć Avatar znajomym i zdobywaj nagrody!
           </p>
         </div>

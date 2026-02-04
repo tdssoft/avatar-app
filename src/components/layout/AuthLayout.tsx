@@ -7,10 +7,10 @@ interface AuthLayoutProps {
 
 const AuthLayout = ({ children }: AuthLayoutProps) => {
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-primary flex">
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-6 md:p-12">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md bg-card rounded-xl p-8 shadow-lg">
           {children}
         </div>
       </div>

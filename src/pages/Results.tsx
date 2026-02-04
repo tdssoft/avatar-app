@@ -140,13 +140,13 @@ const Results = () => {
     <DashboardLayout>
       <div className="max-w-4xl">
         {/* Nagłówek */}
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold text-white mb-8">
           Witamy w Avatar!
         </h1>
 
         {/* Sekcja zalecenia */}
         <div className="flex items-center gap-4 mb-6">
-          <Label className="text-sm font-medium text-foreground whitespace-nowrap">
+          <Label className="text-sm font-medium text-white whitespace-nowrap">
             Zalecenia z dnia
           </Label>
           {isLoading ? (
@@ -208,10 +208,10 @@ const Results = () => {
 
         {/* Sekcja pytanie */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-3">
+          <h2 className="text-xl font-bold text-white mb-3">
             Zadaj pytanie lub opisz dolegliwości
           </h2>
-          <p className="text-muted-foreground text-sm mb-4">
+          <p className="text-white/80 text-sm mb-4">
             Jeśli masz wątpliwości, lub chcesz poznać szczegóły naszych usług zadaj nam pytanie a my odpowiemy mailowo.
           </p>
           <Textarea
@@ -243,7 +243,7 @@ const Results = () => {
 
         {/* Sekcja diagnostyka */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">
+          <h2 className="text-xl font-bold text-white mb-4">
             Zleć kolejną diagnostykę:
           </h2>
           <div className="space-y-4">
