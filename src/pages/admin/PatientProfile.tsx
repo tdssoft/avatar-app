@@ -424,12 +424,12 @@ const PatientProfile = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-white hover:bg-white/10">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Pacjent: {fullName}</h1>
-              <p className="text-muted-foreground">Zarządzaj danymi pacjenta i zaleceniami</p>
+              <h1 className="text-2xl font-semibold text-white">Pacjent: {fullName}</h1>
+              <p className="text-white/80">Zarządzaj danymi pacjenta i zaleceniami</p>
             </div>
           </div>
 

@@ -103,10 +103,10 @@ const Payment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-primary flex">
       {/* Left column - Form */}
       <div className="flex-1 p-8 lg:p-12 xl:p-16 overflow-y-auto">
-        <div className="max-w-2xl">
+        <div className="max-w-2xl bg-card rounded-xl shadow-lg p-8">
           {/* Logo */}
           <img
             src={avatarLogo}
