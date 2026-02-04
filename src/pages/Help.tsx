@@ -55,10 +55,10 @@ const Help = () => {
     <DashboardLayout>
       <div className="max-w-3xl">
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
             Pomoc
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-white/80">
             Znajdź odpowiedzi na najczęstsze pytania lub skontaktuj się z nami
           </p>
         </div>

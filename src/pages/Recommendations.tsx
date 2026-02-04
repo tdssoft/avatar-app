@@ -260,10 +260,10 @@ const Recommendations = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
               Moje zalecenia
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-white/80 mt-1">
               Przeglądaj i pobieraj swoje indywidualne zalecenia
             </p>
           </div>

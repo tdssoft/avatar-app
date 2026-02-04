@@ -71,7 +71,7 @@ const Dashboard = () => {
       <div className="max-w-5xl">
         {/* Welcome section */}
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             Witamy w Avatar!
           </h1>
         </div>
@@ -85,7 +85,7 @@ const Dashboard = () => {
 
           {/* Right column - Plans selection */}
           <div className="lg:col-span-2">
-            <h2 className="text-lg font-bold text-foreground mb-4">
+            <h2 className="text-lg font-bold text-white mb-4">
               Twoja ścieżka pracy z ciałem – wybierz plan, aby rozpocząć diagnostykę:
             </h2>
             <div className="space-y-4">
