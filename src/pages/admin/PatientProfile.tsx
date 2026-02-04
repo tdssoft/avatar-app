@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2, Pencil } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -521,6 +521,15 @@ const PatientProfile = () => {
                                 </div>
                               </div>
                               <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/admin/patient/${id}/recommendation/${rec.id}/edit`)}
+                                  className="gap-1"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Edytuj
+                                </Button>
                                 {tokenExpired && (
                                   <Button
                                     variant="outline"

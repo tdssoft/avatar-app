@@ -12,6 +12,7 @@ const corsHeaders = {
 
 interface SendRecommendationEmailRequest {
   recommendation_id: string;
+  is_update?: boolean;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -50,11 +51,13 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Brak uprawnień administratora");
     }
 
-    const { recommendation_id }: SendRecommendationEmailRequest = await req.json();
+    const { recommendation_id, is_update = false }: SendRecommendationEmailRequest = await req.json();
 
     if (!recommendation_id) {
       throw new Error("Brak ID zalecenia");
     }
+
+    console.log(`Processing email for recommendation ${recommendation_id}, is_update: ${is_update}`);
 
     // Get recommendation with patient and profile info
     const { data: recommendation, error: recError } = await supabase
@@ -121,11 +124,26 @@ serve(async (req: Request): Promise<Response> => {
       year: "numeric",
     });
 
+    // Prepare email content based on whether it's an update or new recommendation
+    const emailSubject = is_update 
+      ? `Zaktualizowane zalecenie${profileName ? ` dla ${profileName}` : ""} - AVATAR`
+      : `Nowe zalecenie${profileName ? ` dla ${profileName}` : ""} - AVATAR`;
+
+    const emailTitle = is_update
+      ? (profileName ? `Zaktualizowane zalecenie dla ${profileName}` : "Zaktualizowane zalecenie")
+      : (profileName ? `Nowe zalecenie dla ${profileName}` : "Nowe zalecenie");
+
+    const emailIntro = is_update
+      ? `Twoje zalecenia z dnia <strong>${recDate}</strong> zostały zaktualizowane.`
+      : `Przygotowaliśmy dla Ciebie nowe zalecenia z dnia <strong>${recDate}</strong>.`;
+
+    const emailCta = is_update ? "Pobierz zaktualizowane zalecenie" : "Pobierz zalecenie";
+
     // Send email
     const emailResponse = await resend.emails.send({
       from: "AVATAR <noreply@eavatar.diet>",
       to: [patientUser.email!],
-      subject: `Nowe zalecenie${profileName ? ` dla ${profileName}` : ""} - AVATAR`,
+      subject: emailSubject,
       html: `
         <!DOCTYPE html>
         <html>
@@ -149,12 +167,20 @@ serve(async (req: Request): Promise<Response> => {
                   <!-- Content -->
                   <tr>
                     <td style="padding: 40px 30px;">
+                      ${is_update ? `
+                        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px;">
+                          <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 500;">
+                            📝 Twoje zalecenia zostały zaktualizowane
+                          </p>
+                        </div>
+                      ` : ""}
+                      
                       <h2 style="color: #1a1a1a; margin: 0 0 20px 0; font-size: 22px;">
-                        ${profileName ? `Nowe zalecenie dla ${profileName}` : "Nowe zalecenie"}
+                        ${emailTitle}
                       </h2>
                       
                       <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
-                        Przygotowaliśmy dla Ciebie nowe zalecenia z dnia <strong>${recDate}</strong>.
+                        ${emailIntro}
                       </p>
                       
                       ${recommendation.title ? `
@@ -172,7 +198,7 @@ serve(async (req: Request): Promise<Response> => {
                         <tr>
                           <td align="center">
                             <a href="${downloadUrl}" style="display: inline-block; background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600;">
-                              Pobierz zalecenie
+                              ${emailCta}
                             </a>
                           </td>
                         </tr>
@@ -210,7 +236,7 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Email wysłany pomyślnie",
+        message: is_update ? "Email o aktualizacji wysłany pomyślnie" : "Email wysłany pomyślnie",
         email_id: emailResponse.data?.id 
       }),
       {

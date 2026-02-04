@@ -53,6 +53,7 @@ const App = () => (
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/patient/:id" element={<PatientProfile />} />
             <Route path="/admin/patient/:id/recommendation/new" element={<RecommendationCreator />} />
+            <Route path="/admin/patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
             <Route path="/admin/partners" element={<Partners />} />
             <Route path="/admin/import" element={<ImportPatients />} />
             <Route path="/admin/export" element={<ExportData />} />
