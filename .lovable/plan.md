@@ -1,139 +1,189 @@
 
-# Plan: Naprawa i test przepływu tworzenia partnerów
+# Plan: Konfiguracja Resend API i testy E2E wszystkich powiadomień email
 
-## Zidentyfikowane problemy podczas testowania
+## Aktualny stan systemu
 
-### Problem 1: Brak możliwości zalogowania jako admin
-**Sytuacja:** Hasło do konta admin (`admin@admin.pl`) jest nieznane, a aktualnie zalogowany użytkownik (`alan.urban23@gmail.com`) nie ma roli admina.
+### Zaimplementowane (już działające):
+| Funkcja | Edge Function | Status |
+|---------|---------------|--------|
+| Email powitalny dla nowego użytkownika | `post-signup` | ✅ Gotowe |
+| Powiadomienie admina o nowej rejestracji | `post-signup` | ✅ Gotowe |
+| Email z linkiem do pobrania zalecenia | `send-recommendation-email` | ✅ Gotowe |
 
-**Rozwiązanie:** Dodanie skryptu/migracji SQL do nadania roli admina użytkownikowi lub resetowania hasła.
-
-### Problem 2: Przepływ tworzenia partnera wymaga weryfikacji
-Kod wygląda poprawnie, ale wymaga rzeczywistego testu end-to-end.
-
----
-
-## Stan obecny w bazie danych
-
-**Partnerzy z kodem polecającym:**
-- `alan.urban23@gmail.com` - kod `0YV2NV22` - 2 polecenia
-
-**Polecone osoby:**
-| Imię | Email | Status | Data |
-|------|-------|--------|------|
-| Artur | aurban@liveengage.io | pending | 2026-01-31 |
-| Jan | alan@airecepcjonistka.pl | pending | 2026-01-31 |
-
-**Admin:**
-- `admin@admin.pl` (hasło nieznane)
+### Do zaimplementowania (TODO w kodzie):
+| Funkcja | Lokalizacja | Status |
+|---------|-------------|--------|
+| Email z hasłem dla ręcznie utworzonego konta | `admin-create-patient` (linia 167) | ❌ Tylko komentarz TODO |
+| Powiadomienie admina o pytaniu pacjenta | `Results.tsx` (linia 99) | ❌ Brak edge function |
+| Powiadomienie admina o nowym zgłoszeniu | `ContactFormDialog.tsx` (linia 55) | ❌ Brak edge function |
 
 ---
 
-## Plan naprawy
+## Konfiguracja Resend
 
-### Część 1: Przywrócenie dostępu do panelu admina
+**Stan obecny:** 
+- `RESEND_API_KEY` jest już skonfigurowany w sekretach projektu ✅
+- Domena nadawcy: `noreply@eavatar.diet` (już używana w edge functions)
+- Email admina: `alan.urban23@gmail.com`
 
-**Opcja A - Nadanie roli admina istniejącemu użytkownikowi:**
-```sql
-INSERT INTO public.user_roles (user_id, role)
-VALUES ('c2a69448-3c62-4e0c-8d2a-a0f1df823899', 'admin')
-ON CONFLICT (user_id, role) DO NOTHING;
+---
+
+## Plan implementacji
+
+### Część 1: Dodanie wysyłki emaila z hasłem (admin-create-patient)
+
+Rozszerzenie funkcji `admin-create-patient` o wysyłkę emaila z danymi logowania:
+
+```typescript
+// Dodać import Resend
+import { Resend } from "https://esm.sh/resend@2.0.0";
+
+// Po utworzeniu konta - wysłać email z hasłem
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+
+await resend.emails.send({
+  from: "AVATAR <noreply@eavatar.diet>",
+  to: [email],
+  subject: "Twoje konto w AVATAR zostało utworzone",
+  html: `
+    <h1>Witaj ${firstName}!</h1>
+    <p>Administrator utworzył dla Ciebie konto w systemie AVATAR.</p>
+    <p><strong>Email:</strong> ${email}</p>
+    <p><strong>Hasło tymczasowe:</strong> ${tempPassword}</p>
+    <p>Zalecamy zmianę hasła po pierwszym logowaniu.</p>
+    <a href="https://avatar-app.lovable.app/login">Zaloguj się</a>
+  `
+});
 ```
 
-**Opcja B - Reset hasła admina przez Edge Function:**
-Stworzenie tymczasowej edge function do resetu hasła.
+### Część 2: Nowa edge function - powiadomienia o pytaniach
 
-### Część 2: Test przepływu po naprawie
+Utworzenie funkcji `send-question-notification` wywoływanej przy:
+- Pytaniu z `Results.tsx` (patient_messages)
+- Zgłoszeniu z `ContactFormDialog.tsx` (support_tickets)
 
-Po uzyskaniu dostępu do panelu admina, test będzie wyglądał następująco:
+**Struktura funkcji:**
+```typescript
+// supabase/functions/send-question-notification/index.ts
+interface QuestionNotificationRequest {
+  type: "patient_question" | "support_ticket";
+  user_email: string;
+  user_name: string;
+  subject?: string;       // tylko dla support_tickets
+  message: string;
+  profile_name?: string;  // opcjonalny profil
+}
+```
 
+**Email do admina:**
+- Temat: `📩 Nowe pytanie od [Imię Nazwisko]` lub `📩 Nowe zgłoszenie: [Temat]`
+- Treść: Dane użytkownika, treść pytania, link do panelu admina
+
+### Część 3: Integracja w frontend
+
+**Results.tsx** - po zapisie pytania:
+```typescript
+// Po sukcesie zapisu do patient_messages
+await supabase.functions.invoke("send-question-notification", {
+  body: {
+    type: "patient_question",
+    user_email: user.email,
+    user_name: `${profile.first_name} ${profile.last_name}`,
+    message: question.trim(),
+  }
+});
+```
+
+**ContactFormDialog.tsx** - po zapisie zgłoszenia:
+```typescript
+// Po sukcesie zapisu do support_tickets
+await supabase.functions.invoke("send-question-notification", {
+  body: {
+    type: "support_ticket",
+    user_email: user.email,
+    user_name: profile?.full_name || user.email,
+    subject: subject.trim(),
+    message: message.trim(),
+  }
+});
+```
+
+---
+
+## Plan testów E2E
+
+### Test 1: Email powitalny + powiadomienie admina (post-signup)
 ```text
-1. Zaloguj się jako admin
-         │
-         ▼
+1. Otwórz /signup
+2. Zarejestruj nowego użytkownika:
+   - Imię: TestEmail
+   - Nazwisko: User
+   - Email: [prawdziwy email do testu]
+3. Sprawdź skrzynkę użytkownika:
+   ✓ Email powitalny "Witamy w AVATAR!"
+4. Sprawdź skrzynkę admina (alan.urban23@gmail.com):
+   ✓ Email "🎉 Nowa rejestracja: TestEmail User"
+```
+
+### Test 2: Email z danymi logowania (admin-create-patient)
+```text
+1. Zaloguj jako admin
 2. Przejdź do /admin/partners
-         │
-         ▼
 3. Kliknij "Dodaj partnera"
-   - Imię: Test
-   - Nazwisko: Partner
-   - Email: testpartner@example.com
-         │
-         ▼
-4. Skopiuj dane logowania (email + hasło tymczasowe)
-         │
-         ▼
-5. Wyloguj się z konta admina
-         │
-         ▼
-6. Zaloguj się jako nowy partner
-         │
-         ▼
-7. Przejdź do /dashboard/referrals
-   - Skopiuj link polecający
-         │
-         ▼
-8. Otwórz link w trybie prywatnym
-   - Zarejestruj nowego użytkownika przez polecenie
-         │
-         ▼
-9. Aktywuj email w bazie (SET email_confirmed_at)
-         │
-         ▼
-10. Zaloguj się ponownie jako partner
-    - Sprawdź czy widzi poleconą osobę
-         │
-         ▼
-11. Zaloguj się jako admin
-    - Sprawdź czy widzi:
-      a) Nowego partnera na liście
-      b) Poleconą osobę przy partnerze
+4. Utwórz partnera z prawdziwym emailem
+5. Sprawdź skrzynkę partnera:
+   ✓ Email z tymczasowym hasłem
+```
+
+### Test 3: Powiadomienie o pytaniu pacjenta (Results.tsx)
+```text
+1. Zaloguj jako pacjent
+2. Przejdź do /dashboard/results
+3. Wpisz pytanie i kliknij "Wyślij"
+4. Sprawdź skrzynkę admina:
+   ✓ Email "📩 Nowe pytanie od [Pacjent]"
+```
+
+### Test 4: Powiadomienie o zgłoszeniu support (ContactFormDialog)
+```text
+1. Zaloguj jako użytkownik
+2. Otwórz formularz kontaktowy (Pomoc)
+3. Wpisz temat i wiadomość, wyślij
+4. Sprawdź skrzynkę admina:
+   ✓ Email "📩 Nowe zgłoszenie: [Temat]"
+```
+
+### Test 5: Email z linkiem do zalecenia (send-recommendation-email)
+```text
+1. Zaloguj jako admin
+2. Przejdź do /admin/recommendations
+3. Stwórz zalecenie dla pacjenta
+4. Wyślij email z zaleceniem
+5. Sprawdź skrzynkę pacjenta:
+   ✓ Email z linkiem do pobrania (7 dni ważności)
 ```
 
 ---
 
-## Techniczne szczegóły do wdrożenia
+## Podsumowanie zmian
 
-### 1. Migracja SQL - nadanie roli admina
-```sql
--- Opcja: Nadaj rolę admina użytkownikowi do testów
-INSERT INTO public.user_roles (user_id, role)
-SELECT 'c2a69448-3c62-4e0c-8d2a-a0f1df823899', 'admin'
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.user_roles 
-  WHERE user_id = 'c2a69448-3c62-4e0c-8d2a-a0f1df823899' 
-  AND role = 'admin'
-);
-```
-
-### 2. Alternatywa - Reset hasła admina
-```sql
--- Można też stworzyć nowe konto admina z Edge Function
--- lub użyć supabase dashboard do resetu hasła
-```
+| Plik | Zmiana |
+|------|--------|
+| `supabase/functions/admin-create-patient/index.ts` | Dodać wysyłkę emaila z hasłem |
+| `supabase/functions/send-question-notification/index.ts` | **Nowa funkcja** |
+| `supabase/config.toml` | Dodać konfigurację nowej funkcji |
+| `src/pages/Results.tsx` | Wywołać edge function po zapisie pytania |
+| `src/components/support/ContactFormDialog.tsx` | Wywołać edge function po zapisie zgłoszenia |
 
 ---
 
-## Rekomendacja
+## Matryca przypadków email
 
-**Zalecam Opcję A** - nadanie roli admina użytkownikowi `alan.urban23@gmail.com`, ponieważ:
-1. Ten użytkownik jest już zalogowany
-2. Ma działające hasło
-3. Można natychmiast przetestować funkcjonalność
-
-Po zatwierdzeniu tego planu:
-1. Wykonam migrację SQL nadającą rolę admina
-2. Przeprowadzę pełny test E2E tworzenia partnera i poleceń
-3. Zweryfikuję widoczność danych dla admina i partnera
-
----
-
-## Oczekiwane rezultaty po teście
-
-| Krok | Oczekiwany rezultat |
-|------|---------------------|
-| Tworzenie partnera | Partner widoczny na liście z kodem polecającym |
-| Logowanie partnera | Partner widzi stronę /dashboard/referrals |
-| Polecenie osoby | Nowa osoba rejestruje się z ?ref=KOD |
-| Widok partnera | Partner widzi poleconą osobę w statystykach |
-| Widok admina | Admin widzi partnera + liczbę poleceń + przycisk "Zobacz poleconych" |
+| Scenariusz | Odbiorca | Temat | Edge Function |
+|------------|----------|-------|---------------|
+| Rejestracja użytkownika | Użytkownik | "Witamy w AVATAR!" | post-signup |
+| Rejestracja użytkownika | Admin | "🎉 Nowa rejestracja" | post-signup |
+| Utworzenie konta przez admina | Użytkownik | "Twoje konto zostało utworzone" | admin-create-patient |
+| Pytanie pacjenta | Admin | "📩 Nowe pytanie" | send-question-notification |
+| Zgłoszenie support | Admin | "📩 Nowe zgłoszenie" | send-question-notification |
+| Gotowe zalecenie | Pacjent | "Nowe zalecenie" | send-recommendation-email |
