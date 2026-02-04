@@ -10,6 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
+const checkIsAdmin = async (userId: string): Promise<boolean> => {
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  
+  return !!data;
+};
 
 const loginSchema = z.object({
   email: z.string().email("Podaj poprawny adres email"),
@@ -38,7 +50,14 @@ const LoginForm = () => {
     try {
       const result = await login(data.email, data.password);
       if (result.success) {
-        navigate("/dashboard");
+        // Check if user is admin and redirect accordingly
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const isAdmin = await checkIsAdmin(user.id);
+          navigate(isAdmin ? "/admin" : "/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         // Map Supabase error messages to Polish
         let errorMessage = "Nieprawidłowy email lub hasło";
