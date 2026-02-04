@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,15 +165,82 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("[admin-create-patient] Patient created successfully");
 
-    // TODO: Send email with login credentials using Resend
-    // For now, we'll just return success with the temp password for testing
+    // Send email with login credentials using Resend
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    let emailSent = false;
+    
+    if (resendApiKey) {
+      try {
+        const resend = new Resend(resendApiKey);
+        
+        const emailResult = await resend.emails.send({
+          from: "AVATAR <noreply@eavatar.diet>",
+          to: [email],
+          subject: "Twoje konto w AVATAR zostało utworzone",
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+              <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 40px; border-radius: 16px 16px 0 0; text-align: center;">
+                  <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Witaj w AVATAR!</h1>
+                </div>
+                <div style="background-color: #ffffff; padding: 40px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                  <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+                    Cześć <strong>${firstName}</strong>!
+                  </p>
+                  <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+                    Administrator utworzył dla Ciebie konto w systemie AVATAR. Poniżej znajdziesz dane do logowania:
+                  </p>
+                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                    <p style="margin: 0 0 12px 0; color: #333333;">
+                      <strong>Email:</strong> ${email}
+                    </p>
+                    <p style="margin: 0; color: #333333;">
+                      <strong>Hasło tymczasowe:</strong> <code style="background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${tempPassword}</code>
+                    </p>
+                  </div>
+                  <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                    ⚠️ Zalecamy zmianę hasła po pierwszym logowaniu ze względów bezpieczeństwa.
+                  </p>
+                  <div style="text-align: center; margin-top: 32px;">
+                    <a href="https://avatar-app.lovable.app/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      Zaloguj się
+                    </a>
+                  </div>
+                </div>
+                <div style="text-align: center; margin-top: 24px;">
+                  <p style="color: #999999; font-size: 12px; margin: 0;">
+                    © ${new Date().getFullYear()} AVATAR. Wszystkie prawa zastrzeżone.
+                  </p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `,
+        });
+        
+        console.log("[admin-create-patient] Email sent successfully:", emailResult);
+        emailSent = true;
+      } catch (emailError) {
+        console.error("[admin-create-patient] Email sending failed:", emailError);
+        // Don't fail the whole request if email fails
+      }
+    } else {
+      console.warn("[admin-create-patient] RESEND_API_KEY not configured, skipping email");
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         userId: newUserId,
         message: "Patient account created successfully",
-        // In production, don't return password - send via email instead
+        emailSent,
+        // Return temp password for testing (in production, only rely on email)
         tempPassword: tempPassword,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
