@@ -40,6 +40,7 @@ import { pl } from "date-fns/locale";
 import AdminInterviewView from "@/components/admin/AdminInterviewView";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PatientData {
   id: string;
@@ -94,6 +95,7 @@ interface Message {
 const PatientProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [personProfiles, setPersonProfiles] = useState<PersonProfile[]>([]);
@@ -111,6 +113,23 @@ const PatientProfile = () => {
   const [newTag, setNewTag] = useState("");
   const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const isDeletingSelf = !!patient?.user_id && !!currentUser?.id && patient.user_id === currentUser.id;
+
+  const getFunctionInvokeErrorMessage = (fnError: unknown): string | null => {
+    const err = fnError as any;
+    const body = err?.context?.body;
+    if (typeof body === "string") {
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed?.error && typeof parsed.error === "string") return parsed.error;
+      } catch {
+        // ignore
+      }
+    }
+    if (typeof err?.message === "string" && err.message.trim().length > 0) return err.message;
+    return null;
+  };
 
   useEffect(() => {
     if (id) {
@@ -198,6 +217,12 @@ const PatientProfile = () => {
   const handleDeletePatient = async () => {
     if (!id) return;
 
+    // Extra guard (backend also blocks this)
+    if (isDeletingSelf) {
+      toast.error("Nie możesz usunąć własnego konta");
+      return;
+    }
+
     setIsDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
@@ -206,7 +231,7 @@ const PatientProfile = () => {
 
       if (error) {
         console.error("[PatientProfile] Delete error:", error);
-        toast.error("Nie udało się usunąć pacjenta");
+        toast.error(getFunctionInvokeErrorMessage(error) || "Nie udało się usunąć pacjenta");
         return;
       }
 
@@ -219,7 +244,7 @@ const PatientProfile = () => {
       navigate("/admin");
     } catch (error) {
       console.error("[PatientProfile] Delete error:", error);
-      toast.error("Nie udało się usunąć pacjenta");
+      toast.error(getFunctionInvokeErrorMessage(error) || "Nie udało się usunąć pacjenta");
     } finally {
       setIsDeleting(false);
     }
@@ -815,10 +840,10 @@ const PatientProfile = () => {
                     <Button 
                       variant="destructive" 
                       className="w-full justify-start gap-2"
-                      disabled={isDeleting}
+                      disabled={isDeleting || isDeletingSelf}
                     >
                       <Trash2 className="h-4 w-4" />
-                      {isDeleting ? "Usuwanie..." : "Usuń pacjenta"}
+                      {isDeleting ? "Usuwanie..." : isDeletingSelf ? "Nie można usunąć" : "Usuń pacjenta"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -841,6 +866,12 @@ const PatientProfile = () => {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+
+                {isDeletingSelf && (
+                  <p className="text-xs text-muted-foreground">
+                    To jest Twoje konto administratora — backend blokuje jego usunięcie.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
