@@ -1,144 +1,226 @@
 
-# Plan: Ujednolicenie kolorystyki UI w całej aplikacji
+# Plan: Edycja zaleceń + powiadomienie emailowe po każdej zmianie
 
-## Problem
-Strona `AdminDashboard` (Lista pacjentów) wygląda dobrze z białą kartą i białymi nagłówkami na turkusowym tle, ale pozostałe strony nadal używają starych klas kolorów (`text-foreground`, `text-muted-foreground`), które źle wyglądają na turkusowym tle.
-
-## Wzorzec do zastosowania (z AdminDashboard.tsx)
-1. **Nagłówki** → `text-white`
-2. **Opisy** → `text-white/80`
-3. **Przyciski akcji w nagłówku** → `bg-white text-primary hover:bg-white/90`
-4. **Główna zawartość** → opakowana w `<div className="bg-card rounded-xl shadow-lg p-6">`
-
-## Strony do aktualizacji
-
-### Panel Administratora (6 stron)
-| Plik | Zmiany |
-|------|--------|
-| `Partners.tsx` | Nagłówek → `text-white`, opis → `text-white/80`, przycisk → biały, Card opakowanie |
-| `ExportData.tsx` | Nagłówek → `text-white`, opis → `text-white/80` |
-| `ImportPatients.tsx` | Nagłówek → `text-white`, opis → `text-white/80` |
-| `PatientProfile.tsx` | Nagłówek → `text-white`, opis → `text-white/80` |
-| `RecommendationCreator.tsx` | Nagłówek → `text-white`, opis → `text-white/80` |
-
-### Panel Użytkownika (7 stron - już częściowo zaktualizowane)
-| Plik | Status | Zmiany potrzebne |
-|------|--------|------------------|
-| `Dashboard.tsx` | ✅ Gotowe | — |
-| `Profile.tsx` | ✅ Gotowe | — |
-| `Results.tsx` | ✅ Gotowe | — |
-| `Referrals.tsx` | ✅ Gotowe | — |
-| `Help.tsx` | ✅ Gotowe | — |
-| `Recommendations.tsx` | ✅ Gotowe | — |
-| `NutritionInterview.tsx` | ❌ | Nagłówek → `text-white`, opis → `text-white/80` |
-
-### Strony bez layoutu (standalone)
-| Plik | Zmiany |
-|------|--------|
-| `Payment.tsx` | Tło → `bg-primary`, teksty → `text-white` |
-| `PaymentSuccess.tsx` | Brak zmian (używa białej karty na środku) |
+## Cel
+1. Umożliwić edycję już wysłanych zaleceń (nie tylko roboczych)
+2. Po każdym zapisaniu edycji wysyłać email do pacjenta z informacją o aktualizacji
+3. Test E2E aby sprawdzić czy wszystko działa poprawnie
 
 ---
 
-## Szczegółowe zmiany
+## Część 1: Nowa trasa dla edycji
 
-### 1. `Partners.tsx` (linie 240-255)
+### Plik: `src/App.tsx`
 
-**Przed:**
+Dodanie nowej trasy:
 ```tsx
-<h1 className="text-2xl font-semibold text-foreground">Partnerzy polecający</h1>
-<p className="text-muted-foreground mt-1">
+<Route path="/admin/patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
 ```
-
-**Po:**
-```tsx
-<h1 className="text-2xl font-semibold text-white">Partnerzy polecający</h1>
-<p className="text-white/80 mt-1">
-```
-
-Dodatkowo:
-- Przycisk "Dodaj partnera" → `bg-white text-primary hover:bg-white/90`
-
-### 2. `ExportData.tsx` (linie 117-125)
-
-**Przed:**
-```tsx
-<h1 className="text-2xl font-semibold text-foreground">Eksport danych</h1>
-<p className="text-muted-foreground">Eksportuj dane pacjentów do pliku CSV</p>
-```
-
-**Po:**
-```tsx
-<h1 className="text-2xl font-semibold text-white">Eksport danych</h1>
-<p className="text-white/80">Eksportuj dane pacjentów do pliku CSV</p>
-```
-
-### 3. `ImportPatients.tsx` (linie 195-203)
-
-**Przed:**
-```tsx
-<h1 className="text-2xl font-semibold text-foreground">Import pacjentów</h1>
-<p className="text-muted-foreground">Importuj dane pacjentów z pliku CSV</p>
-```
-
-**Po:**
-```tsx
-<h1 className="text-2xl font-semibold text-white">Import pacjentów</h1>
-<p className="text-white/80">Importuj dane pacjentów z pliku CSV</p>
-```
-
-### 4. `PatientProfile.tsx` (linie 425-433)
-
-**Przed:**
-```tsx
-<h1 className="text-2xl font-semibold text-foreground">Pacjent: {fullName}</h1>
-<p className="text-muted-foreground">Zarządzaj danymi pacjenta i zaleceniami</p>
-```
-
-**Po:**
-```tsx
-<h1 className="text-2xl font-semibold text-white">Pacjent: {fullName}</h1>
-<p className="text-white/80">Zarządzaj danymi pacjenta i zaleceniami</p>
-```
-
-### 5. `RecommendationCreator.tsx` (linie 237-249 i 186-197)
-
-**Przed:**
-```tsx
-<h1 className="text-2xl font-semibold text-foreground">Kreator zaleceń</h1>
-<p className="text-muted-foreground">Utwórz nowe zalecenia dla pacjenta</p>
-```
-
-**Po:**
-```tsx
-<h1 className="text-2xl font-semibold text-white">Kreator zaleceń</h1>
-<p className="text-white/80">Utwórz nowe zalecenia dla pacjenta</p>
-```
-
-### 6. `NutritionInterview.tsx`
-
-Nagłówek sekcji w komponencie - zmiana kolorów dla głównego tytułu strony.
-
-### 7. `Payment.tsx` (linie 106-189)
-
-Zmiana tła głównego kontenera na turkusowe i dostosowanie kolorów tekstów.
 
 ---
 
-## Efekt końcowy
+## Część 2: Rozbudowa RecommendationCreator
 
-Po wdrożeniu wszystkie strony będą miały spójny wygląd:
-- Turkusowe tło głównego obszaru (z layoutu `AdminLayout` / `DashboardLayout`)
-- Białe nagłówki i opisy na turkusowym tle
-- Białe karty z zawartością formularzy i tabel
-- Przyciski akcji w nagłówku w białym kolorze z turkusowym tekstem
+### Plik: `src/pages/admin/RecommendationCreator.tsx`
 
-## Pliki do modyfikacji (łącznie 7)
+| Zmiana | Opis |
+|--------|------|
+| Nowy parametr URL | Pobranie `recommendationId` z URL (jeśli istnieje = tryb edycji) |
+| Ładowanie danych | Pobranie istniejącego zalecenia z bazy przy edycji |
+| Logika zapisu | `insert` dla nowych, `update` dla istniejących |
+| Email | Zawsze wysyłanie emaila po zapisie (z informacją o aktualizacji) |
+| UI | Zmiana tytułu strony na "Edycja zalecenia" w trybie edycji |
 
-1. `src/pages/admin/Partners.tsx`
-2. `src/pages/admin/ExportData.tsx`
-3. `src/pages/admin/ImportPatients.tsx`
-4. `src/pages/admin/PatientProfile.tsx`
-5. `src/pages/admin/RecommendationCreator.tsx`
-6. `src/pages/NutritionInterview.tsx`
-7. `src/pages/Payment.tsx`
+#### Nowy flow:
+
+```text
+┌─────────────────────────────────────────────────────┐
+│  RecommendationCreator                              │
+├─────────────────────────────────────────────────────┤
+│  URL: /admin/patient/:id/recommendation/new         │
+│       → Tryb tworzenia (INSERT)                     │
+│                                                     │
+│  URL: /admin/patient/:id/recommendation/:recId/edit │
+│       → Tryb edycji (UPDATE)                        │
+│       → Załaduj istniejące dane                     │
+│       → Wyświetl formularz z wartościami            │
+└─────────────────────────────────────────────────────┘
+```
+
+#### Zmiany w kodzie:
+
+1. **Parametry URL:**
+```tsx
+const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
+const isEditMode = !!recommendationId;
+```
+
+2. **Ładowanie danych (nowy useEffect):**
+```tsx
+useEffect(() => {
+  if (isEditMode && recommendationId) {
+    fetchExistingRecommendation(recommendationId);
+  }
+}, [recommendationId]);
+
+const fetchExistingRecommendation = async (recId: string) => {
+  const { data, error } = await supabase
+    .from("recommendations")
+    .select("*")
+    .eq("id", recId)
+    .single();
+  
+  if (data) {
+    setFormData({
+      title: data.title || "",
+      diagnosisSummary: data.diagnosis_summary || "",
+      dietaryRecommendations: data.dietary_recommendations || "",
+      supplementationProgram: data.supplementation_program || "",
+      shopLinks: data.shop_links || "",
+      supportingTherapies: data.supporting_therapies || "",
+      tags: data.tags || [],
+    });
+    setSelectedSystems(data.body_systems || []);
+    setSelectedProfileId(data.person_profile_id || "");
+  }
+};
+```
+
+3. **Logika zapisu (modyfikacja handleSubmit):**
+```tsx
+const handleSubmit = async () => {
+  // ... walidacja ...
+  
+  let recommendation;
+  
+  if (isEditMode && recommendationId) {
+    // UPDATE - edycja istniejącego
+    const { data, error } = await supabase
+      .from("recommendations")
+      .update({
+        body_systems: selectedSystems,
+        title: formData.title || null,
+        diagnosis_summary: formData.diagnosisSummary || null,
+        // ... reszta pól ...
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", recommendationId)
+      .select("id")
+      .single();
+    
+    recommendation = data;
+    toast.success("Zalecenie zostało zaktualizowane");
+  } else {
+    // INSERT - nowe zalecenie
+    const { data, error } = await supabase
+      .from("recommendations")
+      .insert({ /* ... */ })
+      .select("id")
+      .single();
+    
+    recommendation = data;
+    toast.success("Zalecenie zostało utworzone");
+  }
+  
+  // Zawsze wyślij email po zapisie
+  if (sendEmail && recommendation) {
+    await sendNotificationEmail(recommendation.id, isEditMode);
+  }
+};
+```
+
+---
+
+## Część 3: Rozbudowa Edge Function dla emaila
+
+### Plik: `supabase/functions/send-recommendation-email/index.ts`
+
+Dodanie parametru `is_update` do żądania, aby zmienić treść emaila:
+
+| Parametr | Opis |
+|----------|------|
+| `recommendation_id` | ID zalecenia |
+| `is_update` | `true` = aktualizacja, `false` = nowe |
+
+#### Zmiany w treści emaila:
+
+**Dla nowego zalecenia:**
+- Tytuł: "Nowe zalecenie dla [profil] - AVATAR"
+- Treść: "Przygotowaliśmy dla Ciebie nowe zalecenia..."
+
+**Dla aktualizacji:**
+- Tytuł: "Zaktualizowane zalecenie dla [profil] - AVATAR"
+- Treść: "Twoje zalecenia zostały zaktualizowane..."
+
+---
+
+## Część 4: Przycisk "Edytuj" w PatientProfile
+
+### Plik: `src/pages/admin/PatientProfile.tsx`
+
+Dodanie przycisku edycji obok każdego zalecenia (linie ~523-543):
+
+```tsx
+<div className="flex gap-2">
+  {/* Nowy przycisk edycji */}
+  <Button
+    variant="outline"
+    size="sm"
+    onClick={() => navigate(`/admin/patient/${id}/recommendation/${rec.id}/edit`)}
+    className="gap-1"
+  >
+    <Pencil className="h-4 w-4" />
+    Edytuj
+  </Button>
+  
+  {/* Istniejące przyciski */}
+  {tokenExpired && (
+    <Button variant="outline" size="sm" onClick={() => handleRegenerateToken(rec.id)}>
+      <RefreshCw className="h-4 w-4" />
+      Odnów token
+    </Button>
+  )}
+  {rec.pdf_url && (
+    <Button variant="outline" size="sm" asChild>
+      <a href={rec.pdf_url}>Pobierz PDF</a>
+    </Button>
+  )}
+</div>
+```
+
+---
+
+## Część 5: Test E2E
+
+Po implementacji wykonam test end-to-end:
+
+1. Otwarcie przeglądarki automatycznej
+2. Nawigacja do panelu admina
+3. Wejście w profil pacjenta
+4. Utworzenie nowego zalecenia
+5. Powrót do listy i kliknięcie "Edytuj"
+6. Zmiana treści zalecenia
+7. Zapisanie z włączonym emailem
+8. Weryfikacja logów edge function
+9. Sprawdzenie czy email został wysłany
+
+---
+
+## Podsumowanie plików do modyfikacji
+
+| Plik | Akcja |
+|------|-------|
+| `src/App.tsx` | Dodanie trasy edycji |
+| `src/pages/admin/RecommendationCreator.tsx` | Tryb edycji + update |
+| `src/pages/admin/PatientProfile.tsx` | Przycisk "Edytuj" |
+| `supabase/functions/send-recommendation-email/index.ts` | Obsługa `is_update` |
+
+---
+
+## Rezultat końcowy
+
+Po wdrożeniu:
+- Admin może edytować KAŻDE zalecenie (nie tylko robocze)
+- Po każdym zapisie (nowe lub edycja) wysyłany jest email do pacjenta
+- Email informuje czy to nowe zalecenie czy aktualizacja
+- Pełna historia edycji (dzięki `updated_at` w bazie)
