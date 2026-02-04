@@ -61,6 +61,12 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        avatar: {
+          cyan: "hsl(189, 100%, 42%)",
+          lime: "hsl(73, 70%, 50%)",
+          teal: "hsl(186, 100%, 33%)",
+          pink: "hsl(340, 85%, 66%)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
