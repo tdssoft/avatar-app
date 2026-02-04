@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Plus, Link as LinkIcon, Trash2, Users } from "lucide-react";
+import { Plus, Link as LinkIcon, Trash2, Users, UserPlus } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,20 @@ const Partners = () => {
   const [selectedPartnerForReferred, setSelectedPartnerForReferred] = useState<{
     id: string;
     name: string;
+  } | null>(null);
+
+  // State for create partner dialog
+  const [createPartnerDialogOpen, setCreatePartnerDialogOpen] = useState(false);
+  const [newPartnerData, setNewPartnerData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  });
+  const [isCreatingPartner, setIsCreatingPartner] = useState(false);
+  const [createdPartnerInfo, setCreatedPartnerInfo] = useState<{
+    email: string;
+    tempPassword: string;
   } | null>(null);
 
   useEffect(() => {
@@ -171,15 +185,73 @@ const Partners = () => {
     setReferredDialogOpen(true);
   };
 
+  const handleCreatePartner = async () => {
+    if (!newPartnerData.firstName.trim() || !newPartnerData.lastName.trim() || !newPartnerData.email.trim()) {
+      toast.error("Wypełnij wszystkie wymagane pola");
+      return;
+    }
+
+    setIsCreatingPartner(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Musisz być zalogowany jako administrator");
+        return;
+      }
+
+      const response = await supabase.functions.invoke("admin-create-patient", {
+        body: {
+          firstName: newPartnerData.firstName.trim(),
+          lastName: newPartnerData.lastName.trim(),
+          email: newPartnerData.email.trim(),
+          phone: newPartnerData.phone.trim() || "",
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Nie udało się utworzyć partnera");
+      }
+
+      toast.success("Partner został utworzony pomyślnie");
+      setCreatedPartnerInfo({
+        email: newPartnerData.email.trim(),
+        tempPassword: response.data.tempPassword,
+      });
+      setNewPartnerData({ firstName: "", lastName: "", email: "", phone: "" });
+      fetchPartners();
+    } catch (error) {
+      console.error("[Partners] Error creating partner:", error);
+      toast.error(error instanceof Error ? error.message : "Nie udało się utworzyć partnera");
+    } finally {
+      setIsCreatingPartner(false);
+    }
+  };
+
+  const closeCreatePartnerDialog = () => {
+    setCreatePartnerDialogOpen(false);
+    setCreatedPartnerInfo(null);
+    setNewPartnerData({ firstName: "", lastName: "", email: "", phone: "" });
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Partnerzy polecający</h1>
-          <p className="text-muted-foreground mt-1">
-            Zarządzaj partnerami i ich linkami do sklepów
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">Partnerzy polecający</h1>
+            <p className="text-muted-foreground mt-1">
+              Zarządzaj partnerami i ich linkami do sklepów
+            </p>
+          </div>
+          <Button onClick={() => setCreatePartnerDialogOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Dodaj partnera
+          </Button>
         </div>
 
         {/* Partners Table */}
@@ -336,6 +408,98 @@ const Partners = () => {
           partnerId={selectedPartnerForReferred?.id || null}
           partnerName={selectedPartnerForReferred?.name || ""}
         />
+
+        {/* Create Partner Dialog */}
+        <Dialog open={createPartnerDialogOpen} onOpenChange={closeCreatePartnerDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Dodaj nowego partnera</DialogTitle>
+              <DialogDescription>
+                Utwórz konto dla nowego partnera polecającego
+              </DialogDescription>
+            </DialogHeader>
+            
+            {createdPartnerInfo ? (
+              <div className="space-y-4">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                  <p className="text-primary font-medium mb-2">Partner utworzony pomyślnie!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Przekaż partnerowi następujące dane logowania:
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Email</Label>
+                    <p className="font-mono text-sm bg-muted p-2 rounded">{createdPartnerInfo.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Tymczasowe hasło</Label>
+                    <p className="font-mono text-sm bg-muted p-2 rounded">{createdPartnerInfo.tempPassword}</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={closeCreatePartnerDialog}>Zamknij</Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="partnerFirstName">Imię *</Label>
+                      <Input
+                        id="partnerFirstName"
+                        value={newPartnerData.firstName}
+                        onChange={(e) => setNewPartnerData({ ...newPartnerData, firstName: e.target.value })}
+                        placeholder="Jan"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="partnerLastName">Nazwisko *</Label>
+                      <Input
+                        id="partnerLastName"
+                        value={newPartnerData.lastName}
+                        onChange={(e) => setNewPartnerData({ ...newPartnerData, lastName: e.target.value })}
+                        placeholder="Kowalski"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="partnerEmail">Email *</Label>
+                    <Input
+                      id="partnerEmail"
+                      type="email"
+                      value={newPartnerData.email}
+                      onChange={(e) => setNewPartnerData({ ...newPartnerData, email: e.target.value })}
+                      placeholder="partner@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="partnerPhone">Telefon (opcjonalnie)</Label>
+                    <Input
+                      id="partnerPhone"
+                      type="tel"
+                      value={newPartnerData.phone}
+                      onChange={(e) => setNewPartnerData({ ...newPartnerData, phone: e.target.value })}
+                      placeholder="+48 123 456 789"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={closeCreatePartnerDialog}>
+                    Anuluj
+                  </Button>
+                  <Button 
+                    onClick={handleCreatePartner} 
+                    disabled={!newPartnerData.firstName.trim() || !newPartnerData.lastName.trim() || !newPartnerData.email.trim() || isCreatingPartner}
+                  >
+                    {isCreatingPartner ? "Tworzenie..." : "Utwórz partnera"}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
