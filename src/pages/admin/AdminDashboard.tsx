@@ -183,115 +183,118 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold text-white">Lista pacjentów</h1>
-            <p className="text-white/80 mt-1">
-              Zarządzaj kontami pacjentów i ich zaleceniami
-            </p>
-          </div>
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Dodaj pacjenta
-          </Button>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Szukaj po imieniu, nazwisku lub telefonie..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={subscriptionFilter} onValueChange={setSubscriptionFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Subskrypcja" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="Aktywna">Aktywna</SelectItem>
-              <SelectItem value="Wygasła">Wygasła</SelectItem>
-              <SelectItem value="Brak">Brak</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={diagnosisFilter} onValueChange={setDiagnosisFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Diagnoza" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Wszystkie</SelectItem>
-              <SelectItem value="Wykonana">Wykonana</SelectItem>
-              <SelectItem value="Oczekuje">Oczekuje</SelectItem>
-              <SelectItem value="Brak">Brak</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Tags Filter */}
-          {allTags.length > 0 && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Tag className="h-4 w-4" />
-                  Tagi
-                  {selectedTags.length > 0 && (
-                    <Badge variant="secondary" className="ml-1">
-                      {selectedTags.length}
-                    </Badge>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64" align="end">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Filtruj po tagach</span>
-                    {selectedTags.length > 0 && (
-                      <Button variant="ghost" size="sm" onClick={clearTagFilters}>
-                        <X className="h-3 w-3 mr-1" />
-                        Wyczyść
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {allTags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant={selectedTags.includes(tag) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => handleTagToggle(tag)}
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
-        {/* Results count */}
-        {searchQuery || hasActiveFilters ? (
-          <p className="text-sm text-muted-foreground">
-            Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
+      {/* Page Header - on turquoise background */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Lista pacjentów</h1>
+          <p className="text-white/80 mt-1">
+            Zarządzaj kontami pacjentów i ich zaleceniami
           </p>
-        ) : null}
-
-        {/* Patient Table */}
-        <PatientTable patients={filteredPatients} isLoading={isLoading} />
-
-        {/* Create Patient Dialog */}
-        <CreatePatientDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          onSuccess={fetchPatients}
-        />
+        </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 bg-white text-primary hover:bg-white/90">
+          <Plus className="h-4 w-4" />
+          Dodaj pacjenta
+        </Button>
       </div>
+
+      {/* Content Card - white background */}
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <div className="space-y-6">
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Szukaj po imieniu, nazwisku lub telefonie..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={subscriptionFilter} onValueChange={setSubscriptionFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Subskrypcja" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszystkie</SelectItem>
+                <SelectItem value="Aktywna">Aktywna</SelectItem>
+                <SelectItem value="Wygasła">Wygasła</SelectItem>
+                <SelectItem value="Brak">Brak</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={diagnosisFilter} onValueChange={setDiagnosisFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Diagnoza" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszystkie</SelectItem>
+                <SelectItem value="Wykonana">Wykonana</SelectItem>
+                <SelectItem value="Oczekuje">Oczekuje</SelectItem>
+                <SelectItem value="Brak">Brak</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Tags Filter */}
+            {allTags.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Tag className="h-4 w-4" />
+                    Tagi
+                    {selectedTags.length > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {selectedTags.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Filtruj po tagach</span>
+                      {selectedTags.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={clearTagFilters}>
+                          <X className="h-3 w-3 mr-1" />
+                          Wyczyść
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {allTags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant={selectedTags.includes(tag) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => handleTagToggle(tag)}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          {/* Results count */}
+          {searchQuery || hasActiveFilters ? (
+            <p className="text-sm text-muted-foreground">
+              Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
+            </p>
+          ) : null}
+
+          {/* Patient Table */}
+          <PatientTable patients={filteredPatients} isLoading={isLoading} />
+        </div>
+      </div>
+
+      {/* Create Patient Dialog */}
+      <CreatePatientDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={fetchPatients}
+      />
     </AdminLayout>
   );
 };
