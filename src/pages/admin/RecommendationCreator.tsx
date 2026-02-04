@@ -30,9 +30,12 @@ interface PersonProfile {
 }
 
 const RecommendationCreator = () => {
-  const { id } = useParams() as { id: string };
+  const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
   const navigate = useNavigate();
+  const isEditMode = !!recommendationId;
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
@@ -54,6 +57,12 @@ const RecommendationCreator = () => {
   useEffect(() => {
     fetchPatientProfiles();
   }, [id]);
+
+  useEffect(() => {
+    if (isEditMode && recommendationId) {
+      fetchExistingRecommendation(recommendationId);
+    }
+  }, [recommendationId, isEditMode]);
 
   const fetchPatientProfiles = async () => {
     // Get patient's user_id first
@@ -81,10 +90,51 @@ const RecommendationCreator = () => {
     }
 
     setProfiles(profilesData || []);
-    // Auto-select primary profile if exists
-    const primaryProfile = profilesData?.find((p) => p.is_primary);
-    if (primaryProfile) {
-      setSelectedProfileId(primaryProfile.id);
+    
+    // Only auto-select primary profile if not in edit mode (edit mode will set its own profile)
+    if (!isEditMode) {
+      const primaryProfile = profilesData?.find((p) => p.is_primary);
+      if (primaryProfile) {
+        setSelectedProfileId(primaryProfile.id);
+      }
+    }
+  };
+
+  const fetchExistingRecommendation = async (recId: string) => {
+    setIsLoadingData(true);
+    try {
+      const { data, error } = await supabase
+        .from("recommendations")
+        .select("*")
+        .eq("id", recId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching recommendation:", error);
+        toast.error("Nie udało się załadować zalecenia");
+        return;
+      }
+
+      if (data) {
+        setFormData({
+          title: data.title || "",
+          diagnosisSummary: data.diagnosis_summary || "",
+          dietaryRecommendations: data.dietary_recommendations || "",
+          supplementationProgram: data.supplementation_program || "",
+          shopLinks: data.shop_links || "",
+          supportingTherapies: data.supporting_therapies || "",
+          tags: data.tags || [],
+        });
+        setSelectedSystems(data.body_systems || []);
+        if (data.person_profile_id) {
+          setSelectedProfileId(data.person_profile_id);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading recommendation:", err);
+      toast.error("Błąd podczas ładowania danych");
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -111,6 +161,30 @@ const RecommendationCreator = () => {
     });
   };
 
+  const sendNotificationEmail = async (recId: string, isUpdate: boolean) => {
+    setIsSendingEmail(true);
+    try {
+      const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+        "send-recommendation-email",
+        {
+          body: { recommendation_id: recId, is_update: isUpdate },
+        }
+      );
+
+      if (emailError) {
+        console.error("Email error:", emailError);
+        toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
+      } else {
+        toast.success(isUpdate ? "Email z powiadomieniem o aktualizacji został wysłany" : "Email z zaleceniem został wysłany");
+      }
+    } catch (emailErr) {
+      console.error("Email send error:", emailErr);
+      toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (selectedSystems.length === 0) {
       toast.error("Wybierz przynajmniej jeden układ ciała");
@@ -121,52 +195,57 @@ const RecommendationCreator = () => {
     try {
       const { data: userData } = await supabase.auth.getUser();
 
-      const { data: recommendation, error } = await supabase
-        .from("recommendations")
-        .insert({
-          patient_id: id,
-          created_by_admin_id: userData.user?.id,
-          body_systems: selectedSystems,
-          title: formData.title || null,
-          diagnosis_summary: formData.diagnosisSummary || null,
-          dietary_recommendations: formData.dietaryRecommendations || null,
-          supplementation_program: formData.supplementationProgram || null,
-          shop_links: formData.shopLinks || null,
-          supporting_therapies: formData.supportingTherapies || null,
-          tags: formData.tags.length > 0 ? formData.tags : null,
-          person_profile_id: selectedProfileId || null,
-        })
-        .select("id")
-        .single();
+      const recommendationPayload = {
+        body_systems: selectedSystems,
+        title: formData.title || null,
+        diagnosis_summary: formData.diagnosisSummary || null,
+        dietary_recommendations: formData.dietaryRecommendations || null,
+        supplementation_program: formData.supplementationProgram || null,
+        shop_links: formData.shopLinks || null,
+        supporting_therapies: formData.supportingTherapies || null,
+        tags: formData.tags.length > 0 ? formData.tags : null,
+        person_profile_id: selectedProfileId || null,
+      };
 
-      if (error) throw error;
+      let recommendation;
 
-      toast.success("Zalecenia zostały zapisane");
+      if (isEditMode && recommendationId) {
+        // UPDATE existing recommendation
+        const { data, error } = await supabase
+          .from("recommendations")
+          .update({
+            ...recommendationPayload,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", recommendationId)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        recommendation = data;
+        toast.success("Zalecenie zostało zaktualizowane");
+      } else {
+        // INSERT new recommendation
+        const { data, error } = await supabase
+          .from("recommendations")
+          .insert({
+            ...recommendationPayload,
+            patient_id: id,
+            created_by_admin_id: userData.user?.id,
+          })
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        recommendation = data;
+        toast.success("Zalecenia zostały zapisane");
+      }
+
       setSavedRecommendationId(recommendation.id);
 
       // Send email if enabled
       if (sendEmail && recommendation) {
-        setIsSendingEmail(true);
-        try {
-          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
-            "send-recommendation-email",
-            {
-              body: { recommendation_id: recommendation.id },
-            }
-          );
-
-          if (emailError) {
-            console.error("Email error:", emailError);
-            toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
-          } else {
-            toast.success("Email z zaleceniem został wysłany");
-          }
-        } catch (emailErr) {
-          console.error("Email send error:", emailErr);
-          toast.error("Zalecenie zapisane, ale nie udało się wysłać emaila");
-        } finally {
-          setIsSendingEmail(false);
-        }
+        await sendNotificationEmail(recommendation.id, isEditMode);
       }
 
     } catch (error) {
@@ -181,6 +260,17 @@ const RecommendationCreator = () => {
     navigate(`/admin/patient/${id}`);
   };
 
+  // Show loading state while fetching existing data in edit mode
+  if (isLoadingData) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
   // If recommendation is saved, show audio recording section
   if (savedRecommendationId && selectedProfileId) {
     return (
@@ -192,7 +282,9 @@ const RecommendationCreator = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-semibold text-white">Zalecenie zapisane</h1>
+              <h1 className="text-2xl font-semibold text-white">
+                {isEditMode ? "Zalecenie zaktualizowane" : "Zalecenie zapisane"}
+              </h1>
               <p className="text-white/80">Opcjonalnie możesz nagrać komentarz audio do zalecenia</p>
             </div>
           </div>
@@ -243,8 +335,12 @@ const RecommendationCreator = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold text-white">Kreator zaleceń</h1>
-            <p className="text-white/80">Utwórz nowe zalecenia dla pacjenta</p>
+            <h1 className="text-2xl font-semibold text-white">
+              {isEditMode ? "Edycja zalecenia" : "Kreator zaleceń"}
+            </h1>
+            <p className="text-white/80">
+              {isEditMode ? "Edytuj istniejące zalecenie dla pacjenta" : "Utwórz nowe zalecenia dla pacjenta"}
+            </p>
           </div>
         </div>
 
@@ -429,20 +525,34 @@ const RecommendationCreator = () => {
                     />
                     <Label htmlFor="send-email" className="flex items-center gap-2 cursor-pointer">
                       <Mail className="h-4 w-4" />
-                      Wyślij email z powiadomieniem
+                      {isEditMode ? "Wyślij email o aktualizacji" : "Wyślij email z powiadomieniem"}
                     </Label>
                   </div>
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => navigate(`/admin/patient/${id}`)}>
                       Powrót
                     </Button>
-                    <Button 
-                      onClick={handleSubmit} 
-                      disabled={isLoading || isSendingEmail} 
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={isLoading || isSendingEmail || selectedSystems.length === 0}
                       className="gap-2"
                     >
-                      <Save className="h-4 w-4" />
-                      {isLoading ? "Zapisywanie..." : isSendingEmail ? "Wysyłanie..." : "Zapisz"}
+                      {isLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Zapisuję...
+                        </>
+                      ) : isSendingEmail ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Wysyłam email...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          {isEditMode ? "Zapisz zmiany" : "Zapisz zalecenia"}
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
