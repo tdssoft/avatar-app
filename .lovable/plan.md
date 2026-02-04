@@ -1,126 +1,200 @@
 
-# Plan: Automatyczne przekierowanie admina na /admin po zalogowaniu
+# Plan: Pełna funkcjonalność panelu Partnerzy z zarządzaniem i widocznością poleceń
 
-## Cel
-Po zalogowaniu użytkownika z rolą administratora, system powinien automatycznie przekierować go na `/admin` zamiast `/dashboard`.
+## Zidentyfikowane problemy
 
-## Analiza obecnego stanu
+### 1. Pusta lista partnerów - brak dostępu RLS
+**Główny problem**: Tabela `referrals` ma politykę RLS, która pozwala użytkownikom widzieć tylko SWOJE polecenia:
+```sql
+Policy: "Users can view referrals they made"
+Using: (auth.uid() = referrer_user_id)
+```
 
-**Przepływ logowania:**
-1. Użytkownik wypełnia formularz w `LoginForm.tsx`
-2. Wywołuje `login()` z `AuthContext`
-3. Po sukcesie → `navigate("/dashboard")` (linia 41)
+Admin NIE MA polityki SELECT dla tabeli `referrals`, więc zapytanie w `Partners.tsx` (linia 52-54) zwraca pustą tablicę i lista partnerów wychodzi pusta.
 
-**Problem:**
-- Logowanie zawsze przekierowuje na `/dashboard`
-- Brak sprawdzenia roli admina przy logowaniu
+### 2. Brak funkcji zarządzania partnerami
+Obecnie strona Partners pozwala tylko:
+- Wyświetlać partnerów (gdy RLS pozwoli)
+- Dodawać linki do sklepów
 
-**Istniejące mechanizmy:**
-- Hook `useAdminRole` sprawdza rolę admina w tabeli `user_roles`
-- `AuthContext.login()` zwraca `{ success: true }` po pomyślnym logowaniu
+**Brakuje**:
+- Ręcznego dodawania partnerów
+- Usuwania linków do sklepów
+- Edycji danych partnera
+- Widoku szczegółów partnera (lista poleconych klientów)
+
+### 3. Brakujące imię/nazwisko partnera
+Użytkownik `c2a69448-3c62-4e0c-8d2a-a0f1df823899` (który ma 2 polecenia) nie ma wypełnionego `first_name` i `last_name` w profilu - wyświetli się jako "Nieznany partner".
+
+---
 
 ## Rozwiązanie
 
-### Podejście: Sprawdzenie roli admina w `LoginForm.tsx`
+### Część 1: Naprawienie RLS dla tabeli `referrals`
 
-Po pomyślnym logowaniu, przed przekierowaniem, sprawdzimy czy użytkownik ma rolę admina i odpowiednio przekierujemy.
+Dodanie polityki pozwalającej adminom widzieć wszystkie polecenia:
+
+```sql
+CREATE POLICY "Admins can view all referrals"
+ON public.referrals
+FOR SELECT
+TO authenticated
+USING (has_role(auth.uid(), 'admin'::app_role));
+```
+
+### Część 2: Rozszerzenie funkcjonalności strony Partners
+
+#### A. Wyświetlanie wszystkich użytkowników z kodem polecającym
+Zmiana logiki filtrowania - pokazywać WSZYSTKICH użytkowników z `referral_code`, nie tylko tych z poleceniami.
+
+#### B. Dodanie przycisków zarządzania:
+- **Usuń link** - przy każdym linku do sklepu (ikona kosza)
+- **Zobacz poleconych** - przycisk otwierający dialog z listą klientów poleconych przez tego partnera
+
+#### C. Rozszerzenie tabeli o kolumny:
+- Kod polecający (widoczny dla admina)
+- Status partnera (aktywny/nieaktywny)
+
+### Część 3: Widok poleconych klientów
+
+Dialog pokazujący:
+- Imię i nazwisko poleconego klienta
+- Email
+- Data rejestracji
+- Status (pending/active)
+
+---
 
 ## Zmiany w plikach
 
-### 1. `src/components/auth/LoginForm.tsx`
+### 1. Migracja SQL
+```sql
+-- Dodanie polityki RLS dla adminów na tabelę referrals
+CREATE POLICY "Admins can view all referrals"
+ON public.referrals
+FOR SELECT
+TO authenticated
+USING (has_role(auth.uid(), 'admin'::app_role));
 
-**Dodać:**
-- Import `supabase` do sprawdzenia roli
-- Funkcję `checkIsAdmin(userId)` która odpytuje tabelę `user_roles`
-- Logikę w `onSubmit` która po sukcesie:
-  1. Pobiera `user.id` z kontekstu
-  2. Sprawdza czy jest adminem
-  3. Przekierowuje na `/admin` (admin) lub `/dashboard` (zwykły user)
+-- Dodanie polityki UPDATE dla adminów (do zmiany statusu)
+CREATE POLICY "Admins can update referrals"
+ON public.referrals
+FOR UPDATE
+TO authenticated
+USING (has_role(auth.uid(), 'admin'::app_role));
+```
+
+### 2. `src/pages/admin/Partners.tsx`
+
+**Zmiany:**
+- Usunięcie filtra `referralCounts[p.user_id] > 0` - pokazać wszystkich z kodem polecającym
+- Dodanie kolumny "Kod polecający"
+- Dodanie przycisku "Usuń" przy linkach do sklepów
+- Dodanie przycisku "Zobacz poleconych" otwierającego nowy dialog
+- Dodanie funkcji `handleDeleteLink(linkId)`
+- Dodanie dialogu `ReferredClientsDialog` z listą poleconych klientów
+
+**Nowa struktura tabeli:**
+| Imię i nazwisko | Kod polecający | Linki do sklepów | Poleceni | Akcje |
+|-----------------|----------------|------------------|----------|-------|
+| Partner X       | ABC123         | Link1 🗑, Link2 🗑 | 5        | Dodaj link, Zobacz poleconych |
+
+### 3. Nowy komponent: Dialog "Poleceni klienci"
+
+Wyświetla listę osób poleconych przez danego partnera:
+- Pobiera dane z `referrals` WHERE `referrer_user_id = partnerId`
+- Pokazuje imię, email, datę rejestracji, status
+
+---
+
+## Przepływ po zmianach
 
 ```text
-Przepływ po zmianach:
-
-┌─────────────────┐
-│  Użytkownik     │
-│  klika "Zaloguj"│
-└────────┬────────┘
+Administrator wchodzi na /admin/partners
          │
          ▼
-┌─────────────────┐
-│ login() sukces  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Sprawdź rolę    │
-│ w user_roles    │
-└────────┬────────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌───────┐  ┌──────────┐
-│ Admin │  │ Zwykły   │
-│       │  │ user     │
-└───┬───┘  └────┬─────┘
-    │           │
-    ▼           ▼
-┌───────┐  ┌──────────┐
-│/admin │  │/dashboard│
-└───────┘  └──────────┘
+┌─────────────────────────────────────┐
+│  Zapytanie do profiles              │
+│  WHERE referral_code IS NOT NULL    │
+└─────────────────┬───────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────┐
+│  Zapytanie do referrals             │
+│  (teraz działa - admin ma RLS)      │
+└─────────────────┬───────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────┐
+│  Wyświetl WSZYSTKICH partnerów      │
+│  z ich kodami i liczbą poleceń      │
+└─────────────────┬───────────────────┘
+                  │
+      ┌───────────┼───────────┐
+      ▼           ▼           ▼
+┌──────────┐ ┌──────────┐ ┌────────────┐
+│ Dodaj    │ │ Usuń     │ │ Zobacz     │
+│ link     │ │ link     │ │ poleconych │
+└──────────┘ └──────────┘ └────────────┘
 ```
 
-## Szczegóły implementacji
+---
 
+## Szczegóły techniczne
+
+### Usuwanie linków do sklepów
 ```typescript
-// W LoginForm.tsx - nowa funkcja pomocnicza
-const checkIsAdmin = async (userId: string): Promise<boolean> => {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
+const handleDeleteLink = async (linkId: string) => {
+  const { error } = await supabase
+    .from("partner_shop_links")
+    .delete()
+    .eq("id", linkId);
   
-  return !!data;
-};
-
-// W onSubmit - zmieniona logika przekierowania
-const onSubmit = async (data: LoginFormData) => {
-  setIsLoading(true);
-  try {
-    const result = await login(data.email, data.password);
-    if (result.success) {
-      // Pobierz aktualnego użytkownika i sprawdź rolę
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const isAdmin = await checkIsAdmin(user.id);
-        navigate(isAdmin ? "/admin" : "/dashboard");
-      } else {
-        navigate("/dashboard");
-      }
-    } else {
-      // ... obsługa błędów (bez zmian)
-    }
-  } catch {
-    // ... (bez zmian)
-  } finally {
-    setIsLoading(false);
+  if (error) {
+    toast.error("Nie udało się usunąć linku");
+    return;
   }
+  
+  toast.success("Link został usunięty");
+  fetchPartners();
 };
 ```
+
+### Dialog z poleconymi klientami
+```typescript
+interface ReferredClient {
+  id: string;
+  referred_email: string;
+  referred_name: string;
+  status: "pending" | "active";
+  created_at: string;
+}
+
+const fetchReferredClients = async (partnerId: string) => {
+  const { data } = await supabase
+    .from("referrals")
+    .select("id, referred_email, referred_name, status, created_at")
+    .eq("referrer_user_id", partnerId)
+    .order("created_at", { ascending: false });
+  
+  return data || [];
+};
+```
+
+---
 
 ## Korzyści
 
-1. **Szybka nawigacja** - admin od razu trafia do panelu administracyjnego
-2. **Czytelny kod** - logika sprawdzenia roli w jednym miejscu
-3. **Zgodność z istniejącym wzorcem** - używamy tej samej logiki co w `useAdminRole`
+1. **Widoczność partnerów** - admin widzi wszystkich użytkowników z kodem polecającym
+2. **Pełne zarządzanie** - dodawanie/usuwanie linków, podgląd poleconych
+3. **Przejrzystość** - widoczne kody polecające i statystyki
+4. **Spójność z widokiem pacjentów** - kolumna "Polecony przez" w tabeli pacjentów pokazuje dane partnera
 
-## Ryzyko
-
-- Dodatkowe zapytanie do bazy przy logowaniu (minimalne opóźnienie ~50-100ms)
-- Można zoptymalizować w przyszłości przez cache lub JWT claims
+---
 
 ## Szacowany czas implementacji
 
-~5 minut - jedna prosta zmiana w jednym pliku.
+~15 minut:
+- Migracja SQL: 2 min
+- Modyfikacja Partners.tsx: 10 min
+- Testowanie: 3 min
