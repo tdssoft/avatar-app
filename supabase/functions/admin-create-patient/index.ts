@@ -92,9 +92,9 @@ serve(async (req: Request): Promise<Response> => {
     // Parse request body
     const { firstName, lastName, email, phone }: CreatePatientRequest = await req.json();
 
-    if (!firstName || !lastName || !email || !phone) {
+    if (!firstName || !lastName || !email) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing required fields (firstName, lastName, email)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -136,7 +136,7 @@ serve(async (req: Request): Promise<Response> => {
         user_id: newUserId,
         first_name: firstName,
         last_name: lastName,
-        phone,
+        phone: phone || null,
         referral_code: referralCode,
       });
 
