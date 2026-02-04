@@ -105,6 +105,23 @@ const Results = () => {
 
       if (error) throw error;
 
+      // Pobierz dane profilu dla powiadomienia
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+
+      // Wyślij powiadomienie email do admina
+      await supabase.functions.invoke("send-question-notification", {
+        body: {
+          type: "patient_question",
+          user_email: user?.email || "",
+          user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "",
+          message: question.trim(),
+        },
+      });
+
       toast.success("Pytanie zostało wysłane. Odpowiemy najszybciej jak to możliwe.");
       setQuestion("");
     } catch (error: any) {
