@@ -84,6 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
         "mode": "payment",
         "success_url": `${origin}/payment/success`,
         "cancel_url": `${origin}/dashboard`,
+        "invoice_creation[enabled]": "true",
         ...lineItems.reduce((acc, item, index) => ({
           ...acc,
           [`line_items[${index}][price_data][currency]`]: item.price_data.currency,
