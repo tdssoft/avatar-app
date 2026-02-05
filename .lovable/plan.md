@@ -1,226 +1,174 @@
 
-# Plan: Edycja zaleceń + powiadomienie emailowe po każdej zmianie
+# Plan: Automatyczne wysyłanie faktur Stripe do administratora
 
 ## Cel
-1. Umożliwić edycję już wysłanych zaleceń (nie tylko roboczych)
-2. Po każdym zapisaniu edycji wysyłać email do pacjenta z informacją o aktualizacji
-3. Test E2E aby sprawdzić czy wszystko działa poprawnie
+Po każdej pomyślnej płatności:
+1. Stripe automatycznie generuje fakturę dla klienta
+2. Webhook pobiera PDF faktury ze Stripe
+3. Kopia faktury (PDF) jest wysyłana na email administratora
 
 ---
 
-## Część 1: Nowa trasa dla edycji
-
-### Plik: `src/App.tsx`
-
-Dodanie nowej trasy:
-```tsx
-<Route path="/admin/patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
-```
-
----
-
-## Część 2: Rozbudowa RecommendationCreator
-
-### Plik: `src/pages/admin/RecommendationCreator.tsx`
-
-| Zmiana | Opis |
-|--------|------|
-| Nowy parametr URL | Pobranie `recommendationId` z URL (jeśli istnieje = tryb edycji) |
-| Ładowanie danych | Pobranie istniejącego zalecenia z bazy przy edycji |
-| Logika zapisu | `insert` dla nowych, `update` dla istniejących |
-| Email | Zawsze wysyłanie emaila po zapisie (z informacją o aktualizacji) |
-| UI | Zmiana tytułu strony na "Edycja zalecenia" w trybie edycji |
-
-#### Nowy flow:
+## Architektura rozwiązania
 
 ```text
-┌─────────────────────────────────────────────────────┐
-│  RecommendationCreator                              │
-├─────────────────────────────────────────────────────┤
-│  URL: /admin/patient/:id/recommendation/new         │
-│       → Tryb tworzenia (INSERT)                     │
-│                                                     │
-│  URL: /admin/patient/:id/recommendation/:recId/edit │
-│       → Tryb edycji (UPDATE)                        │
-│       → Załaduj istniejące dane                     │
-│       → Wyświetl formularz z wartościami            │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FLOW PŁATNOŚCI Z FAKTURĄ                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. create-checkout-session → invoice_creation[enabled]=true            │
+│  2. Klient płaci przez Stripe Checkout                                  │
+│  3. Stripe generuje fakturę PDF (automatycznie)                         │
+│  4. Stripe wysyła webhook → invoice.paid                                │
+│  5. stripe-webhook pobiera invoice_pdf z API Stripe                     │
+│  6. Email z załącznikiem PDF → Administrator                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Zmiany w kodzie:
+---
 
-1. **Parametry URL:**
-```tsx
-const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
-const isEditMode = !!recommendationId;
+## Część 1: Modyfikacja create-checkout-session
+
+### Plik: `supabase/functions/create-checkout-session/index.ts`
+
+Dodanie parametru `invoice_creation[enabled]=true` do zapytania Stripe:
+
+```typescript
+body: new URLSearchParams({
+  "mode": "payment",
+  "success_url": `${origin}/payment/success`,
+  "cancel_url": `${origin}/dashboard`,
+  "invoice_creation[enabled]": "true",  // NOWE - włącza generowanie faktury
+  // ... reszta line_items
+}),
 ```
 
-2. **Ładowanie danych (nowy useEffect):**
-```tsx
-useEffect(() => {
-  if (isEditMode && recommendationId) {
-    fetchExistingRecommendation(recommendationId);
-  }
-}, [recommendationId]);
+Dzięki temu Stripe automatycznie:
+- Tworzy obiekt Invoice
+- Generuje PDF faktury
+- Wysyła email z fakturą do klienta (jeśli włączone w Dashboard)
 
-const fetchExistingRecommendation = async (recId: string) => {
-  const { data, error } = await supabase
-    .from("recommendations")
-    .select("*")
-    .eq("id", recId)
-    .single();
+---
+
+## Część 2: Nowa Edge Function - stripe-webhook
+
+### Plik: `supabase/functions/stripe-webhook/index.ts`
+
+Funkcja obsługująca webhook `invoice.paid`:
+
+| Element | Opis |
+|---------|------|
+| Zdarzenie | `invoice.paid` (lepsze niż checkout.session.completed - zawiera gotową fakturę) |
+| Weryfikacja | Podpis Stripe (STRIPE_WEBHOOK_SECRET) |
+| Pobieranie PDF | GET `/v1/invoices/{id}/pdf` |
+| Wysyłka | Resend z załącznikiem PDF |
+
+### Główna logika:
+
+```typescript
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
+
+const handler = async (req: Request): Promise<Response> => {
+  // 1. Weryfikacja podpisu Stripe
+  const signature = req.headers.get("stripe-signature");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   
-  if (data) {
-    setFormData({
-      title: data.title || "",
-      diagnosisSummary: data.diagnosis_summary || "",
-      dietaryRecommendations: data.dietary_recommendations || "",
-      supplementationProgram: data.supplementation_program || "",
-      shopLinks: data.shop_links || "",
-      supportingTherapies: data.supporting_therapies || "",
-      tags: data.tags || [],
+  const body = await req.text();
+  
+  // Weryfikacja HMAC (uproszczona - lub użycie biblioteki stripe)
+  // ...
+  
+  const event = JSON.parse(body);
+  
+  // 2. Obsługa invoice.paid
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object;
+    
+    // 3. Pobranie PDF faktury
+    const pdfResponse = await fetch(
+      `https://api.stripe.com/v1/invoices/${invoice.id}/pdf`,
+      { headers: { Authorization: `Bearer ${stripeKey}` } }
+    );
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    
+    // 4. Wysłanie emaila z załącznikiem do admina
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    
+    await resend.emails.send({
+      from: "AVATAR <noreply@eavatar.diet>",
+      to: ["alan.urban23@gmail.com"],
+      subject: `Faktura ${invoice.number} - Nowa płatność AVATAR`,
+      html: `
+        <h1>Nowa płatność</h1>
+        <p><strong>Numer faktury:</strong> ${invoice.number}</p>
+        <p><strong>Kwota:</strong> ${(invoice.amount_paid / 100).toFixed(2)} PLN</p>
+        <p><strong>Klient:</strong> ${invoice.customer_email}</p>
+        <p>W załączniku znajduje się kopia faktury PDF.</p>
+      `,
+      attachments: [
+        {
+          filename: `faktura-${invoice.number}.pdf`,
+          content: pdfBase64,
+        },
+      ],
     });
-    setSelectedSystems(data.body_systems || []);
-    setSelectedProfileId(data.person_profile_id || "");
   }
+  
+  return new Response(JSON.stringify({ received: true }), { status: 200 });
 };
-```
 
-3. **Logika zapisu (modyfikacja handleSubmit):**
-```tsx
-const handleSubmit = async () => {
-  // ... walidacja ...
-  
-  let recommendation;
-  
-  if (isEditMode && recommendationId) {
-    // UPDATE - edycja istniejącego
-    const { data, error } = await supabase
-      .from("recommendations")
-      .update({
-        body_systems: selectedSystems,
-        title: formData.title || null,
-        diagnosis_summary: formData.diagnosisSummary || null,
-        // ... reszta pól ...
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", recommendationId)
-      .select("id")
-      .single();
-    
-    recommendation = data;
-    toast.success("Zalecenie zostało zaktualizowane");
-  } else {
-    // INSERT - nowe zalecenie
-    const { data, error } = await supabase
-      .from("recommendations")
-      .insert({ /* ... */ })
-      .select("id")
-      .single();
-    
-    recommendation = data;
-    toast.success("Zalecenie zostało utworzone");
-  }
-  
-  // Zawsze wyślij email po zapisie
-  if (sendEmail && recommendation) {
-    await sendNotificationEmail(recommendation.id, isEditMode);
-  }
-};
+serve(handler);
 ```
 
 ---
 
-## Część 3: Rozbudowa Edge Function dla emaila
+## Część 3: Konfiguracja
 
-### Plik: `supabase/functions/send-recommendation-email/index.ts`
+### Plik: `supabase/config.toml`
 
-Dodanie parametru `is_update` do żądania, aby zmienić treść emaila:
+Dodanie nowej funkcji:
 
-| Parametr | Opis |
-|----------|------|
-| `recommendation_id` | ID zalecenia |
-| `is_update` | `true` = aktualizacja, `false` = nowe |
-
-#### Zmiany w treści emaila:
-
-**Dla nowego zalecenia:**
-- Tytuł: "Nowe zalecenie dla [profil] - AVATAR"
-- Treść: "Przygotowaliśmy dla Ciebie nowe zalecenia..."
-
-**Dla aktualizacji:**
-- Tytuł: "Zaktualizowane zalecenie dla [profil] - AVATAR"
-- Treść: "Twoje zalecenia zostały zaktualizowane..."
-
----
-
-## Część 4: Przycisk "Edytuj" w PatientProfile
-
-### Plik: `src/pages/admin/PatientProfile.tsx`
-
-Dodanie przycisku edycji obok każdego zalecenia (linie ~523-543):
-
-```tsx
-<div className="flex gap-2">
-  {/* Nowy przycisk edycji */}
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => navigate(`/admin/patient/${id}/recommendation/${rec.id}/edit`)}
-    className="gap-1"
-  >
-    <Pencil className="h-4 w-4" />
-    Edytuj
-  </Button>
-  
-  {/* Istniejące przyciski */}
-  {tokenExpired && (
-    <Button variant="outline" size="sm" onClick={() => handleRegenerateToken(rec.id)}>
-      <RefreshCw className="h-4 w-4" />
-      Odnów token
-    </Button>
-  )}
-  {rec.pdf_url && (
-    <Button variant="outline" size="sm" asChild>
-      <a href={rec.pdf_url}>Pobierz PDF</a>
-    </Button>
-  )}
-</div>
+```toml
+[functions.stripe-webhook]
+verify_jwt = false
 ```
 
----
+### Wymagany nowy sekret: STRIPE_WEBHOOK_SECRET
 
-## Część 5: Test E2E
-
-Po implementacji wykonam test end-to-end:
-
-1. Otwarcie przeglądarki automatycznej
-2. Nawigacja do panelu admina
-3. Wejście w profil pacjenta
-4. Utworzenie nowego zalecenia
-5. Powrót do listy i kliknięcie "Edytuj"
-6. Zmiana treści zalecenia
-7. Zapisanie z włączonym emailem
-8. Weryfikacja logów edge function
-9. Sprawdzenie czy email został wysłany
+Po wdrożeniu funkcji należy:
+1. Wejść w Stripe Dashboard → Developers → Webhooks
+2. Dodać endpoint: `https://llrmskcwsfmubooswatz.supabase.co/functions/v1/stripe-webhook`
+3. Wybrać zdarzenie: `invoice.paid`
+4. Skopiować "Signing secret" → dodać jako STRIPE_WEBHOOK_SECRET
 
 ---
 
-## Podsumowanie plików do modyfikacji
+## Podsumowanie zmian
 
 | Plik | Akcja |
 |------|-------|
-| `src/App.tsx` | Dodanie trasy edycji |
-| `src/pages/admin/RecommendationCreator.tsx` | Tryb edycji + update |
-| `src/pages/admin/PatientProfile.tsx` | Przycisk "Edytuj" |
-| `supabase/functions/send-recommendation-email/index.ts` | Obsługa `is_update` |
+| `supabase/functions/create-checkout-session/index.ts` | Dodanie `invoice_creation[enabled]=true` |
+| `supabase/functions/stripe-webhook/index.ts` | NOWY - obsługa webhook + wysyłka faktury PDF |
+| `supabase/config.toml` | Dodanie konfiguracji stripe-webhook |
+
+### Wymagane sekrety:
+
+| Sekret | Status |
+|--------|--------|
+| `STRIPE_SECRET_KEY` | Już skonfigurowany |
+| `RESEND_API_KEY` | Już skonfigurowany |
+| `STRIPE_WEBHOOK_SECRET` | Do dodania po wdrożeniu |
 
 ---
 
 ## Rezultat końcowy
 
 Po wdrożeniu:
-- Admin może edytować KAŻDE zalecenie (nie tylko robocze)
-- Po każdym zapisie (nowe lub edycja) wysyłany jest email do pacjenta
-- Email informuje czy to nowe zalecenie czy aktualizacja
-- Pełna historia edycji (dzięki `updated_at` w bazie)
+1. Każda płatność automatycznie generuje fakturę w Stripe
+2. Klient otrzymuje email z fakturą od Stripe (domyślne ustawienie)
+3. Administrator otrzymuje kopię faktury PDF na alan.urban23@gmail.com
+4. Email zawiera wszystkie szczegóły transakcji + załącznik PDF
