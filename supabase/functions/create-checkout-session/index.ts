@@ -33,6 +33,17 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Stripe is not configured");
     }
 
+    // Validate key format
+    if (stripeKey.startsWith("pk_")) {
+      console.error("Invalid key: publishable key (pk_*) provided instead of secret key (sk_*)");
+      throw new Error("Invalid Stripe key: use secret key (sk_*), not publishable key (pk_*)");
+    }
+
+    if (!stripeKey.startsWith("sk_test_") && !stripeKey.startsWith("sk_live_")) {
+      console.error("Invalid key format. Expected sk_test_* or sk_live_*, got:", stripeKey.substring(0, 7) + "...");
+      throw new Error("Invalid Stripe key format. Use secret key starting with sk_test_ or sk_live_");
+    }
+
     const { packages, origin }: CheckoutRequest = await req.json();
     console.log("create-checkout-session: packages", packages, "origin", origin);
 
