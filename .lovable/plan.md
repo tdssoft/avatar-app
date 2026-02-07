@@ -1,174 +1,205 @@
 
-# Plan: Automatyczne wysyłanie faktur Stripe do administratora
+# Plan migracji z Lovable Cloud do własnej instancji Supabase
 
-## Cel
-Po każdej pomyślnej płatności:
-1. Stripe automatycznie generuje fakturę dla klienta
-2. Webhook pobiera PDF faktury ze Stripe
-3. Kopia faktury (PDF) jest wysyłana na email administratora
+## Podsumowanie
+
+Przeniesienie całej infrastruktury backendowej (baza danych, Edge Functions, Storage, sekrety) z Lovable Cloud do własnego projektu Supabase. Proces wymaga kilku kroków manualnych po stronie użytkownika.
 
 ---
 
-## Architektura rozwiązania
+## Krok 1: Utworzenie projektu Supabase
+
+1. Przejdź na https://supabase.com i zaloguj się
+2. Utwórz nowy projekt (zapamiętaj hasło do bazy!)
+3. Po utworzeniu, zapisz z ustawień projektu:
+   - **Project URL** (np. `https://xyz123.supabase.co`)
+   - **Anon Key** (publiczny klucz)
+   - **Service Role Key** (tajny klucz - NIGDY nie udostępniaj!)
+
+---
+
+## Krok 2: Migracja schematu bazy danych
+
+Wszystkie migracje znajdują się w folderze `supabase/migrations/`. Musisz je wykonać w kolejności w SQL Editor nowego projektu:
+
+**Kolejność plików do wykonania:**
+1. `20260130205822_*.sql` - Storage buckets, profiles, user_results
+2. `20260131070853_*.sql` - Tabela referrals
+3. `20260131070939_*.sql` - Poprawka polityk referrals
+4. `20260131073212_*.sql` - Unikalne indeksy
+5. `20260131080435_*.sql` - Role, patients, recommendations, notes, messages
+6. `20260131081934_*.sql` - Admin profiles policy
+7. `20260202181017_*.sql` - Person profiles (multi-profil)
+8. `20260202184131_*.sql` - Download tokens, access logs
+9. `20260202184742_*.sql` - Nutrition interviews, audio recordings
+10. `20260202194748_*.sql` - Tags, interview history
+11. `20260202200721_*.sql` - Interview status
+12. `20260202203953_*.sql` - Support tickets
+13. `20260204080242_*.sql` - Admin referrals policies
+
+---
+
+## Krok 3: Migracja danych (opcjonalnie)
+
+Jeśli masz istniejące dane w Lovable Cloud, musisz je wyeksportować:
+
+1. Użyj funkcji eksportu w Cloud Dashboard dla każdej tabeli
+2. Zaimportuj dane do nowego Supabase przez SQL Editor lub CSV import
+
+---
+
+## Krok 4: Konfiguracja Storage Buckets
+
+Buckets są tworzone przez migracje, ale upewnij się że istnieją:
+- `avatars` (publiczny)
+- `results` (prywatny)
+- `audio-recordings` (prywatny)
+
+---
+
+## Krok 5: Deploy Edge Functions
+
+Edge Functions muszą być wdrożone przez Supabase CLI:
+
+```bash
+# Instalacja CLI
+npm install -g supabase
+
+# Logowanie
+supabase login
+
+# Link do projektu
+supabase link --project-ref TWOJ_PROJECT_REF
+
+# Deploy wszystkich funkcji
+supabase functions deploy admin-create-patient
+supabase functions deploy admin-delete-user
+supabase functions deploy bootstrap-admin
+supabase functions deploy create-checkout-session
+supabase functions deploy export-data
+supabase functions deploy import-patients
+supabase functions deploy post-signup
+supabase functions deploy repair-referral
+supabase functions deploy send-question-notification
+supabase functions deploy send-recommendation-email
+supabase functions deploy stripe-webhook
+supabase functions deploy verify-download-token
+```
+
+---
+
+## Krok 6: Konfiguracja sekretów w Supabase
+
+Przejdź do **Settings → Edge Functions** w dashboardzie Supabase i dodaj sekrety:
+
+| Sekret | Opis |
+|--------|------|
+| `RESEND_API_KEY` | Klucz API Resend do wysyłki emaili |
+| `STRIPE_SECRET_KEY` | Klucz tajny Stripe (sk_test_* lub sk_live_*) |
+| `STRIPE_WEBHOOK_SECRET` | Sekret webhooka Stripe (whsec_*) |
+
+**SUPABASE_URL**, **SUPABASE_ANON_KEY**, **SUPABASE_SERVICE_ROLE_KEY** są automatycznie dostępne w Edge Functions.
+
+---
+
+## Krok 7: Aktualizacja kodu aplikacji
+
+Zmień plik `.env` (lub zmienne środowiskowe):
+
+```env
+VITE_SUPABASE_URL="https://TWOJ_PROJECT.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="TWOJ_ANON_KEY"
+VITE_SUPABASE_PROJECT_ID="TWOJ_PROJECT_REF"
+```
+
+---
+
+## Krok 8: Konfiguracja Auth
+
+W dashboardzie Supabase przejdź do **Authentication → URL Configuration**:
+
+1. **Site URL**: `https://app.eavatar.diet` (lub URL aplikacji)
+2. **Redirect URLs**: 
+   - `https://app.eavatar.diet`
+   - `https://app.eavatar.diet/`
+   - `https://app.eavatar.diet/dashboard`
+
+---
+
+## Krok 9: Konfiguracja Stripe Webhook
+
+1. W Stripe Dashboard przejdź do **Developers → Webhooks**
+2. Dodaj nowy endpoint:
+   - **URL**: `https://TWOJ_PROJECT.supabase.co/functions/v1/stripe-webhook`
+   - **Events**: `invoice.paid`, `checkout.session.completed`
+3. Skopiuj **Signing secret** i dodaj jako `STRIPE_WEBHOOK_SECRET`
+
+---
+
+## Krok 10: Konfiguracja Resend (domena email)
+
+Dla domeny `app.eavatar.diet`:
+
+1. W Resend Dashboard → Domains → Add Domain
+2. Dodaj domenę `eavatar.diet`
+3. Skonfiguruj rekordy DNS (SPF, DKIM, DMARC)
+4. Po weryfikacji możesz wysyłać z adresów @eavatar.diet
+
+---
+
+## Sekcja techniczna
+
+### Struktura bazy danych
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    FLOW PŁATNOŚCI Z FAKTURĄ                             │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  1. create-checkout-session → invoice_creation[enabled]=true            │
-│  2. Klient płaci przez Stripe Checkout                                  │
-│  3. Stripe generuje fakturę PDF (automatycznie)                         │
-│  4. Stripe wysyła webhook → invoice.paid                                │
-│  5. stripe-webhook pobiera invoice_pdf z API Stripe                     │
-│  6. Email z załącznikiem PDF → Administrator                            │
-│                                                                          │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────┐     ┌──────────────────┐
+│     profiles        │     │    user_roles    │
+│ (dane użytkownika)  │     │ (admin/user)     │
+└─────────────────────┘     └──────────────────┘
+          │                          │
+          └──────────┬───────────────┘
+                     │
+          ┌──────────▼──────────┐
+          │      patients       │
+          │ (widok admina)      │
+          └─────────────────────┘
+                     │
+     ┌───────────────┼───────────────┐
+     │               │               │
+┌────▼────┐   ┌──────▼──────┐  ┌─────▼─────┐
+│ person_ │   │recommendations│  │ patient_  │
+│ profiles│   └─────────────┘  │ messages  │
+└─────────┘                    └───────────┘
 ```
 
----
+### Edge Functions do wdrożenia
 
-## Część 1: Modyfikacja create-checkout-session
-
-### Plik: `supabase/functions/create-checkout-session/index.ts`
-
-Dodanie parametru `invoice_creation[enabled]=true` do zapytania Stripe:
-
-```typescript
-body: new URLSearchParams({
-  "mode": "payment",
-  "success_url": `${origin}/payment/success`,
-  "cancel_url": `${origin}/dashboard`,
-  "invoice_creation[enabled]": "true",  // NOWE - włącza generowanie faktury
-  // ... reszta line_items
-}),
-```
-
-Dzięki temu Stripe automatycznie:
-- Tworzy obiekt Invoice
-- Generuje PDF faktury
-- Wysyła email z fakturą do klienta (jeśli włączone w Dashboard)
-
----
-
-## Część 2: Nowa Edge Function - stripe-webhook
-
-### Plik: `supabase/functions/stripe-webhook/index.ts`
-
-Funkcja obsługująca webhook `invoice.paid`:
-
-| Element | Opis |
+| Funkcja | Opis |
 |---------|------|
-| Zdarzenie | `invoice.paid` (lepsze niż checkout.session.completed - zawiera gotową fakturę) |
-| Weryfikacja | Podpis Stripe (STRIPE_WEBHOOK_SECRET) |
-| Pobieranie PDF | GET `/v1/invoices/{id}/pdf` |
-| Wysyłka | Resend z załącznikiem PDF |
+| `post-signup` | Tworzenie profilu po rejestracji |
+| `bootstrap-admin` | Inicjalizacja konta admina |
+| `create-checkout-session` | Sesja płatności Stripe |
+| `stripe-webhook` | Obsługa webhooków Stripe |
+| `send-recommendation-email` | Wysyłka emaili z zaleceniami |
+| `admin-create-patient` | Tworzenie pacjenta przez admina |
+| `admin-delete-user` | Usuwanie użytkownika |
+| `export-data` | Eksport danych |
+| `import-patients` | Import pacjentów |
 
-### Główna logika:
+### Wymagane rekordy DNS dla Resend (domena eavatar.diet)
 
-```typescript
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-
-const handler = async (req: Request): Promise<Response> => {
-  // 1. Weryfikacja podpisu Stripe
-  const signature = req.headers.get("stripe-signature");
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-  const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-  
-  const body = await req.text();
-  
-  // Weryfikacja HMAC (uproszczona - lub użycie biblioteki stripe)
-  // ...
-  
-  const event = JSON.parse(body);
-  
-  // 2. Obsługa invoice.paid
-  if (event.type === "invoice.paid") {
-    const invoice = event.data.object;
-    
-    // 3. Pobranie PDF faktury
-    const pdfResponse = await fetch(
-      `https://api.stripe.com/v1/invoices/${invoice.id}/pdf`,
-      { headers: { Authorization: `Bearer ${stripeKey}` } }
-    );
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
-    
-    // 4. Wysłanie emaila z załącznikiem do admina
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    
-    await resend.emails.send({
-      from: "AVATAR <noreply@eavatar.diet>",
-      to: ["alan.urban23@gmail.com"],
-      subject: `Faktura ${invoice.number} - Nowa płatność AVATAR`,
-      html: `
-        <h1>Nowa płatność</h1>
-        <p><strong>Numer faktury:</strong> ${invoice.number}</p>
-        <p><strong>Kwota:</strong> ${(invoice.amount_paid / 100).toFixed(2)} PLN</p>
-        <p><strong>Klient:</strong> ${invoice.customer_email}</p>
-        <p>W załączniku znajduje się kopia faktury PDF.</p>
-      `,
-      attachments: [
-        {
-          filename: `faktura-${invoice.number}.pdf`,
-          content: pdfBase64,
-        },
-      ],
-    });
-  }
-  
-  return new Response(JSON.stringify({ received: true }), { status: 200 });
-};
-
-serve(handler);
-```
+Po dodaniu domeny w Resend otrzymasz:
+- **SPF**: `v=spf1 include:amazonses.com ~all`
+- **DKIM**: klucz CNAME dla `resend._domainkey.eavatar.diet`
+- **DMARC**: `v=DMARC1; p=none;` (opcjonalnie)
 
 ---
 
-## Część 3: Konfiguracja
+## Następne kroki po migracji
 
-### Plik: `supabase/config.toml`
+1. Przetestuj logowanie/rejestrację
+2. Przetestuj przepływ płatności
+3. Sprawdź wysyłkę emaili
+4. Zweryfikuj dostęp admina
+5. Usuń połączenie z Lovable Cloud (Settings → Connectors → Disable)
 
-Dodanie nowej funkcji:
-
-```toml
-[functions.stripe-webhook]
-verify_jwt = false
-```
-
-### Wymagany nowy sekret: STRIPE_WEBHOOK_SECRET
-
-Po wdrożeniu funkcji należy:
-1. Wejść w Stripe Dashboard → Developers → Webhooks
-2. Dodać endpoint: `https://llrmskcwsfmubooswatz.supabase.co/functions/v1/stripe-webhook`
-3. Wybrać zdarzenie: `invoice.paid`
-4. Skopiować "Signing secret" → dodać jako STRIPE_WEBHOOK_SECRET
-
----
-
-## Podsumowanie zmian
-
-| Plik | Akcja |
-|------|-------|
-| `supabase/functions/create-checkout-session/index.ts` | Dodanie `invoice_creation[enabled]=true` |
-| `supabase/functions/stripe-webhook/index.ts` | NOWY - obsługa webhook + wysyłka faktury PDF |
-| `supabase/config.toml` | Dodanie konfiguracji stripe-webhook |
-
-### Wymagane sekrety:
-
-| Sekret | Status |
-|--------|--------|
-| `STRIPE_SECRET_KEY` | Już skonfigurowany |
-| `RESEND_API_KEY` | Już skonfigurowany |
-| `STRIPE_WEBHOOK_SECRET` | Do dodania po wdrożeniu |
-
----
-
-## Rezultat końcowy
-
-Po wdrożeniu:
-1. Każda płatność automatycznie generuje fakturę w Stripe
-2. Klient otrzymuje email z fakturą od Stripe (domyślne ustawienie)
-3. Administrator otrzymuje kopię faktury PDF na alan.urban23@gmail.com
-4. Email zawiera wszystkie szczegóły transakcji + załącznik PDF
