@@ -82,6 +82,7 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
             <TableHead className="font-semibold">Polecony przez</TableHead>
             <TableHead className="font-semibold">Subskrypcja</TableHead>
             <TableHead className="font-semibold">Diagnoza</TableHead>
+            <TableHead className="font-semibold">Data rejestracji</TableHead>
             <TableHead className="font-semibold">Akcja</TableHead>
             <TableHead className="font-semibold">Ostatnia komunikacja</TableHead>
           </TableRow>
@@ -113,6 +114,11 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
                 </TableCell>
                 <TableCell>{getStatusBadge(patient.subscription_status)}</TableCell>
                 <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {patient.created_at
+                    ? format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
+                    : "Brak"}
+                </TableCell>
                 <TableCell>
                   <Button
                     variant="outline"
