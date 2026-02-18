@@ -1,9 +1,9 @@
 import { ChangeEvent, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Eye, EyeOff, Upload, UserCircle2 } from "lucide-react";
+import { Eye, EyeOff, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,17 +15,12 @@ const step1Schema = z.object({
   photoOption: z.enum(["upload", "later"]),
 });
 
-const step2Schema = z.object({
-  avatarChoice: z.string().optional(),
-});
-
 const step3Schema = z
   .object({
     phone: z.string().min(9, "Podaj poprawny numer telefonu").max(15),
     email: z.string().email("Podaj poprawny adres email"),
     password: z.string().min(8, "Hasło musi mieć minimum 8 znaków"),
     confirmPassword: z.string(),
-    referralCode: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Hasła muszą być identyczne",
@@ -33,10 +28,7 @@ const step3Schema = z
   });
 
 type Step1Data = z.infer<typeof step1Schema>;
-type Step2Data = z.infer<typeof step2Schema>;
 type Step3Data = z.infer<typeof step3Schema>;
-
-const AVATAR_CHOICES = ["Avatar 1", "Avatar 2", "Avatar 3", "Avatar 4"];
 
 const SignupWizard = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -44,24 +36,15 @@ const SignupWizard = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [searchParams] = useSearchParams();
-
-  const refCode = searchParams.get("ref") ?? "";
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
     defaultValues: { photoOption: "upload" },
-  });
-
-  const step2Form = useForm<Step2Data>({
-    resolver: zodResolver(step2Schema),
-    defaultValues: { avatarChoice: "" },
   });
 
   const step3Form = useForm<Step3Data>({
@@ -71,7 +54,6 @@ const SignupWizard = () => {
       email: "",
       password: "",
       confirmPassword: "",
-      referralCode: refCode,
     },
   });
 
@@ -101,40 +83,39 @@ const SignupWizard = () => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    // Figma: 10 MB max
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         variant: "destructive",
         title: "Plik jest za duży",
-        description: "Maksymalny rozmiar zdjęcia to 5 MB.",
+        description: "Maksymalny rozmiar zdjęcia to 10 MB.",
       });
       event.target.value = "";
       return;
     }
 
     setSelectedPhoto(file);
-    step1Form.setValue("photoOption", "upload");
     toast({ title: "Zdjęcie wybrane", description: file.name });
   };
 
+  const requirePhotoToast = () =>
+    toast({
+      variant: "destructive",
+      title: "Wgraj zdjęcie",
+      description: "Wybierz zdjęcie zapisane na urządzeniu albo zaznacz opcję później.",
+    });
+
   const handleStep1Submit = (data: Step1Data) => {
     if (data.photoOption === "upload" && !selectedPhoto) {
-      toast({
-        variant: "destructive",
-        title: "Wgraj zdjęcie",
-        description: "Wybierz zdjęcie zapisane na urządzeniu albo zaznacz opcję później.",
-      });
+      requirePhotoToast();
       return;
     }
-    setStep(2);
+    setStep(data.photoOption === "later" ? 3 : 2);
   };
 
-  const handleStep2Submit = (_data: Step2Data) => {
-    if (!selectedPhoto && !selectedAvatar && photoOption !== "later") {
-      toast({
-        variant: "destructive",
-        title: "Wybierz zdjęcie lub avatar",
-        description: "Wgraj zdjęcie albo wybierz jeden z avatarów.",
-      });
+  const handleStep2Submit = () => {
+    if (!selectedPhoto) {
+      requirePhotoToast();
       return;
     }
     setStep(3);
@@ -142,7 +123,6 @@ const SignupWizard = () => {
 
   const handleStep3Submit = async (data: Step3Data) => {
     setIsLoading(true);
-
     try {
       const result = await signup({
         firstName: "",
@@ -151,8 +131,7 @@ const SignupWizard = () => {
         email: data.email,
         password: data.password,
         photoOption,
-        photoFile: selectedPhoto ?? undefined,
-        referralCode: data.referralCode,
+        photoFile: photoOption === "upload" ? selectedPhoto ?? undefined : undefined,
       });
 
       if (!result.success) {
@@ -164,7 +143,6 @@ const SignupWizard = () => {
         return;
       }
 
-      toast({ title: "Rejestracja udana", description: "Sprawdź email i aktywuj konto." });
       navigate("/signup/verify-email", { state: { email: data.email } });
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Wystąpił błąd podczas rejestracji" });
@@ -175,53 +153,71 @@ const SignupWizard = () => {
 
   return (
     <div>
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+
       <div className="flex items-center gap-2 mb-6">
         {[1, 2, 3].map((s) => (
           <div key={s} className={`h-2 flex-1 rounded-full ${s <= progress ? "bg-accent" : "bg-muted"}`} />
         ))}
       </div>
 
-      <p className="text-sm text-muted-foreground mb-2">Krok {step}/3</p>
-
       {step === 1 && (
         <>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Wybierz opcję zdjęcia</h1>
-          <p className="text-muted-foreground mb-8">Wybierz zdjęcie zapisane na urządzeniu lub dodaj je później.</p>
+          <p className="text-sm text-muted-foreground mb-2">Krok 1/3</p>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Wybierz opcję zdjęcia</h1>
 
           <form onSubmit={step1Form.handleSubmit(handleStep1Submit)} className="space-y-6">
-            <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
-
             <RadioGroup
               value={photoOption}
-              onValueChange={(value) => {
-                const option = value as "upload" | "later";
-                step1Form.setValue("photoOption", option);
-                if (option === "upload") openPhotoPicker();
-              }}
+              onValueChange={(value) => step1Form.setValue("photoOption", value as "upload" | "later")}
               className="space-y-4"
             >
-              <div className="flex items-start space-x-4 p-4 rounded-lg border border-border">
+              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
                 <RadioGroupItem value="upload" id="upload" className="mt-1" />
                 <div className="flex-1">
-                  <Label htmlFor="upload" className="cursor-pointer">Wybierz zdjęcie zapisane na urządzeniu</Label>
-                  <button type="button" onClick={openPhotoPicker} className="mt-2 text-sm text-accent hover:underline block">
-                    {selectedPhoto ? "Zmień zdjęcie" : "Wgraj zdjęcie"}
+                  <Label htmlFor="upload" className="font-medium cursor-pointer">
+                    Wybierz zdjęcie zapisane na urządzeniu
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={openPhotoPicker}
+                    className="mt-2 text-sm text-accent hover:underline block"
+                  >
+                    Wgraj zdjęcie
                   </button>
-                  {selectedPhoto ? <p className="text-xs text-muted-foreground mt-1">{selectedPhoto.name}</p> : null}
+                  {selectedPhoto ? <p className="mt-1 text-xs text-muted-foreground">{selectedPhoto.name}</p> : null}
                 </div>
               </div>
-              <div className="flex items-start space-x-4 p-4 rounded-lg border border-border">
+
+              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
                 <RadioGroupItem value="later" id="later" className="mt-1" />
-                <Label htmlFor="later" className="cursor-pointer">Wgraj zdjęcie później</Label>
+                <Label htmlFor="later" className="font-medium cursor-pointer">
+                  Wgraj zdjęcie później
+                </Label>
               </div>
             </RadioGroup>
 
-            <div className="flex justify-between">
-              <Link to="/login" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" />
-                Powrót
-              </Link>
-              <Button type="submit">Dalej {"->"}</Button>
+            <div className="rounded-lg bg-muted p-4 flex gap-3">
+              <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="text-sm text-foreground">
+                <p className="font-semibold">Dlaczego zdjęcie jest potrzebne?</p>
+                <p className="text-muted-foreground">
+                  Diagnoza powstaje na podstawie Twojego zdjęcia, dlatego przesłanie go jest niezbędne. Możesz wgrać
+                  zdjęcie później.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button type="submit" variant="black" className="w-full">
+                Dalej {"->"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
             </div>
           </form>
         </>
@@ -229,40 +225,38 @@ const SignupWizard = () => {
 
       {step === 2 && (
         <>
-          <h1 className="text-2xl font-bold text-foreground mb-2">Wgraj zdjęcie / wybierz Avatar-a</h1>
-          <p className="text-muted-foreground mb-8">Możesz użyć swojego zdjęcia lub wybrać domyślny avatar.</p>
+          <p className="text-sm text-muted-foreground mb-2">Krok 2/3</p>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Wgraj zdjęcie</h1>
 
-          <form onSubmit={step2Form.handleSubmit(handleStep2Submit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-3">
-              {AVATAR_CHOICES.map((avatar) => (
-                <button
-                  key={avatar}
-                  type="button"
-                  onClick={() => {
-                    setSelectedAvatar(avatar);
-                    step2Form.setValue("avatarChoice", avatar);
-                  }}
-                  className={`border rounded-lg p-4 flex flex-col items-center gap-2 transition-colors ${
-                    selectedAvatar === avatar ? "border-accent bg-accent/10" : "border-border"
-                  }`}
-                >
-                  <UserCircle2 className="h-10 w-10 text-muted-foreground" />
-                  <span className="text-sm">{avatar}</span>
-                </button>
-              ))}
+          <form onSubmit={(e) => { e.preventDefault(); handleStep2Submit(); }} className="space-y-6">
+            <button
+              type="button"
+              onClick={openPhotoPicker}
+              className="w-full rounded-lg border-2 border-dashed border-border p-10 text-center hover:bg-muted/40 transition-colors"
+            >
+              <p className="font-medium text-foreground">Wybierz plik</p>
+              <p className="text-xs text-muted-foreground mt-1">jpg, png, maksymalny rozmiar 10 MB.</p>
+              {selectedPhoto ? <p className="text-xs text-muted-foreground mt-3">{selectedPhoto.name}</p> : null}
+            </button>
+
+            <div className="rounded-lg bg-muted p-4 flex gap-3">
+              <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                Upewnij się, że na zdjęciu widać tylko Ciebie. Przesłanie innej osoby na zdjęciu może doprowadzić do
+                błędnej diagnozy.
+              </p>
             </div>
 
-            <Button type="button" variant="outline" className="w-full" onClick={openPhotoPicker}>
-              <Upload className="h-4 w-4 mr-2" />
-              {selectedPhoto ? "Zmień zdjęcie" : "Wgraj zdjęcie"}
-            </Button>
-
-            <div className="flex justify-between">
-              <button type="button" onClick={() => setStep(1)} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" />
-                Wstecz
-              </button>
-              <Button type="submit">Dalej {"->"}</Button>
+            <div className="space-y-3">
+              <Button type="submit" variant="black" className="w-full">
+                Dalej {"->"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
             </div>
           </form>
         </>
@@ -270,13 +264,13 @@ const SignupWizard = () => {
 
       {step === 3 && (
         <>
+          <p className="text-sm text-muted-foreground mb-2">Krok 3/3</p>
           <h1 className="text-2xl font-bold text-foreground mb-2">Ustaw login i hasło</h1>
-          <p className="text-muted-foreground mb-8">Podaj dane kontaktowe i utwórz konto.</p>
 
-          <form onSubmit={step3Form.handleSubmit(handleStep3Submit)} className="space-y-5">
+          <form onSubmit={step3Form.handleSubmit(handleStep3Submit)} className="space-y-5 mt-6">
             <div className="space-y-2">
-              <Label htmlFor="phone">Numer telefonu</Label>
-              <Input id="phone" placeholder="123456789" {...step3Form.register("phone")} />
+              <Label htmlFor="phone">Numer Telefonu</Label>
+              <Input id="phone" placeholder="Numer Telefonu" {...step3Form.register("phone")} />
               {step3Form.formState.errors.phone && (
                 <p className="text-sm text-destructive">{step3Form.formState.errors.phone.message}</p>
               )}
@@ -284,7 +278,7 @@ const SignupWizard = () => {
 
             <div className="space-y-2">
               <Label htmlFor="email">Adres E-mail</Label>
-              <Input id="email" type="email" placeholder="twoj@email.pl" {...step3Form.register("email")} />
+              <Input id="email" type="email" placeholder="Adres E-mail" {...step3Form.register("email")} />
               {step3Form.formState.errors.email && (
                 <p className="text-sm text-destructive">{step3Form.formState.errors.email.message}</p>
               )}
@@ -296,14 +290,15 @@ const SignupWizard = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Minimum 8 znaków"
+                  placeholder="Hasło"
                   {...step3Form.register("password")}
                   className="pr-10"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -319,14 +314,15 @@ const SignupWizard = () => {
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Powtórz hasło"
+                  placeholder="Powtórz Hasło"
                   {...step3Form.register("confirmPassword")}
                   className="pr-10"
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  tabIndex={-1}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -336,27 +332,23 @@ const SignupWizard = () => {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="referralCode">Kod polecający (opcjonalnie)</Label>
-              <Input id="referralCode" {...step3Form.register("referralCode")} />
-            </div>
-
-            <div className="flex justify-between">
-              <button type="button" onClick={() => setStep(2)} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="h-4 w-4" />
-                Wstecz
-              </button>
-              <Button type="submit" disabled={isLoading}>{isLoading ? "Rejestracja..." : "Rejestracja"}</Button>
+            <div className="space-y-3 pt-1">
+              <Button type="submit" variant="black" className="w-full" disabled={isLoading}>
+                {isLoading ? "Rejestracja..." : "Rejestracja"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
             </div>
           </form>
         </>
       )}
-
-      <p className="text-center mt-6 text-muted-foreground">
-        Posiadasz już konto? <Link to="/login" className="text-accent hover:underline">Zaloguj się</Link>
-      </p>
     </div>
   );
 };
 
 export default SignupWizard;
+

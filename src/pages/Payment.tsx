@@ -5,6 +5,9 @@ import { Separator } from "@/components/ui/separator";
 import PackageCard from "@/components/PackageCard";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { setPaymentDraft, allPackages, paymentGroups, PaymentGroupKey, calcTotals } from "@/lib/paymentFlow";
+import SplitLayout from "@/components/layout/SplitLayout";
+import PaymentStepper from "@/components/payment/PaymentStepper";
+import { ArrowLeft } from "lucide-react";
 
 const Payment = () => {
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -39,46 +42,54 @@ const Payment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-primary flex">
-      <div className="flex-1 p-8 lg:p-12 xl:p-16 overflow-y-auto">
-        <div className="max-w-2xl bg-card rounded-xl shadow-lg p-8">
-          <img src={avatarLogo} alt="Avatar centrum zdrowia" className="h-14 mb-8" />
+    <SplitLayout>
+      <div className="space-y-7">
+        <img src={avatarLogo} alt="Avatar centrum zdrowia" className="h-12" />
 
-          <p className="text-sm text-muted-foreground mb-1">Step 1/3</p>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4">Szczegóły pakietu</h1>
-          <p className="text-muted-foreground italic mb-8">{groupConfig.description}</p>
+        <PaymentStepper step={1} />
 
-          <div className="space-y-2 mb-8">
-            {packages.map((pkg) => (
-              <PackageCard
-                key={pkg.id}
-                id={pkg.id}
-                name={pkg.name}
-                price={pkg.billing === "monthly" ? `${pkg.price},00 PLN / miesiąc` : `${pkg.price},00 PLN`}
-                subtitle={pkg.subtitle}
-                description={pkg.description}
-                isSelected={selectedPackages.includes(pkg.id)}
-                onToggle={handleToggle}
-              />
-            ))}
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Szczegóły pakietu</h1>
+          <p className="text-muted-foreground italic mt-2">{groupConfig.description}</p>
+        </div>
 
-          <Separator className="mb-6" />
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" onClick={() => navigate("/dashboard")}>Powrót</Button>
-            <span className="text-foreground font-medium">
-              Łączny koszt: <span className="font-bold">{totalCostLabel}</span>
-            </span>
-            <Button onClick={handleNext} disabled={selectedPackages.length === 0}>Dalej</Button>
-          </div>
+        <div className="space-y-2">
+          {packages.map((pkg) => (
+            <PackageCard
+              key={pkg.id}
+              id={pkg.id}
+              name={pkg.name}
+              price={pkg.billing === "monthly" ? `${pkg.price},00 PLN / miesiąc` : `${pkg.price},00 PLN`}
+              subtitle={pkg.subtitle}
+              description={pkg.description}
+              isSelected={selectedPackages.includes(pkg.id)}
+              onToggle={handleToggle}
+            />
+          ))}
+        </div>
+
+        <Separator />
+
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/dashboard")}
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Powrót
+          </button>
+
+          <span className="text-sm text-muted-foreground">
+            Łączny koszt: <span className="font-semibold text-foreground">{totalCostLabel}</span>
+          </span>
+
+          <Button variant="black" onClick={handleNext} disabled={selectedPackages.length === 0}>
+            Dalej
+          </Button>
         </div>
       </div>
-
-      <div className="hidden lg:flex w-1/3 bg-muted flex-col items-center justify-center p-8">
-        <img src={avatarLogo} alt="Avatar" className="h-24 xl:h-32 mb-8" />
-        <p className="text-muted-foreground text-center">Przyszłość diagnostyki</p>
-      </div>
-    </div>
+    </SplitLayout>
   );
 };
 
