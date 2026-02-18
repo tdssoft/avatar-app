@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,6 +33,7 @@ type Step3Data = z.infer<typeof step3Schema>;
 const SignupWizard = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -147,6 +148,18 @@ const SignupWizard = () => {
     }
   };
 
+  useEffect(() => {
+    if (!selectedPhoto) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedPhoto);
+    setPhotoPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedPhoto]);
+
   return (
     <div>
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
@@ -227,6 +240,13 @@ const SignupWizard = () => {
           <h1 className="text-2xl font-bold text-foreground mb-6">Wgraj zdjęcie</h1>
 
           <form onSubmit={(e) => { e.preventDefault(); handleStep2Submit(); }} className="space-y-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleStep2Submit();
+            }}
+            className="space-y-6"
+          >
             <button
               type="button"
               onClick={openPhotoPicker}
@@ -236,6 +256,16 @@ const SignupWizard = () => {
               <p className="text-xs text-muted-foreground mt-1">jpg, png, maksymalny rozmiar 10 MB.</p>
               {selectedPhoto ? <p className="text-xs text-muted-foreground mt-3">{selectedPhoto.name}</p> : null}
             </button>
+
+            {photoPreviewUrl ? (
+              <div className="rounded-lg border border-border p-3">
+                <img
+                  src={photoPreviewUrl}
+                  alt="Podgląd wybranego avatara"
+                  className="h-48 w-48 rounded-md border border-border object-cover"
+                />
+              </div>
+            ) : null}
 
             <div className="rounded-lg bg-muted p-4 flex gap-3">
               <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
