@@ -106,10 +106,6 @@ const SignupWizard = () => {
     });
 
   const handleStep1Submit = (data: Step1Data) => {
-    if (data.photoOption === "upload" && !selectedPhoto) {
-      requirePhotoToast();
-      return;
-    }
     setStep(data.photoOption === "later" ? 3 : 2);
   };
 
@@ -180,12 +176,14 @@ const SignupWizard = () => {
                   </Label>
                   <button
                     type="button"
-                    onClick={openPhotoPicker}
+                    onClick={() => {
+                      step1Form.setValue("photoOption", "upload");
+                      setStep(2);
+                    }}
                     className="mt-2 text-sm text-accent hover:underline block"
                   >
                     Wgraj zdjęcie
                   </button>
-                  {selectedPhoto ? <p className="mt-1 text-xs text-muted-foreground">{selectedPhoto.name}</p> : null}
                 </div>
               </div>
 
@@ -351,4 +349,3 @@ const SignupWizard = () => {
 };
 
 export default SignupWizard;
-
