@@ -1,13 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  getAdminEmail,
+  getEmailFrom,
+  getEmailReplyTo,
+} from "../_shared/email-config.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-const ADMIN_EMAIL = "alan.urban23@gmail.com";
 
 interface PostSignupRequest {
   userId: string;
@@ -16,6 +19,31 @@ interface PostSignupRequest {
   lastName: string;
   referralCode: string;
   referredBy?: string;
+  interviewData?: {
+    height: string;
+    weight: string;
+    activity_level: string;
+    sleep_hours: string;
+    stress_level: string;
+    diet_type: string;
+    favorite_foods: string;
+    disliked_foods: string;
+    meal_frequency: string;
+    snacking_habits: string;
+    allergies: string[];
+    intolerances: string[];
+    other_allergies: string;
+    digestive_issues: string;
+    energy_issues: string;
+    skin_issues: string;
+    other_health_issues: string;
+    current_supplements: string;
+    past_supplements: string;
+    medications: string;
+    health_goals: string;
+    weight_goals: string;
+    additional_notes: string;
+  };
 }
 
 Deno.serve(async (req) => {
@@ -33,9 +61,12 @@ Deno.serve(async (req) => {
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const resend = resendApiKey ? new Resend(resendApiKey) : null;
+    const adminEmail = getAdminEmail();
+    const fromEmail = getEmailFrom();
+    const replyTo = getEmailReplyTo();
 
     const body: PostSignupRequest = await req.json();
-    const { userId, email, firstName, lastName, referralCode, referredBy } = body;
+    const { userId, email, firstName, lastName, referralCode, referredBy, interviewData } = body;
 
     console.log("[post-signup] Processing signup for user:", userId, "email:", email);
     console.log("[post-signup] referralCode:", referralCode, "referredBy:", referredBy);
@@ -67,6 +98,70 @@ Deno.serve(async (req) => {
       // Don't fail - profile might already exist
     } else {
       console.log("[post-signup] Profile upserted successfully");
+    }
+
+    // Ensure main person profile exists
+    let primaryProfileId: string | null = null;
+    const { data: existingPrimaryProfile, error: existingPrimaryProfileError } = await supabaseAdmin
+      .from("person_profiles")
+      .select("id")
+      .eq("account_user_id", userId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPrimaryProfileError) {
+      console.error("[post-signup] Error checking person profile:", existingPrimaryProfileError);
+    } else if (existingPrimaryProfile?.id) {
+      primaryProfileId = existingPrimaryProfile.id;
+    } else {
+      const profileName = `${firstName} ${lastName}`.trim() || email;
+      const { data: insertedPrimaryProfile, error: insertedPrimaryProfileError } = await supabaseAdmin
+        .from("person_profiles")
+        .insert({
+          account_user_id: userId,
+          name: profileName,
+          is_primary: true,
+        })
+        .select("id")
+        .single();
+
+      if (insertedPrimaryProfileError) {
+        console.error("[post-signup] Error creating primary person profile:", insertedPrimaryProfileError);
+      } else {
+        primaryProfileId = insertedPrimaryProfile.id;
+        console.log("[post-signup] Primary person profile created:", primaryProfileId);
+      }
+    }
+
+    // Save pre-signup interview once for new account onboarding
+    if (interviewData && primaryProfileId) {
+      const { data: existingInterview, error: existingInterviewError } = await supabaseAdmin
+        .from("nutrition_interviews")
+        .select("id")
+        .eq("person_profile_id", primaryProfileId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingInterviewError) {
+        console.error("[post-signup] Error checking existing interview:", existingInterviewError);
+      } else if (!existingInterview) {
+        const { error: interviewInsertError } = await supabaseAdmin
+          .from("nutrition_interviews")
+          .insert({
+            person_profile_id: primaryProfileId,
+            content: interviewData,
+            status: "sent",
+            last_updated_by: userId,
+          });
+
+        if (interviewInsertError) {
+          console.error("[post-signup] Error inserting pre-signup interview:", interviewInsertError);
+        } else {
+          console.log("[post-signup] Pre-signup interview saved");
+        }
+      }
     }
 
     // If referred by someone, create the referral record
@@ -126,8 +221,9 @@ Deno.serve(async (req) => {
       // 1. Send notification to admin about new registration
       try {
         const adminEmailResult = await resend.emails.send({
-          from: "AVATAR <noreply@eavatar.diet>",
-          to: [ADMIN_EMAIL],
+          from: fromEmail,
+          to: [adminEmail],
+          ...(replyTo ? { reply_to: replyTo } : {}),
           subject: `🎉 Nowa rejestracja: ${fullName}`,
           html: `
             <!DOCTYPE html>
@@ -188,8 +284,9 @@ Deno.serve(async (req) => {
       // 2. Send welcome email to new user
       try {
         const welcomeEmailResult = await resend.emails.send({
-          from: "AVATAR <noreply@eavatar.diet>",
+          from: fromEmail,
           to: [email],
+          ...(replyTo ? { reply_to: replyTo } : {}),
           subject: `Witamy w AVATAR, ${firstName}! 🌟`,
           html: `
             <!DOCTYPE html>

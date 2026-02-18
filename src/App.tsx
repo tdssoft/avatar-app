@@ -18,6 +18,10 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import Recommendations from "./pages/Recommendations";
 import RecommendationDownload from "./pages/RecommendationDownload";
 import NutritionInterview from "./pages/NutritionInterview";
+import SignupVerifyEmail from "./pages/flow/SignupVerifyEmail";
+import OnboardingConfirm from "./pages/flow/OnboardingConfirm";
+import PaymentMethod from "./pages/flow/PaymentMethod";
+import PaymentCheckout from "./pages/flow/PaymentCheckout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PatientProfile from "./pages/admin/PatientProfile";
 import RecommendationCreator from "./pages/admin/RecommendationCreator";
@@ -38,6 +42,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/signup/verify-email" element={<SignupVerifyEmail />} />
+            <Route path="/onboarding/confirm" element={<OnboardingConfirm />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/dashboard/results" element={<Results />} />
             <Route path="/dashboard/profile" element={<Profile />} />
@@ -45,7 +51,11 @@ const App = () => (
             <Route path="/dashboard/referrals" element={<Referrals />} />
             <Route path="/dashboard/recommendations" element={<Recommendations />} />
             <Route path="/dashboard/interview" element={<NutritionInterview />} />
+            <Route path="/interview" element={<NutritionInterview />} />
+            <Route path="/interview/:step" element={<NutritionInterview />} />
             <Route path="/payment" element={<Payment />} />
+            <Route path="/payment/method" element={<PaymentMethod />} />
+            <Route path="/payment/checkout" element={<PaymentCheckout />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             {/* Public recommendation download page */}
             <Route path="/recommendation/download" element={<RecommendationDownload />} />

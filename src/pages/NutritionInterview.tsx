@@ -1,1063 +1,311 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Save, User, Loader2, Edit, X, ClipboardList, AlertCircle, Plus, Eye, Send, ArrowLeft, FileText } from "lucide-react";
-import { format } from "date-fns";
-import { pl } from "date-fns/locale";
-import { Link } from "react-router-dom";
+import { EMPTY_INTERVIEW_V2, InterviewV2Content } from "@/types/interviewV2";
+import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 
-interface PersonProfile {
-  id: string;
-  name: string;
-  is_primary: boolean;
-}
+const STORAGE_KEY = "avatar_interview_v2_draft";
 
-interface InterviewData {
-  // Sekcja 1: Ogólne
-  height: string;
-  weight: string;
-  activity_level: string;
-  sleep_hours: string;
-  stress_level: string;
-  
-  // Sekcja 2: Preferencje żywieniowe
-  diet_type: string;
-  favorite_foods: string;
-  disliked_foods: string;
-  meal_frequency: string;
-  snacking_habits: string;
-  
-  // Sekcja 3: Alergie i nietolerancje
-  allergies: string[];
-  intolerances: string[];
-  other_allergies: string;
-  
-  // Sekcja 4: Dolegliwości
-  digestive_issues: string;
-  energy_issues: string;
-  skin_issues: string;
-  other_health_issues: string;
-  
-  // Sekcja 5: Suplementacja
-  current_supplements: string;
-  past_supplements: string;
-  medications: string;
-  
-  // Sekcja 6: Cele
-  health_goals: string;
-  weight_goals: string;
-  additional_notes: string;
-}
-
-interface Interview {
-  id: string;
-  content: InterviewData;
-  status: 'draft' | 'sent';
-  created_at: string;
-  last_updated_at: string;
-}
-
-type ViewMode = 'list' | 'view' | 'edit' | 'create';
-
-const defaultInterviewData: InterviewData = {
-  height: "",
-  weight: "",
-  activity_level: "",
-  sleep_hours: "",
-  stress_level: "",
-  diet_type: "",
-  favorite_foods: "",
-  disliked_foods: "",
-  meal_frequency: "",
-  snacking_habits: "",
-  allergies: [],
-  intolerances: [],
-  other_allergies: "",
-  digestive_issues: "",
-  energy_issues: "",
-  skin_issues: "",
-  other_health_issues: "",
-  current_supplements: "",
-  past_supplements: "",
-  medications: "",
-  health_goals: "",
-  weight_goals: "",
-  additional_notes: "",
+type StepConfig = {
+  key: keyof InterviewV2Content;
+  label: string;
+  prompt: string;
+  type?: "input" | "textarea" | "date";
 };
 
-const allergyOptions = [
-  "Gluten",
-  "Laktoza",
-  "Orzechy",
-  "Jaja",
-  "Soja",
-  "Ryby",
-  "Owoce morza",
-  "Sezam",
+const STEP_CONFIG: StepConfig[] = [
+  { key: "birthDate", label: "Dane podstawowe", prompt: "Data urodzenia", type: "date" },
+  { key: "weight", label: "Dane podstawowe", prompt: "Waga (kg)", type: "input" },
+  { key: "height", label: "Dane podstawowe", prompt: "Wzrost (cm)", type: "input" },
+  { key: "mainSymptoms", label: "Wywiad medyczny", prompt: "Opisz dolegliwości i powód skorzystania z platformy" },
+  { key: "symptomDuration", label: "Wywiad medyczny", prompt: "Od jak dawna występują objawy?", type: "input" },
+  { key: "symptomFrequency", label: "Wywiad medyczny", prompt: "Jak często występują objawy?", type: "input" },
+  { key: "symptomTriggers", label: "Wywiad medyczny", prompt: "Czy są okoliczności nasilające objawy?" },
+  { key: "historicalSymptoms", label: "Historia", prompt: "Opisz historyczne dolegliwości" },
+  { key: "medicationsSupplementsHerbs", label: "Historia", prompt: "Przyjmowane leki, suplementy i zioła" },
+  { key: "dailyFluids", label: "Nawyki", prompt: "Ile płynów wypijasz dziennie i w jakiej formie?" },
+  { key: "bowelMovements", label: "Nawyki", prompt: "Czy wypróżnienia są codziennie? O jakiej porze?" },
+  { key: "workType", label: "Styl życia", prompt: "Rodzaj wykonywanej pracy", type: "input" },
+  { key: "infectionTendency", label: "Styl życia", prompt: "Skłonność do infekcji" },
+  { key: "mealsLocation", label: "Żywienie", prompt: "Gdzie najczęściej spożywasz posiłki?", type: "input" },
+  { key: "mealsPerDay", label: "Żywienie", prompt: "Ile posiłków jesz w ciągu dnia?", type: "input" },
+  { key: "snacking", label: "Żywienie", prompt: "Czy podjadasz między posiłkami?" },
+  { key: "intolerancesAllergies", label: "Żywienie", prompt: "Jakich potraw nie tolerujesz (alergie/nietolerancje)?" },
+  { key: "addictions", label: "Styl życia", prompt: "Czy masz nałogi?" },
+  { key: "fruitsFrequency", label: "Częstotliwość", prompt: "Jak często spożywasz owoce?" },
+  { key: "vegetablesFrequency", label: "Częstotliwość", prompt: "Jak często spożywasz warzywa?" },
+  { key: "milkFrequency", label: "Częstotliwość", prompt: "Jak często spożywasz mleko?" },
+  { key: "notes", label: "Podsumowanie", prompt: "Dodatkowe uwagi" },
 ];
-
-const intoleranceOptions = [
-  "Laktoza",
-  "Fruktoza",
-  "Histamina",
-  "FODMAP",
-  "Kofeina",
-];
-
-// Label mappings for display
-const activityLabels: Record<string, string> = {
-  sedentary: "Siedzący tryb życia",
-  light: "Lekka aktywność",
-  moderate: "Umiarkowana aktywność",
-  active: "Aktywny",
-  very_active: "Bardzo aktywny",
-};
-
-const stressLabels: Record<string, string> = {
-  low: "Niski",
-  moderate: "Umiarkowany",
-  high: "Wysoki",
-  very_high: "Bardzo wysoki",
-};
-
-const dietLabels: Record<string, string> = {
-  traditional: "Tradycyjna",
-  vegetarian: "Wegetariańska",
-  vegan: "Wegańska",
-  pescatarian: "Peskatariańska",
-  keto: "Ketogeniczna",
-  paleo: "Paleo",
-  other: "Inna",
-};
-
-const weightGoalLabels: Record<string, string> = {
-  lose: "Chcę schudnąć",
-  maintain: "Chcę utrzymać wagę",
-  gain: "Chcę przytyć",
-  muscle: "Chcę zbudować mięśnie",
-  none: "Nie mam celów wagowych",
-};
-
-const mealFrequencyLabels: Record<string, string> = {
-  "2": "2 posiłki",
-  "3": "3 posiłki",
-  "4": "4 posiłki",
-  "5": "5 posiłków",
-  "6+": "6 lub więcej",
-};
-
-// Helper components for read-only view
-const InfoRow = ({ label, value }: { label: string; value?: string | null }) => {
-  if (!value) return null;
-  return (
-    <div className="flex justify-between py-2 border-b border-border last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">{value}</span>
-    </div>
-  );
-};
-
-const TextSection = ({ label, value }: { label: string; value?: string | null }) => {
-  if (!value) return null;
-  return (
-    <div className="space-y-1">
-      <Label className="text-muted-foreground">{label}</Label>
-      <p className="text-sm bg-muted/50 rounded-lg p-3">{value}</p>
-    </div>
-  );
-};
 
 const NutritionInterview = () => {
   const { user } = useAuth();
-  const [profiles, setProfiles] = useState<PersonProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [selectedInterview, setSelectedInterview] = useState<Interview | null>(null);
-  const [formData, setFormData] = useState<InterviewData>(defaultInterviewData);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPaidPlan, isLoading: isFlowLoading } = useUserFlowStatus();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [existingInterviewId, setExistingInterviewId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<InterviewV2Content>(EMPTY_INTERVIEW_V2);
 
-  // Check if there's already a draft
-  const hasDraft = interviews.some(i => i.status === 'draft');
+  const current = STEP_CONFIG[currentStep];
+  const progress = Math.round(((currentStep + 1) / STEP_CONFIG.length) * 100);
+
+  const canGoNext = useMemo(() => {
+    const value = formData[current.key];
+    return value.trim().length > 0;
+  }, [current.key, formData]);
 
   useEffect(() => {
-    if (user) {
-      fetchProfiles();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (selectedProfileId) {
-      fetchInterviews();
-    }
-  }, [selectedProfileId]);
-
-  const fetchProfiles = async () => {
-    const { data, error } = await supabase
-      .from("person_profiles")
-      .select("id, name, is_primary")
-      .eq("account_user_id", user?.id)
-      .order("is_primary", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching profiles:", error);
-      setIsLoading(false);
-      return;
-    }
-
-    setProfiles(data || []);
-    
-    if (!data || data.length === 0) {
-      // No profiles - stop loading and show message
-      setIsLoading(false);
-      return;
-    }
-    
-    // Auto-select primary profile
-    const primaryProfile = data?.find((p) => p.is_primary);
-    if (primaryProfile) {
-      setSelectedProfileId(primaryProfile.id);
-    } else if (data && data.length > 0) {
-      setSelectedProfileId(data[0].id);
-    }
-  };
-
-  const fetchInterviews = async () => {
-    setIsLoading(true);
-    setViewMode('list');
-    setSelectedInterview(null);
-    
-    const { data, error } = await supabase
-      .from("nutrition_interviews")
-      .select("id, content, status, created_at, last_updated_at")
-      .eq("person_profile_id", selectedProfileId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching interviews:", error);
-      toast.error("Nie udało się pobrać wywiadów");
-      setIsLoading(false);
-      return;
-    }
-
-    const typedData: Interview[] = (data || []).map(item => ({
-      id: item.id,
-      content: { ...defaultInterviewData, ...(item.content as unknown as InterviewData) },
-      status: (item.status as 'draft' | 'sent') || 'draft',
-      created_at: item.created_at,
-      last_updated_at: item.last_updated_at,
-    }));
-
-    setInterviews(typedData);
-    setIsLoading(false);
-  };
-
-  const handleSave = async (sendAfterSave: boolean = false) => {
-    if (!selectedProfileId) {
-      toast.error("Wybierz profil");
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const contentJson = JSON.parse(JSON.stringify(formData));
-      const newStatus = sendAfterSave ? 'sent' : 'draft';
-      
-      if (selectedInterview) {
-        // Update existing
-        const { error } = await supabase
-          .from("nutrition_interviews")
-          .update({
-            content: contentJson,
-            status: newStatus,
-            last_updated_at: new Date().toISOString(),
-            last_updated_by: user?.id,
-          })
-          .eq("id", selectedInterview.id);
-
-        if (error) throw error;
-        
-        toast.success(sendAfterSave ? "Wywiad został wysłany" : "Wywiad został zapisany");
-      } else {
-        // Create new
-        const { error } = await supabase
-          .from("nutrition_interviews")
-          .insert([{
-            person_profile_id: selectedProfileId,
-            content: contentJson,
-            status: newStatus,
-            last_updated_by: user?.id,
-          }]);
-
-        if (error) throw error;
-        
-        toast.success(sendAfterSave ? "Wywiad został utworzony i wysłany" : "Wywiad został zapisany jako roboczy");
+    const bootstrap = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
       }
 
-      fetchInterviews();
-    } catch (error) {
-      console.error("Error saving interview:", error);
-      toast.error("Nie udało się zapisać wywiadu");
+      try {
+        const localDraft = localStorage.getItem(STORAGE_KEY);
+        if (localDraft) {
+          setFormData({ ...EMPTY_INTERVIEW_V2, ...(JSON.parse(localDraft) as InterviewV2Content) });
+        }
+
+        const { data: profiles } = await supabase
+          .from("person_profiles")
+          .select("id, is_primary")
+          .eq("account_user_id", user.id)
+          .order("is_primary", { ascending: false })
+          .limit(1);
+
+        const primary = profiles?.[0];
+        if (!primary?.id) {
+          toast({
+            variant: "destructive",
+            title: "Brak profilu",
+            description: "Najpierw uzupełnij dane profilu.",
+          });
+          navigate("/dashboard/profile");
+          return;
+        }
+
+        setProfileId(primary.id);
+
+        const { data: existing } = await supabase
+          .from("nutrition_interviews")
+          .select("id, content, status")
+          .eq("person_profile_id", primary.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existing?.id) {
+          setExistingInterviewId(existing.id);
+          if (existing.status === "draft" || existing.status === "sent") {
+            const content = existing.content as unknown as Partial<InterviewV2Content>;
+            setFormData((prev) => ({ ...prev, ...content }));
+          }
+        }
+      } catch (error) {
+        console.error("[NutritionInterview] bootstrap error", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    bootstrap();
+  }, [navigate, toast, user?.id]);
+
+  useEffect(() => {
+    if (!isFlowLoading && !hasPaidPlan) {
+      navigate("/payment", { replace: true });
+    }
+  }, [hasPaidPlan, isFlowLoading, navigate]);
+
+  const persistLocal = (next: InterviewV2Content) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  };
+
+  const saveDraft = async () => {
+    if (!profileId) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        person_profile_id: profileId,
+        content: formData,
+        status: "draft" as const,
+        last_updated_at: new Date().toISOString(),
+        last_updated_by: user?.id,
+      };
+
+      if (existingInterviewId) {
+        const { error } = await supabase
+          .from("nutrition_interviews")
+          .update(payload)
+          .eq("id", existingInterviewId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("nutrition_interviews")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) throw error;
+        setExistingInterviewId(data.id);
+      }
+
+      toast({ title: "Zapisano roboczo", description: "Wywiad zapisany automatycznie." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Nie udało się zapisać.";
+      toast({ variant: "destructive", title: "Błąd zapisu", description: message });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleViewInterview = (interview: Interview) => {
-    setSelectedInterview(interview);
-    setFormData({ ...defaultInterviewData, ...interview.content });
-    setViewMode('view');
-  };
+  const submitInterview = async () => {
+    if (!profileId) return;
 
-  const handleEditInterview = (interview: Interview) => {
-    setSelectedInterview(interview);
-    setFormData({ ...defaultInterviewData, ...interview.content });
-    setViewMode('edit');
-  };
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        person_profile_id: profileId,
+        content: formData,
+        status: "sent" as const,
+        last_updated_at: new Date().toISOString(),
+        last_updated_by: user?.id,
+      };
 
-  const handleCreateNew = () => {
-    if (hasDraft) {
-      toast.error("Masz już roboczy wywiad. Dokończ go lub wyślij przed utworzeniem nowego.");
-      return;
-    }
-    setSelectedInterview(null);
-    setFormData(defaultInterviewData);
-    setViewMode('create');
-  };
+      if (existingInterviewId) {
+        const { error } = await supabase
+          .from("nutrition_interviews")
+          .update(payload)
+          .eq("id", existingInterviewId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("nutrition_interviews")
+          .insert(payload);
+        if (error) throw error;
+      }
 
-  const handleBackToList = () => {
-    setViewMode('list');
-    setSelectedInterview(null);
-  };
-
-  const handleCheckboxChange = (
-    field: "allergies" | "intolerances",
-    value: string,
-    checked: boolean
-  ) => {
-    if (checked) {
-      setFormData({ ...formData, [field]: [...formData[field], value] });
-    } else {
-      setFormData({
-        ...formData,
-        [field]: formData[field].filter((item) => item !== value),
-      });
+      localStorage.removeItem(STORAGE_KEY);
+      toast({ title: "Wywiad wysłany", description: "Dziękujemy za wypełnienie wywiadu." });
+      navigate("/dashboard");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Nie udało się wysłać wywiadu.";
+      toast({ variant: "destructive", title: "Błąd", description: message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // No profiles state
-  const renderNoProfiles = () => (
-    <Card>
-      <CardContent className="py-12 text-center">
-        <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">
-          Brak przypisanych profili
-        </h3>
-        <p className="text-muted-foreground mb-6">
-          Aby wypełnić wywiad żywieniowy, najpierw utwórz profil.
-        </p>
-        <Button asChild>
-          <Link to="/dashboard/profile">
-            <User className="h-4 w-4 mr-2" />
-            Przejdź do profili
-          </Link>
-        </Button>
-      </CardContent>
-    </Card>
-  );
+  const handleValueChange = (value: string) => {
+    const next = {
+      ...formData,
+      [current.key]: value,
+    };
+    setFormData(next);
+    persistLocal(next);
+  };
 
-  // Interview list view
-  const renderInterviewList = () => (
-    <div className="space-y-6">
-      {/* New interview button */}
-      <div className="flex justify-end">
-        <Button onClick={handleCreateNew} disabled={hasDraft} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nowy wywiad
-        </Button>
-      </div>
+  const handleNext = async () => {
+    if (!canGoNext) return;
+    await saveDraft();
+    setCurrentStep((prev) => Math.min(prev + 1, STEP_CONFIG.length - 1));
+  };
 
-      {interviews.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Brak wywiadów żywieniowych
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              Wypełnij wywiad żywieniowy, aby otrzymać spersonalizowane zalecenia.
-            </p>
-            <Button onClick={handleCreateNew} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Rozpocznij wywiad
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {interviews.map((interview) => (
-            <Card key={interview.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="py-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className={`p-2 rounded-lg ${interview.status === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                      {interview.status === 'draft' ? (
-                        <FileText className="h-5 w-5" />
-                      ) : (
-                        <Send className="h-5 w-5" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-foreground">
-                          Wywiad z {format(new Date(interview.created_at), "d MMMM yyyy", { locale: pl })}
-                        </h3>
-                        <Badge variant={interview.status === 'draft' ? 'secondary' : 'default'}>
-                          {interview.status === 'draft' ? 'Roboczy' : 'Wysłany'}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Ostatnia aktualizacja: {format(new Date(interview.last_updated_at), "d MMM yyyy, HH:mm", { locale: pl })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 ml-auto sm:ml-0">
-                    {interview.status === 'draft' ? (
-                      <>
-                        <Button variant="outline" size="sm" onClick={() => handleEditInterview(interview)}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edytuj
-                        </Button>
-                        <Button size="sm" onClick={() => {
-                          setSelectedInterview(interview);
-                          setFormData({ ...defaultInterviewData, ...interview.content });
-                          handleSave(true);
-                        }}>
-                          <Send className="h-4 w-4 mr-1" />
-                          Wyślij
-                        </Button>
-                      </>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => handleViewInterview(interview)}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        Podgląd
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const handleBack = async () => {
+    await saveDraft();
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
+  };
 
-  // Read-only view of interview
-  const renderInterviewView = () => {
-    if (!selectedInterview) return null;
-    const data = selectedInterview.content;
-
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        {/* Header with back button */}
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={handleBackToList} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Powrót do listy
-          </Button>
-          <Badge variant={selectedInterview.status === 'draft' ? 'secondary' : 'default'}>
-            {selectedInterview.status === 'draft' ? 'Roboczy' : 'Wysłany'}
-          </Badge>
+      <DashboardLayout>
+        <div className="max-w-2xl flex items-center gap-2 text-white">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Ładowanie wywiadu...</span>
         </div>
-
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Utworzono: {format(new Date(selectedInterview.created_at), "d MMMM yyyy, HH:mm", { locale: pl })}
-            <br />
-            Ostatnia aktualizacja: {format(new Date(selectedInterview.last_updated_at), "d MMMM yyyy, HH:mm", { locale: pl })}
-          </div>
-          {selectedInterview.status === 'draft' && (
-            <Button onClick={() => handleEditInterview(selectedInterview)} variant="outline" className="gap-2">
-              <Edit className="h-4 w-4" />
-              Edytuj wywiad
-            </Button>
-          )}
-        </div>
-
-        {/* General info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Informacje ogólne</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <InfoRow label="Wzrost" value={data.height ? `${data.height} cm` : undefined} />
-                <InfoRow label="Waga" value={data.weight ? `${data.weight} kg` : undefined} />
-                <InfoRow label="Godziny snu" value={data.sleep_hours ? `${data.sleep_hours} h` : undefined} />
-              </div>
-              <div className="space-y-2">
-                <InfoRow label="Poziom aktywności" value={activityLabels[data.activity_level]} />
-                <InfoRow label="Poziom stresu" value={stressLabels[data.stress_level]} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Preferencje żywieniowe</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <InfoRow label="Typ diety" value={dietLabels[data.diet_type]} />
-            <InfoRow label="Liczba posiłków" value={mealFrequencyLabels[data.meal_frequency]} />
-            <TextSection label="Ulubione produkty" value={data.favorite_foods} />
-            <TextSection label="Nielubiane produkty" value={data.disliked_foods} />
-            <TextSection label="Nawyki przekąskowe" value={data.snacking_habits} />
-          </CardContent>
-        </Card>
-
-        {/* Allergies */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Alergie i nietolerancje</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.allergies && data.allergies.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Alergie pokarmowe</Label>
-                <div className="flex flex-wrap gap-2">
-                  {data.allergies.map((allergy) => (
-                    <Badge key={allergy} variant="secondary">{allergy}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {data.intolerances && data.intolerances.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Nietolerancje</Label>
-                <div className="flex flex-wrap gap-2">
-                  {data.intolerances.map((intolerance) => (
-                    <Badge key={intolerance} variant="secondary">{intolerance}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            <TextSection label="Inne alergie/nietolerancje" value={data.other_allergies} />
-          </CardContent>
-        </Card>
-
-        {/* Health issues */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Dolegliwości zdrowotne</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <TextSection label="Problemy trawienne" value={data.digestive_issues} />
-            <TextSection label="Problemy z energią" value={data.energy_issues} />
-            <TextSection label="Problemy skórne" value={data.skin_issues} />
-            <TextSection label="Inne dolegliwości" value={data.other_health_issues} />
-          </CardContent>
-        </Card>
-
-        {/* Supplements */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Suplementacja i leki</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <TextSection label="Aktualne suplementy" value={data.current_supplements} />
-            <TextSection label="Wcześniejsze suplementy" value={data.past_supplements} />
-            <TextSection label="Przyjmowane leki" value={data.medications} />
-          </CardContent>
-        </Card>
-
-        {/* Goals */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Cele zdrowotne</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <TextSection label="Cele zdrowotne" value={data.health_goals} />
-            <InfoRow label="Cele wagowe" value={weightGoalLabels[data.weight_goals]} />
-            <TextSection label="Dodatkowe uwagi" value={data.additional_notes} />
-          </CardContent>
-        </Card>
-      </div>
+      </DashboardLayout>
     );
-  };
-
-  // Edit/Create form
-  const renderEditForm = () => (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={handleBackToList} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Powrót do listy
-        </Button>
-        <Badge variant="secondary">
-          {viewMode === 'create' ? 'Nowy wywiad' : 'Edycja'}
-        </Badge>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={handleBackToList} disabled={isSaving}>
-          <X className="h-4 w-4 mr-2" />
-          Anuluj
-        </Button>
-        <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
-          <Save className="h-4 w-4 mr-2" />
-          {isSaving ? "Zapisywanie..." : "Zapisz jako roboczy"}
-        </Button>
-        <Button onClick={() => handleSave(true)} disabled={isSaving}>
-          <Send className="h-4 w-4 mr-2" />
-          {isSaving ? "Wysyłanie..." : "Wyślij wywiad"}
-        </Button>
-      </div>
-
-      <Accordion type="multiple" defaultValue={["general", "preferences"]} className="space-y-4">
-        {/* Sekcja 1: Ogólne */}
-        <AccordionItem value="general" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Informacje ogólne
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="height">Wzrost (cm)</Label>
-                <Input
-                  id="height"
-                  type="number"
-                  placeholder="np. 175"
-                  value={formData.height}
-                  onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="weight">Waga (kg)</Label>
-                <Input
-                  id="weight"
-                  type="number"
-                  placeholder="np. 70"
-                  value={formData.weight}
-                  onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Poziom aktywności</Label>
-                <Select
-                  value={formData.activity_level}
-                  onValueChange={(value) => setFormData({ ...formData, activity_level: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wybierz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sedentary">Siedzący tryb życia</SelectItem>
-                    <SelectItem value="light">Lekka aktywność</SelectItem>
-                    <SelectItem value="moderate">Umiarkowana aktywność</SelectItem>
-                    <SelectItem value="active">Aktywny</SelectItem>
-                    <SelectItem value="very_active">Bardzo aktywny</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sleep_hours">Godziny snu</Label>
-                <Input
-                  id="sleep_hours"
-                  type="number"
-                  placeholder="np. 7"
-                  value={formData.sleep_hours}
-                  onChange={(e) => setFormData({ ...formData, sleep_hours: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Poziom stresu</Label>
-                <Select
-                  value={formData.stress_level}
-                  onValueChange={(value) => setFormData({ ...formData, stress_level: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wybierz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Niski</SelectItem>
-                    <SelectItem value="moderate">Umiarkowany</SelectItem>
-                    <SelectItem value="high">Wysoki</SelectItem>
-                    <SelectItem value="very_high">Bardzo wysoki</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Sekcja 2: Preferencje żywieniowe */}
-        <AccordionItem value="preferences" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Preferencje żywieniowe
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Typ diety</Label>
-                <Select
-                  value={formData.diet_type}
-                  onValueChange={(value) => setFormData({ ...formData, diet_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wybierz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="traditional">Tradycyjna</SelectItem>
-                    <SelectItem value="vegetarian">Wegetariańska</SelectItem>
-                    <SelectItem value="vegan">Wegańska</SelectItem>
-                    <SelectItem value="pescatarian">Peskatariańska</SelectItem>
-                    <SelectItem value="keto">Ketogeniczna</SelectItem>
-                    <SelectItem value="paleo">Paleo</SelectItem>
-                    <SelectItem value="other">Inna</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Liczba posiłków dziennie</Label>
-                <Select
-                  value={formData.meal_frequency}
-                  onValueChange={(value) => setFormData({ ...formData, meal_frequency: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wybierz" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 posiłki</SelectItem>
-                    <SelectItem value="3">3 posiłki</SelectItem>
-                    <SelectItem value="4">4 posiłki</SelectItem>
-                    <SelectItem value="5">5 posiłków</SelectItem>
-                    <SelectItem value="6+">6 lub więcej</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="favorite_foods">Ulubione produkty</Label>
-              <Textarea
-                id="favorite_foods"
-                placeholder="Wymień produkty, które lubisz jeść..."
-                value={formData.favorite_foods}
-                onChange={(e) => setFormData({ ...formData, favorite_foods: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="disliked_foods">Nielubiane produkty</Label>
-              <Textarea
-                id="disliked_foods"
-                placeholder="Wymień produkty, których nie lubisz..."
-                value={formData.disliked_foods}
-                onChange={(e) => setFormData({ ...formData, disliked_foods: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="snacking_habits">Nawyki przekąskowe</Label>
-              <Textarea
-                id="snacking_habits"
-                placeholder="Opisz swoje nawyki związane z przekąskami..."
-                value={formData.snacking_habits}
-                onChange={(e) => setFormData({ ...formData, snacking_habits: e.target.value })}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Sekcja 3: Alergie */}
-        <AccordionItem value="allergies" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Alergie i nietolerancje
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="space-y-3">
-              <Label>Alergie pokarmowe</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {allergyOptions.map((allergy) => (
-                  <div key={allergy} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`allergy-${allergy}`}
-                      checked={formData.allergies.includes(allergy)}
-                      onCheckedChange={(checked) =>
-                        handleCheckboxChange("allergies", allergy, checked as boolean)
-                      }
-                    />
-                    <Label htmlFor={`allergy-${allergy}`} className="text-sm font-normal">
-                      {allergy}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <Label>Nietolerancje</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {intoleranceOptions.map((intolerance) => (
-                  <div key={intolerance} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`intolerance-${intolerance}`}
-                      checked={formData.intolerances.includes(intolerance)}
-                      onCheckedChange={(checked) =>
-                        handleCheckboxChange("intolerances", intolerance, checked as boolean)
-                      }
-                    />
-                    <Label htmlFor={`intolerance-${intolerance}`} className="text-sm font-normal">
-                      {intolerance}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="other_allergies">Inne alergie/nietolerancje</Label>
-              <Textarea
-                id="other_allergies"
-                placeholder="Opisz inne alergie lub nietolerancje..."
-                value={formData.other_allergies}
-                onChange={(e) => setFormData({ ...formData, other_allergies: e.target.value })}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Sekcja 4: Dolegliwości */}
-        <AccordionItem value="health" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Dolegliwości zdrowotne
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="digestive_issues">Problemy trawienne</Label>
-              <Textarea
-                id="digestive_issues"
-                placeholder="Opisz ewentualne problemy z trawieniem..."
-                value={formData.digestive_issues}
-                onChange={(e) => setFormData({ ...formData, digestive_issues: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="energy_issues">Problemy z energią</Label>
-              <Textarea
-                id="energy_issues"
-                placeholder="Opisz problemy z energią, zmęczenie..."
-                value={formData.energy_issues}
-                onChange={(e) => setFormData({ ...formData, energy_issues: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="skin_issues">Problemy skórne</Label>
-              <Textarea
-                id="skin_issues"
-                placeholder="Opisz ewentualne problemy ze skórą..."
-                value={formData.skin_issues}
-                onChange={(e) => setFormData({ ...formData, skin_issues: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="other_health_issues">Inne dolegliwości</Label>
-              <Textarea
-                id="other_health_issues"
-                placeholder="Opisz inne dolegliwości zdrowotne..."
-                value={formData.other_health_issues}
-                onChange={(e) => setFormData({ ...formData, other_health_issues: e.target.value })}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Sekcja 5: Suplementacja */}
-        <AccordionItem value="supplements" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Suplementacja i leki
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="current_supplements">Aktualne suplementy</Label>
-              <Textarea
-                id="current_supplements"
-                placeholder="Wymień obecnie przyjmowane suplementy..."
-                value={formData.current_supplements}
-                onChange={(e) => setFormData({ ...formData, current_supplements: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="past_supplements">Wcześniejsze suplementy</Label>
-              <Textarea
-                id="past_supplements"
-                placeholder="Wymień suplementy, które wcześniej stosowałeś..."
-                value={formData.past_supplements}
-                onChange={(e) => setFormData({ ...formData, past_supplements: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="medications">Przyjmowane leki</Label>
-              <Textarea
-                id="medications"
-                placeholder="Wymień przyjmowane leki..."
-                value={formData.medications}
-                onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Sekcja 6: Cele */}
-        <AccordionItem value="goals" className="border rounded-lg px-4">
-          <AccordionTrigger className="text-lg font-semibold">
-            Cele zdrowotne
-          </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="health_goals">Cele zdrowotne</Label>
-              <Textarea
-                id="health_goals"
-                placeholder="Opisz swoje cele zdrowotne..."
-                value={formData.health_goals}
-                onChange={(e) => setFormData({ ...formData, health_goals: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Cele wagowe</Label>
-              <Select
-                value={formData.weight_goals}
-                onValueChange={(value) => setFormData({ ...formData, weight_goals: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Wybierz" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="lose">Chcę schudnąć</SelectItem>
-                  <SelectItem value="maintain">Chcę utrzymać wagę</SelectItem>
-                  <SelectItem value="gain">Chcę przytyć</SelectItem>
-                  <SelectItem value="muscle">Chcę zbudować mięśnie</SelectItem>
-                  <SelectItem value="none">Nie mam celów wagowych</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="additional_notes">Dodatkowe uwagi</Label>
-              <Textarea
-                id="additional_notes"
-                placeholder="Inne informacje, które chcesz przekazać..."
-                value={formData.additional_notes}
-                onChange={(e) => setFormData({ ...formData, additional_notes: e.target.value })}
-              />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-
-      {/* Bottom save buttons */}
-      <Card>
-        <CardContent className="flex flex-col sm:flex-row items-center justify-end gap-4 py-4">
-          <Button variant="outline" onClick={handleBackToList} disabled={isSaving}>
-            <X className="h-4 w-4 mr-2" />
-            Anuluj
-          </Button>
-          <Button variant="outline" onClick={() => handleSave(false)} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Zapisz jako roboczy
-          </Button>
-          <Button onClick={() => handleSave(true)} disabled={isSaving} className="gap-2">
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-            Wyślij wywiad
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  }
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white">
-              Wywiad żywieniowy
-            </h1>
-            <p className="text-white/80 mt-1">
-              {viewMode === 'list' && "Historia wywiadów żywieniowych"}
-              {viewMode === 'view' && "Podgląd wywiadu"}
-              {viewMode === 'edit' && "Edycja wywiadu"}
-              {viewMode === 'create' && "Nowy wywiad żywieniowy"}
-            </p>
-          </div>
-
-          {profiles.length > 1 && viewMode === 'list' && (
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Wybierz profil" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name}
-                      {profile.is_primary && " (główny)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+      <div className="max-w-3xl space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Wywiad medyczny</h1>
+          <p className="text-white/90">Automatyczny zapis jest włączony.</p>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : profiles.length === 0 ? (
-          renderNoProfiles()
-        ) : viewMode === 'list' ? (
-          renderInterviewList()
-        ) : viewMode === 'view' ? (
-          renderInterviewView()
-        ) : (
-          renderEditForm()
-        )}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="text-lg">{current.label}</CardTitle>
+              <p className="text-sm text-muted-foreground">Krok {currentStep + 1}/{STEP_CONFIG.length}</p>
+            </div>
+            <div className="h-2 rounded bg-muted overflow-hidden">
+              <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="interview-field">{current.prompt}</Label>
+              {current.type === "input" || current.type === "date" ? (
+                <Input
+                  id="interview-field"
+                  type={current.type === "date" ? "date" : "text"}
+                  value={formData[current.key]}
+                  onChange={(e) => handleValueChange(e.target.value)}
+                />
+              ) : (
+                <Textarea
+                  id="interview-field"
+                  value={formData[current.key]}
+                  onChange={(e) => handleValueChange(e.target.value)}
+                  className="min-h-[140px]"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 pt-4">
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={handleBack} disabled={currentStep === 0 || isSaving}>
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Powrót
+                </Button>
+                <Button variant="outline" onClick={saveDraft} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                  Zapisz roboczo
+                </Button>
+              </div>
+
+              {currentStep === STEP_CONFIG.length - 1 ? (
+                <Button onClick={submitInterview} disabled={isSubmitting || !canGoNext}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  Wyślij wywiad
+                </Button>
+              ) : (
+                <Button onClick={handleNext} disabled={!canGoNext || isSaving}>
+                  Dalej
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

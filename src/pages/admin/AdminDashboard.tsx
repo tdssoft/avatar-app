@@ -186,7 +186,8 @@ const AdminDashboard = () => {
       {/* Page Header - on turquoise background */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Lista pacjentów</h1>
+          <p className="text-white/90 text-sm mb-1">Witamy w Avatar!</p>
+          <h1 className="text-2xl font-semibold text-white">Pacjenci</h1>
           <p className="text-white/80 mt-1">
             Zarządzaj kontami pacjentów i ich zaleceniami
           </p>

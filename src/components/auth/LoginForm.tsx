@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +34,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -54,7 +57,18 @@ const LoginForm = () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const isAdmin = await checkIsAdmin(user.id);
-          navigate(isAdmin ? "/admin" : "/dashboard");
+          if (isAdmin) {
+            navigate("/admin");
+            return;
+          }
+
+          const onboardingConfirmed = user.user_metadata?.onboardingConfirmed === true;
+          if (!onboardingConfirmed) {
+            navigate("/onboarding/confirm");
+            return;
+          }
+
+          navigate("/dashboard");
         } else {
           navigate("/dashboard");
         }
@@ -83,6 +97,40 @@ const LoginForm = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const email = (document.getElementById("email") as HTMLInputElement | null)?.value?.trim();
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Podaj email",
+        description: "Najpierw wpisz adres email, aby wysłać link resetujący hasło.",
+      });
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
+
+      toast({
+        title: "Link wysłany",
+        description: "Sprawdź skrzynkę email i ustaw nowe hasło.",
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Nie udało się wysłać linku resetującego.";
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: message,
+      });
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   return (
     <div>
       {/* Mobile logo */}
@@ -94,11 +142,10 @@ const LoginForm = () => {
         />
       </div>
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
-        Zaloguj się
-      </h1>
+      <p className="text-sm text-muted-foreground mb-1">Step 1/2</p>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Witamy w Avatar!</h1>
       <p className="text-muted-foreground mb-8">
-        Wprowadź swoje dane, aby się zalogować
+        Wprowadź swoje dane, aby się zalogować.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -141,6 +188,28 @@ const LoginForm = () => {
           {errors.password && (
             <p className="text-sm text-destructive">{errors.password.message}</p>
           )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="rememberMe"
+              checked={rememberMe}
+              onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
+            />
+            <Label htmlFor="rememberMe" className="text-sm cursor-pointer">
+              Zapisz moje dane
+            </Label>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={isSendingReset}
+            className="text-sm text-accent hover:underline disabled:opacity-60"
+          >
+            {isSendingReset ? "Wysyłanie..." : "Zapomniałeś hasła?"}
+          </button>
         </div>
 
         <Button
