@@ -9,6 +9,7 @@ import { calcTotals, getPaymentDraft, setPaymentDraft } from "@/lib/paymentFlow"
 import SplitLayout from "@/components/layout/SplitLayout";
 import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
+import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
 
 const PaymentMethod = () => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ const PaymentMethod = () => {
   };
 
   return (
-    <SplitLayout>
+    <SplitLayout right={<PaymentRightPanel />}>
       <div className="space-y-7">
         <img src={avatarLogo} alt="Avatar" className="h-12" />
 
@@ -69,7 +70,7 @@ const PaymentMethod = () => {
         <div className="flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={() => navigate("/payment")}
+            onClick={() => navigate(`/payment?group=${draft.group}`)}
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

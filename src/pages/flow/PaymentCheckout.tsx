@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import SplitLayout from "@/components/layout/SplitLayout";
 import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
+import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
 
 const PaymentCheckout = () => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ const PaymentCheckout = () => {
   };
 
   return (
-    <SplitLayout>
+    <SplitLayout right={<PaymentRightPanel />}>
       <div className="space-y-7">
         <img src={avatarLogo} alt="Avatar" className="h-12" />
 

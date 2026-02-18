@@ -8,6 +8,8 @@ import { setPaymentDraft, allPackages, paymentGroups, PaymentGroupKey, calcTotal
 import SplitLayout from "@/components/layout/SplitLayout";
 import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
 
 const Payment = () => {
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
@@ -42,31 +44,45 @@ const Payment = () => {
   };
 
   return (
-    <SplitLayout>
+    <SplitLayout right={<PaymentRightPanel />}>
       <div className="space-y-7">
         <img src={avatarLogo} alt="Avatar centrum zdrowia" className="h-12" />
 
         <PaymentStepper step={1} />
 
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Szczegóły pakietu</h1>
-          <p className="text-muted-foreground italic mt-2">{groupConfig.description}</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {activeGroup === "avatar" ? "Jednorazowa diagnostyka" : "Diagnostyka i kuracja miesięczna"}
+          </h1>
+          <p className="text-muted-foreground italic mt-2">
+            {groupConfig.description}
+          </p>
         </div>
 
-        <div className="space-y-2">
-          {packages.map((pkg) => (
-            <PackageCard
-              key={pkg.id}
-              id={pkg.id}
-              name={pkg.name}
-              price={pkg.billing === "monthly" ? `${pkg.price},00 PLN / miesiąc` : `${pkg.price},00 PLN`}
-              subtitle={pkg.subtitle}
-              description={pkg.description}
-              isSelected={selectedPackages.includes(pkg.id)}
-              onToggle={handleToggle}
-            />
-          ))}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">1. Szczegóły pakietu</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Wybierz jakie informacje diagnostyka powinna zawierać. Od ilości informacji zależy finalna cena pakietu.
+            </p>
+            <div className="pt-2">
+              {packages.map((pkg) => (
+                <PackageCard
+                  key={pkg.id}
+                  id={pkg.id}
+                  name={pkg.name}
+                  price={pkg.billing === "monthly" ? `${pkg.price} zł / miesiąc` : `${pkg.price} zł`}
+                  subtitle={pkg.subtitle}
+                  description={pkg.description}
+                  isSelected={selectedPackages.includes(pkg.id)}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
         <Separator />
 
