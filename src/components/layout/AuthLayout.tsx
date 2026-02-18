@@ -23,13 +23,10 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
             alt="Avatar centrum zdrowia"
             className="h-24 w-auto mx-auto mb-8"
           />
-          <h2 className="text-2xl font-semibold text-foreground mb-4">
-            Przyszłość diagnostyki
-          </h2>
           <p className="text-foreground/80 text-base leading-relaxed">
-            Zadbaj o swojego AVATARA
+            Wszystko jest możliwe,
             <br />
-            Zadbaj o swoje ciało
+            ale decyzja należy do Ciebie
           </p>
         </div>
       </div>

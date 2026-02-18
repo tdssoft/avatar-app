@@ -13,6 +13,7 @@ export interface User {
   referredBy?: string;
   createdAt: string;
   avatarUrl?: string;
+  onboardingConfirmed?: boolean;
 }
 
 interface AuthContextType {
@@ -33,7 +34,35 @@ export interface SignupData {
   email: string;
   password: string;
   photoOption: "upload" | "later";
+  photoFile?: File;
   referralCode?: string;
+  interviewData?: PreSignupInterviewData;
+}
+
+export interface PreSignupInterviewData {
+  height: string;
+  weight: string;
+  activity_level: string;
+  sleep_hours: string;
+  stress_level: string;
+  diet_type: string;
+  favorite_foods: string;
+  disliked_foods: string;
+  meal_frequency: string;
+  snacking_habits: string;
+  allergies: string[];
+  intolerances: string[];
+  other_allergies: string;
+  digestive_issues: string;
+  energy_issues: string;
+  skin_issues: string;
+  other_health_issues: string;
+  current_supplements: string;
+  past_supplements: string;
+  medications: string;
+  health_goals: string;
+  weight_goals: string;
+  additional_notes: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -162,13 +191,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser({
         id: supabaseUser.id,
         email: supabaseUser.email || "",
-        firstName: metadata?.firstName || "",
-        lastName: metadata?.lastName || "",
-        phone: metadata?.phone || "",
+        firstName: metadata?.firstName || profile?.first_name || "",
+        lastName: metadata?.lastName || profile?.last_name || "",
+        phone: metadata?.phone || profile?.phone || "",
         referralCode: finalReferralCode,
         referredBy: metadata?.referredBy,
         createdAt: supabaseUser.created_at,
         avatarUrl: profile?.avatar_url || undefined,
+        onboardingConfirmed:
+          metadata?.onboardingConfirmed === true ||
+          Boolean((profile?.first_name || "").trim() && (profile?.last_name || "").trim()),
       });
     } catch (error) {
       console.error("[AuthContext] Error fetching profile:", error);
@@ -183,6 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         referralCode: metadata?.referralCode || "",
         referredBy: metadata?.referredBy,
         createdAt: supabaseUser.created_at,
+        onboardingConfirmed: metadata?.onboardingConfirmed === true,
       });
     } finally {
       fetchingProfileRef.current = null;
@@ -247,6 +280,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           lastName: data.lastName,
           referralCode: referralCode,
           referredBy: data.referralCode || null,
+          interviewData: data.interviewData,
         },
       });
 
@@ -255,6 +289,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Don't fail signup - user account was created, just log the error
       } else {
         console.log("[AuthContext] post-signup success:", fnData);
+      }
+
+      // Best-effort avatar upload selected during signup
+      if (data.photoFile && data.photoOption === "upload") {
+        try {
+          const fileExt = data.photoFile.name.split(".").pop() || "jpg";
+          const filePath = `${authData.user.id}/avatar.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("avatars")
+            .upload(filePath, data.photoFile, { upsert: true });
+          if (uploadError) throw uploadError;
+
+          const { data: publicUrlData } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(filePath);
+
+          const avatarUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`;
+
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .upsert(
+              {
+                user_id: authData.user.id,
+                avatar_url: avatarUrl,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" },
+            );
+
+          if (profileError) {
+            console.error("[AuthContext] avatar profile upsert error:", profileError);
+          }
+        } catch (avatarError) {
+          console.error("[AuthContext] avatar upload during signup failed:", avatarError);
+        }
       }
     }
 

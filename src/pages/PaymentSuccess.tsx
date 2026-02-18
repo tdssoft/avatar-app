@@ -1,11 +1,18 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
 import avatarLogo from "@/assets/avatar-logo.svg";
+import { clearPaymentDraft } from "@/lib/paymentFlow";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    localStorage.setItem("avatar_payment_completed", "true");
+    clearPaymentDraft();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -29,8 +36,8 @@ const PaymentSuccess = () => {
             Wkrótce otrzymasz potwierdzenie na adres email.
           </p>
 
-          <Button onClick={() => navigate("/dashboard")} className="w-full">
-            Przejdź do panelu
+          <Button onClick={() => navigate("/interview")} className="w-full">
+            Przejdź do wywiadu
           </Button>
         </CardContent>
       </Card>
