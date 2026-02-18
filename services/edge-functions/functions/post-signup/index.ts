@@ -17,8 +17,10 @@ interface PostSignupRequest {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   referralCode: string;
   referredBy?: string;
+  interviewData?: Record<string, unknown>;
 }
 
 Deno.serve(async (req) => {
@@ -41,7 +43,7 @@ Deno.serve(async (req) => {
     const replyTo = getEmailReplyTo();
 
     const body: PostSignupRequest = await req.json();
-    const { userId, email, firstName, lastName, referralCode, referredBy } = body;
+    const { userId, email, firstName, lastName, phone, referralCode, referredBy, interviewData } = body;
 
     console.log("[post-signup] Processing signup for user:", userId, "email:", email);
     console.log("[post-signup] referralCode:", referralCode, "referredBy:", referredBy);
@@ -56,12 +58,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Upsert profile (idempotent - ON CONFLICT DO NOTHING for unique user_id)
+    // Upsert profile (idempotent)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .upsert(
         {
           user_id: userId,
+          first_name: firstName?.trim() || null,
+          last_name: lastName?.trim() || null,
+          phone: phone?.trim() || null,
           referral_code: referralCode,
           avatar_url: null,
         },
@@ -73,6 +78,81 @@ Deno.serve(async (req) => {
       // Don't fail - profile might already exist
     } else {
       console.log("[post-signup] Profile upserted successfully");
+    }
+
+    // Ensure patient row exists (admin panel list uses public.patients)
+    const { error: patientError } = await supabaseAdmin
+      .from("patients")
+      .upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: false });
+
+    if (patientError) {
+      console.error("[post-signup] Error upserting patient:", patientError);
+    } else {
+      console.log("[post-signup] Patient row ensured");
+    }
+
+    // Ensure main person profile exists (fallback display name for admin)
+    let primaryProfileId: string | null = null;
+    const { data: existingPrimaryProfile, error: existingPrimaryProfileError } = await supabaseAdmin
+      .from("person_profiles")
+      .select("id")
+      .eq("account_user_id", userId)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPrimaryProfileError) {
+      console.error("[post-signup] Error checking person profile:", existingPrimaryProfileError);
+    } else if (existingPrimaryProfile?.id) {
+      primaryProfileId = existingPrimaryProfile.id;
+    } else {
+      const profileName = `${firstName} ${lastName}`.trim() || email;
+      const { data: insertedPrimaryProfile, error: insertedPrimaryProfileError } = await supabaseAdmin
+        .from("person_profiles")
+        .insert({
+          account_user_id: userId,
+          name: profileName,
+          is_primary: true,
+        })
+        .select("id")
+        .single();
+
+      if (insertedPrimaryProfileError) {
+        console.error("[post-signup] Error creating primary person profile:", insertedPrimaryProfileError);
+      } else {
+        primaryProfileId = insertedPrimaryProfile.id;
+        console.log("[post-signup] Primary person profile created:", primaryProfileId);
+      }
+    }
+
+    // Save pre-signup interview (best-effort)
+    if (interviewData && primaryProfileId) {
+      const { data: existingInterview, error: existingInterviewError } = await supabaseAdmin
+        .from("nutrition_interviews")
+        .select("id")
+        .eq("person_profile_id", primaryProfileId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingInterviewError) {
+        console.error("[post-signup] Error checking existing interview:", existingInterviewError);
+      } else if (!existingInterview) {
+        const { error: interviewInsertError } = await supabaseAdmin
+          .from("nutrition_interviews")
+          .insert({
+            person_profile_id: primaryProfileId,
+            content: interviewData,
+            status: "sent",
+            last_updated_by: userId,
+          });
+
+        if (interviewInsertError) {
+          console.error("[post-signup] Error inserting pre-signup interview:", interviewInsertError);
+        } else {
+          console.log("[post-signup] Pre-signup interview saved");
+        }
+      }
     }
 
     // If referred by someone, create the referral record
