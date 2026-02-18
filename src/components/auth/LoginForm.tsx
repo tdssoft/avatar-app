@@ -142,7 +142,6 @@ const LoginForm = () => {
         />
       </div>
 
-      <p className="text-sm text-muted-foreground mb-1">Step 1/2</p>
       <h1 className="text-2xl font-bold text-foreground mb-2">Witamy w Avatar!</h1>
       <p className="text-muted-foreground mb-8">
         Wprowadź swoje dane, aby się zalogować.
@@ -154,7 +153,7 @@ const LoginForm = () => {
           <Input
             id="email"
             type="email"
-            placeholder="twoj@email.pl"
+            placeholder="E-mail"
             {...register("email")}
           />
           {errors.email && (
@@ -168,7 +167,7 @@ const LoginForm = () => {
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
+              placeholder="Hasło"
               {...register("password")}
               className="pr-10"
             />
@@ -212,12 +211,8 @@ const LoginForm = () => {
           </button>
         </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isLoading}
-        >
-          {isLoading ? "Logowanie..." : "Zaloguj się"}
+        <Button type="submit" variant="black" className="w-full" disabled={isLoading}>
+          {isLoading ? "Logowanie..." : "Log in"}
         </Button>
       </form>
 

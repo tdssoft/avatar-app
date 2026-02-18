@@ -1,41 +1,47 @@
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import AuthLayout from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/button";
-import { MailCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const SignupVerifyEmail = () => {
   const location = useLocation();
   const email = (location.state as { email?: string } | null)?.email;
+  const { toast } = useToast();
+  const [isSending, setIsSending] = useState(false);
+
+  const handleResend = async () => {
+    if (!email) return;
+    setIsSending(true);
+    try {
+      // supabase-js v2 supports resend for signup confirmation emails
+      const { error } = await (supabase.auth as any).resend({ type: "signup", email });
+      if (error) throw error;
+      toast({ title: "Wysłano ponownie", description: "Sprawdź skrzynkę email." });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Nie udało się wysłać wiadomości ponownie.";
+      toast({ variant: "destructive", title: "Błąd", description: message });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   return (
     <AuthLayout>
-      <div className="space-y-6 text-center">
-        <div className="mx-auto w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
-          <MailCheck className="h-7 w-7 text-accent" />
-        </div>
-
+      <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Zweryfikuj adres e-mail</h1>
-          <p className="text-muted-foreground">
-            {email
-              ? `Wysłaliśmy wiadomość aktywacyjną na ${email}.`
-              : "Wysłaliśmy wiadomość aktywacyjną na Twój adres email."}
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Wysłaliśmy link aktywacyjny na adres{" "}
+            <span className="font-medium text-foreground">{email ?? "Twój adres e-mail"}</span>. Kliknij na link w
+            wiadomości aby dokończyć rejestrację.
           </p>
         </div>
 
-        <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground text-left">
-          Po kliknięciu linku aktywacyjnego wróć do aplikacji i zaloguj się. Jeśli nie widzisz wiadomości,
-          sprawdź folder SPAM/Odebrane.
-        </div>
-
-        <div className="space-y-3">
-          <Button asChild className="w-full">
-            <Link to="/login">Przejdź do logowania</Link>
-          </Button>
-          <Link to="/signup" className="text-sm text-accent hover:underline">
-            Wróć do rejestracji
-          </Link>
-        </div>
+        <Button onClick={handleResend} variant="black" className="w-full" disabled={!email || isSending}>
+          {isSending ? "Wysyłanie..." : "Wyślij wiadomość ponownie"}
+        </Button>
       </div>
     </AuthLayout>
   );
