@@ -239,7 +239,6 @@ const SignupWizard = () => {
           <p className="text-sm text-muted-foreground mb-2">Krok 2/3</p>
           <h1 className="text-2xl font-bold text-foreground mb-6">Wgraj zdjęcie</h1>
 
-          <form onSubmit={(e) => { e.preventDefault(); handleStep2Submit(); }} className="space-y-6">
           <form
             onSubmit={(e) => {
               e.preventDefault();
