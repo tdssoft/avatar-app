@@ -18,6 +18,9 @@ interface Patient {
     last_name: string | null;
     phone: string | null;
   };
+  primary_person_profile?: {
+    name: string | null;
+  } | null;
   referral?: {
     referrer_code: string;
     referrer_name: string | null;
@@ -85,9 +88,11 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
         </TableHeader>
         <TableBody>
           {patients.map((patient) => {
-            const fullName = patient.profiles?.first_name && patient.profiles?.last_name
-              ? `${patient.profiles.first_name} ${patient.profiles.last_name}`
-              : "Nieznany pacjent";
+            const firstName = patient.profiles?.first_name?.trim() || "";
+            const lastName = patient.profiles?.last_name?.trim() || "";
+            const profileName = `${firstName} ${lastName}`.trim();
+            const personProfileName = patient.primary_person_profile?.name?.trim() || "";
+            const fullName = profileName || personProfileName || `Użytkownik ${patient.user_id.slice(0, 8)}`;
               
             return (
               <TableRow key={patient.id} className="hover:bg-muted/30">

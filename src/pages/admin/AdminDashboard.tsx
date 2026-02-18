@@ -33,6 +33,9 @@ interface Patient {
     last_name: string | null;
     phone: string | null;
   };
+  primary_person_profile?: {
+    name: string | null;
+  } | null;
   referral?: {
     referrer_code: string;
     referrer_name: string | null;
@@ -71,6 +74,17 @@ const AdminDashboard = () => {
 
         if (profilesError) throw profilesError;
 
+        // Fetch primary person profiles (fallback display name)
+        const { data: personProfilesData, error: personProfilesError } = await supabase
+          .from("person_profiles")
+          .select("account_user_id, name, is_primary")
+          .in("account_user_id", userIds)
+          .eq("is_primary", true);
+
+        if (personProfilesError) {
+          console.error("[AdminDashboard] Error fetching person profiles:", personProfilesError);
+        }
+
         // Fetch referrals - who referred each patient
         const { data: referralsData, error: referralsError } = await supabase
           .from("referrals")
@@ -96,6 +110,7 @@ const AdminDashboard = () => {
         // Merge profiles and referrals with patients
         const patientsWithProfiles = patientsData.map(patient => {
           const profile = profilesData?.find(p => p.user_id === patient.user_id);
+          const primaryPersonProfile = personProfilesData?.find(pp => pp.account_user_id === patient.user_id);
           const referral = referralsData?.find(r => r.referred_user_id === patient.user_id);
           
           let referralInfo = null;
@@ -113,6 +128,7 @@ const AdminDashboard = () => {
           return {
             ...patient,
             profiles: profile || { first_name: null, last_name: null, phone: null },
+            primary_person_profile: primaryPersonProfile ? { name: primaryPersonProfile.name } : null,
             referral: referralInfo
           };
         });

@@ -395,9 +395,11 @@ const PatientProfile = () => {
     return profile?.name || "";
   };
 
-  const fullName = profile?.first_name && profile?.last_name
-    ? `${profile.first_name} ${profile.last_name}`
-    : "Nieznany pacjent";
+  const firstName = profile?.first_name?.trim() || "";
+  const lastName = profile?.last_name?.trim() || "";
+  const profileName = `${firstName} ${lastName}`.trim();
+  const primaryPersonProfileName = personProfiles.find((p) => p.is_primary)?.name?.trim() || "";
+  const fullName = profileName || primaryPersonProfileName || "Użytkownik";
 
   const initials = profile?.first_name && profile?.last_name
     ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
