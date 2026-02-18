@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets / local env
+.env
+.env.*
+
+# Exported data dumps
+csv/export_All-*.csv
+
+# Playwright outputs
+playwright-report/
+test-results/
