@@ -17,6 +17,7 @@ interface PostSignupRequest {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   referralCode: string;
   referredBy?: string;
   interviewData?: {
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
     const replyTo = getEmailReplyTo();
 
     const body: PostSignupRequest = await req.json();
-    const { userId, email, firstName, lastName, referralCode, referredBy, interviewData } = body;
+    const { userId, email, firstName, lastName, phone, referralCode, referredBy, interviewData } = body;
 
     console.log("[post-signup] Processing signup for user:", userId, "email:", email);
     console.log("[post-signup] referralCode:", referralCode, "referredBy:", referredBy);
@@ -81,12 +82,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Upsert profile (idempotent - ON CONFLICT DO NOTHING for unique user_id)
+    // Upsert profile (idempotent)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .upsert(
         {
           user_id: userId,
+          first_name: firstName?.trim() || null,
+          last_name: lastName?.trim() || null,
+          phone: phone?.trim() || null,
           referral_code: referralCode,
           avatar_url: null,
         },
@@ -98,6 +102,17 @@ Deno.serve(async (req) => {
       // Don't fail - profile might already exist
     } else {
       console.log("[post-signup] Profile upserted successfully");
+    }
+
+    // Ensure patient row exists (admin panel list uses public.patients)
+    const { error: patientError } = await supabaseAdmin
+      .from("patients")
+      .upsert({ user_id: userId }, { onConflict: "user_id", ignoreDuplicates: false });
+
+    if (patientError) {
+      console.error("[post-signup] Error upserting patient:", patientError);
+    } else {
+      console.log("[post-signup] Patient row ensured");
     }
 
     // Ensure main person profile exists

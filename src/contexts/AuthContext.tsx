@@ -278,6 +278,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           email: data.email,
           firstName: data.firstName,
           lastName: data.lastName,
+          phone: data.phone,
           referralCode: referralCode,
           referredBy: data.referralCode || null,
           interviewData: data.interviewData,
