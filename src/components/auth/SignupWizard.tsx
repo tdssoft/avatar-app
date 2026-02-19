@@ -199,7 +199,11 @@ const SignupWizard = () => {
         return;
       }
 
-      navigate("/signup/verify-email", { state: { email: data.email } });
+      if (result.nextRoute === "/signup/verify-email") {
+        navigate("/signup/verify-email", { state: { email: data.email } });
+      } else {
+        navigate(result.nextRoute ?? "/dashboard");
+      }
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Wystąpił błąd podczas rejestracji" });
     } finally {

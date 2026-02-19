@@ -22,7 +22,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: SignupData) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: SignupData) => Promise<{ success: boolean; error?: string; nextRoute?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -244,7 +244,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { success: true };
   };
 
-  const signup = async (data: SignupData): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (data: SignupData): Promise<{ success: boolean; error?: string; nextRoute?: string }> => {
     const referralCode = generateReferralCode();
     const redirectUrl = `${window.location.origin}/dashboard`;
 
@@ -330,7 +330,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    return { success: true };
+    if (authData.session) {
+      return { success: true, nextRoute: "/dashboard" };
+    }
+
+    // Auto-confirm may complete shortly after signup; try sign-in to skip verify-email screen.
+    const attemptAutoLogin = async () => {
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (!loginError && loginData.user) {
+        await fetchUserProfile(loginData.user);
+        return true;
+      }
+
+      return false;
+    };
+
+    const firstAttemptOk = await attemptAutoLogin();
+    if (firstAttemptOk) {
+      return { success: true, nextRoute: "/dashboard" };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const secondAttemptOk = await attemptAutoLogin();
+    if (secondAttemptOk) {
+      return { success: true, nextRoute: "/dashboard" };
+    }
+
+    return { success: true, nextRoute: "/signup/verify-email" };
   };
 
   const logout = async () => {
