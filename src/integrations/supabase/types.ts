@@ -75,6 +75,89 @@ export type Database = {
           },
         ]
       }
+      admin_event_reads: {
+        Row: {
+          admin_user_id: string
+          event_id: string
+          id: string
+          read_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          event_id: string
+          id?: string
+          read_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          event_id?: string
+          id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_event_reads_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "admin_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          occurred_at: string
+          patient_id: string | null
+          person_profile_id: string | null
+          preview: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          occurred_at: string
+          patient_id?: string | null
+          person_profile_id?: string | null
+          preview?: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          patient_id?: string | null
+          person_profile_id?: string | null
+          preview?: string | null
+          source_id?: string
+          source_table?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_events_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_events_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nutrition_interview_history: {
         Row: {
           changed_at: string | null
@@ -626,12 +709,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_event_feed: {
+        Args: {
+          p_event_types?: string[] | null
+          p_limit?: number | null
+          p_offset?: number | null
+          p_patient_id?: string | null
+          p_scope?: string | null
+        }
+        Returns: {
+          created_at: string
+          event_type: string
+          id: string
+          is_read: boolean
+          occurred_at: string
+          patient_id: string | null
+          person_profile_id: string | null
+          preview: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }[]
+      }
+      get_admin_unread_counters: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          by_patient: Json
+          unread_all: number
+          unread_messages: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      mark_admin_events_read: {
+        Args: {
+          p_event_ids: string[]
+        }
+        Returns: number
       }
     }
     Enums: {

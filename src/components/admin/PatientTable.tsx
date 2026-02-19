@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
+import { ClipboardList, MessageSquare } from "lucide-react";
 
 interface Patient {
   id: string;
@@ -30,9 +31,23 @@ interface Patient {
 interface PatientTableProps {
   patients: Patient[];
   isLoading: boolean;
+  unreadByPatient?: Record<string, { unread_messages: number; unread_interviews: number }>;
+  onOpenPatientMessages?: (patientId: string) => void | Promise<void>;
+  onOpenPatientInterview?: (patientId: string) => void | Promise<void>;
 }
 
-const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
+const NewDot = ({ visible }: { visible: boolean }) => {
+  if (!visible) return null;
+  return <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />;
+};
+
+const PatientTable = ({
+  patients,
+  isLoading,
+  unreadByPatient = {},
+  onOpenPatientMessages,
+  onOpenPatientInterview,
+}: PatientTableProps) => {
   const navigate = useNavigate();
 
   const getStatusBadge = (status: string) => {
@@ -83,6 +98,7 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
             <TableHead className="font-semibold">Subskrypcja</TableHead>
             <TableHead className="font-semibold">Diagnoza</TableHead>
             <TableHead className="font-semibold">Data rejestracji</TableHead>
+            <TableHead className="font-semibold">Nowości</TableHead>
             <TableHead className="font-semibold">Akcja</TableHead>
             <TableHead className="font-semibold">Ostatnia komunikacja</TableHead>
           </TableRow>
@@ -94,7 +110,11 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
             const profileName = `${firstName} ${lastName}`.trim();
             const personProfileName = patient.primary_person_profile?.name?.trim() || "";
             const fullName = profileName || personProfileName || `Użytkownik ${patient.user_id.slice(0, 8)}`;
-              
+            const unreadCounters = unreadByPatient[patient.id] ?? {
+              unread_messages: 0,
+              unread_interviews: 0,
+            };
+
             return (
               <TableRow key={patient.id} className="hover:bg-muted/30">
                 <TableCell className="font-medium">{fullName}</TableCell>
@@ -118,6 +138,38 @@ const PatientTable = ({ patients, isLoading }: PatientTableProps) => {
                   {patient.created_at
                     ? format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
                     : "Brak"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                      aria-label={`Wiadomości pacjenta ${fullName}`}
+                      onClick={() => {
+                        if (onOpenPatientMessages) {
+                          void onOpenPatientMessages(patient.id);
+                          return;
+                        }
+                        navigate(`/admin/patient/${patient.id}?tab=notes`);
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <NewDot visible={unreadCounters.unread_messages > 0} />
+                    </button>
+                    <button
+                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                      aria-label={`Wywiad pacjenta ${fullName}`}
+                      onClick={() => {
+                        if (onOpenPatientInterview) {
+                          void onOpenPatientInterview(patient.id);
+                          return;
+                        }
+                        navigate(`/admin/patient/${patient.id}?tab=interview`);
+                      }}
+                    >
+                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                      <NewDot visible={unreadCounters.unread_interviews > 0} />
+                    </button>
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Button

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, Tag, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
 import PatientTable from "@/components/admin/PatientTable";
 import CreatePatientDialog from "@/components/admin/CreatePatientDialog";
@@ -19,6 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
+import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 
 interface Patient {
   id: string;
@@ -43,6 +45,7 @@ interface Patient {
 }
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,6 +53,11 @@ const AdminDashboard = () => {
   const [subscriptionFilter, setSubscriptionFilter] = useState("all");
   const [diagnosisFilter, setDiagnosisFilter] = useState("all");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const {
+    byPatientMap,
+    markPatientInterviewRead,
+    markPatientMessagesRead,
+  } = useAdminNotifications();
 
   const fetchPatients = async () => {
     setIsLoading(true);
@@ -197,6 +205,16 @@ const AdminDashboard = () => {
 
   const hasActiveFilters = subscriptionFilter !== "all" || diagnosisFilter !== "all" || selectedTags.length > 0;
 
+  const handleOpenPatientMessages = async (patientId: string) => {
+    await markPatientMessagesRead(patientId);
+    navigate(`/admin/patient/${patientId}?tab=notes`);
+  };
+
+  const handleOpenPatientInterview = async (patientId: string) => {
+    await markPatientInterviewRead(patientId);
+    navigate(`/admin/patient/${patientId}?tab=interview`);
+  };
+
   return (
     <AdminLayout>
       {/* Page Header - on turquoise background */}
@@ -302,7 +320,13 @@ const AdminDashboard = () => {
           ) : null}
 
           {/* Patient Table */}
-          <PatientTable patients={filteredPatients} isLoading={isLoading} />
+          <PatientTable
+            patients={filteredPatients}
+            isLoading={isLoading}
+            unreadByPatient={byPatientMap}
+            onOpenPatientMessages={handleOpenPatientMessages}
+            onOpenPatientInterview={handleOpenPatientInterview}
+          />
         </div>
       </div>
 

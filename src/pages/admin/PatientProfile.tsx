@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2, Pencil } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -92,8 +92,17 @@ interface Message {
   person_profile_id: string | null;
 }
 
+const ADMIN_PATIENT_TABS = ["recommendations", "interview", "audio", "notes"] as const;
+type AdminPatientTab = (typeof ADMIN_PATIENT_TABS)[number];
+
+const normalizeAdminTab = (tab: string | null): AdminPatientTab =>
+  ADMIN_PATIENT_TABS.includes((tab ?? "") as AdminPatientTab)
+    ? ((tab ?? "recommendations") as AdminPatientTab)
+    : "recommendations";
+
 const PatientProfile = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [patient, setPatient] = useState<PatientData | null>(null);
@@ -113,6 +122,7 @@ const PatientProfile = () => {
   const [newTag, setNewTag] = useState("");
   const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<AdminPatientTab>(() => normalizeAdminTab(searchParams.get("tab")));
 
   const isDeletingSelf = !!patient?.user_id && !!currentUser?.id && patient.user_id === currentUser.id;
 
@@ -136,6 +146,11 @@ const PatientProfile = () => {
       fetchPatientData();
     }
   }, [id]);
+
+  useEffect(() => {
+    const tabFromQuery = normalizeAdminTab(searchParams.get("tab"));
+    setActiveTab(tabFromQuery);
+  }, [searchParams]);
 
   const fetchPatientData = async () => {
     setIsLoading(true);
@@ -410,6 +425,20 @@ const PatientProfile = () => {
     ? recommendations.filter((r) => r.person_profile_id === selectedProfileId || !r.person_profile_id)
     : recommendations;
 
+  const handleTabChange = (nextTab: string) => {
+    const normalized = normalizeAdminTab(nextTab);
+    setActiveTab(normalized);
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (normalized === "recommendations") {
+      nextParams.delete("tab");
+    } else {
+      nextParams.set("tab", normalized);
+    }
+
+    setSearchParams(nextParams, { replace: true });
+  };
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -459,7 +488,7 @@ const PatientProfile = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content - Left 2 columns */}
           <div className="lg:col-span-2">
-            <Tabs defaultValue="recommendations" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
               <TabsList>
                 <TabsTrigger value="recommendations" className="gap-2">
                   <FileText className="h-4 w-4" />
