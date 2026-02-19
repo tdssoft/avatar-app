@@ -27,6 +27,7 @@ export interface UpdatePersonProfileData extends Partial<CreatePersonProfileData
 }
 
 export const ACTIVE_PROFILE_STORAGE_KEY = "avatar_active_profile_id";
+export const ACTIVE_PROFILE_CHANGED_EVENT = "avatar:active-profile-changed";
 const LEGACY_ACTIVE_PROFILE_STORAGE_KEY = "activeProfileId";
 
 export function usePersonProfiles() {
@@ -94,6 +95,11 @@ export function usePersonProfiles() {
     if (profile) {
       setActiveProfileId(profileId);
       localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, profileId);
+      window.dispatchEvent(
+        new CustomEvent(ACTIVE_PROFILE_CHANGED_EVENT, {
+          detail: { profileId },
+        }),
+      );
       toast({
         title: "Przełączono profil",
         description: `Aktywny profil: ${profile.name}`,

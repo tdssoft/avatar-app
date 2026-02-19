@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ToastAction } from "@/components/ui/toast";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -23,7 +24,10 @@ import {
   normalizeInterviewContent,
 } from "@/types/interviewV2";
 import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
-import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
+import {
+  ACTIVE_PROFILE_CHANGED_EVENT,
+  ACTIVE_PROFILE_STORAGE_KEY,
+} from "@/hooks/usePersonProfiles";
 import InterviewSplitLayout from "@/components/interview/InterviewSplitLayout";
 import { INTERVIEW_STEPS, InterviewQuestionConfig } from "@/components/interview/interviewFlowConfig";
 import avatarLogo from "@/assets/avatar-logo.svg";
@@ -45,6 +49,7 @@ const NutritionInterview = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
   const [existingInterviewId, setExistingInterviewId] = useState<string | null>(null);
   const [formData, setFormData] = useState<InterviewV2Content>(EMPTY_INTERVIEW_V2);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -52,6 +57,18 @@ const NutritionInterview = () => {
   const totalSteps = INTERVIEW_STEPS.length;
   const current = INTERVIEW_STEPS[currentStep];
   const progress = Math.max(5, Math.round(((currentStep + 1) / totalSteps) * 100));
+
+  useEffect(() => {
+    const onProfileChanged = () => {
+      setProfileRefreshNonce((prev) => prev + 1);
+    };
+
+    window.addEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+
+    return () => {
+      window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAuthLoading && !session) {
@@ -100,6 +117,10 @@ const NutritionInterview = () => {
 
       setProfileId(activeProfile.id);
       localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, activeProfile.id);
+      setExistingInterviewId(null);
+      setFormData(EMPTY_INTERVIEW_V2);
+      setLastSavedAt(null);
+      setCurrentStep(0);
 
       const localDraft = localStorage.getItem(getDraftKey(activeProfile.id));
       if (localDraft) {
@@ -147,11 +168,12 @@ const NutritionInterview = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, toast, user?.id]);
+  }, [navigate, toast, totalSteps, user?.id]);
 
   useEffect(() => {
+    setIsLoading(true);
     bootstrap();
-  }, [bootstrap]);
+  }, [bootstrap, profileRefreshNonce]);
 
   const persistLocal = useCallback(
     (next: InterviewV2Content) => {
@@ -203,7 +225,19 @@ const NutritionInterview = () => {
         setLastSavedAt(new Date());
 
         if (!silent) {
-          toast({ title: "Zapisano", description: status === "sent" ? "Wywiad został wysłany." : "Wywiad zapisany." });
+          if (status === "sent") {
+            toast({ title: "Zapisano", description: "Wywiad został wysłany." });
+          } else {
+            toast({
+              title: "Wersja robocza zapisana",
+              description: "Możesz wrócić później i kontynuować wywiad.",
+              action: (
+                <ToastAction altText="Kontynuuj wywiad" onClick={() => navigate("/interview")}>
+                  Kontynuuj wywiad
+                </ToastAction>
+              ),
+            });
+          }
         }
 
         return true;
@@ -223,7 +257,7 @@ const NutritionInterview = () => {
         }
       }
     },
-    [existingInterviewId, formData, persistLocal, profileId, toast, user?.id],
+    [existingInterviewId, formData, navigate, persistLocal, profileId, toast, user?.id],
   );
 
   useEffect(() => {
@@ -276,7 +310,36 @@ const NutritionInterview = () => {
     persistLocal(next);
   };
 
+  const getMissingStepFields = (step: (typeof INTERVIEW_STEPS)[number]): string[] => {
+    return step.questions
+      .filter((question) => {
+        const value = formData[question.key];
+
+        if (question.type === "checkboxGroup") {
+          return !Array.isArray(value) || value.length === 0;
+        }
+
+        if (question.type === "frequency") {
+          const frequency = value as FrequencyAnswer;
+          return !frequency?.frequency || !frequency?.note?.trim();
+        }
+
+        return typeof value !== "string" || value.trim().length === 0;
+      })
+      .map((question) => question.label);
+  };
+
   const handleNext = async () => {
+    const missingFields = getMissingStepFields(current);
+    if (missingFields.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Uzupełnij wszystkie pola",
+        description: `Brakuje: ${missingFields[0]}${missingFields.length > 1 ? ` (+${missingFields.length - 1})` : ""}.`,
+      });
+      return;
+    }
+
     await saveInterview("draft", true);
     setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
   };
@@ -292,6 +355,16 @@ const NutritionInterview = () => {
   };
 
   const handleSubmit = async () => {
+    const missingFields = getMissingStepFields(current);
+    if (missingFields.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Uzupełnij wszystkie pola",
+        description: `Brakuje: ${missingFields[0]}${missingFields.length > 1 ? ` (+${missingFields.length - 1})` : ""}.`,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     const success = await saveInterview("sent", false);
     setIsSubmitting(false);

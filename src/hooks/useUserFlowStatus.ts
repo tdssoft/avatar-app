@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
+import {
+  ACTIVE_PROFILE_CHANGED_EVENT,
+  ACTIVE_PROFILE_STORAGE_KEY,
+} from "@/hooks/usePersonProfiles";
 
 type FlowStatus = {
   isLoading: boolean;
@@ -121,6 +124,20 @@ export const useUserFlowStatus = () => {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const handleProfileChanged = () => {
+      refresh();
+    };
+
+    window.addEventListener(ACTIVE_PROFILE_CHANGED_EVENT, handleProfileChanged);
+    window.addEventListener("focus", handleProfileChanged);
+
+    return () => {
+      window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, handleProfileChanged);
+      window.removeEventListener("focus", handleProfileChanged);
+    };
   }, [refresh]);
 
   return {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 import { useToast } from "@/hooks/use-toast";
-import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
+import {
+  ACTIVE_PROFILE_CHANGED_EVENT,
+  ACTIVE_PROFILE_STORAGE_KEY,
+} from "@/hooks/usePersonProfiles";
 
 interface Recommendation {
   id: string;
@@ -50,7 +53,20 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  const fetchRecommendations = async () => {
+  useEffect(() => {
+    if (flowLoading) return;
+    if (hasPaidPlan && !hasInterview && !hasInterviewDraft) {
+      navigate("/interview", { replace: true });
+    }
+  }, [flowLoading, hasInterview, hasInterviewDraft, hasPaidPlan, navigate]);
+
+  const fetchRecommendations = useCallback(async () => {
+    if (!user?.id) {
+      setRecommendations([]);
+      setIsLoadingRecommendations(false);
+      return;
+    }
+
     setIsLoadingRecommendations(true);
 
     const { data: patient } = await supabase
@@ -80,7 +96,19 @@ const Dashboard = () => {
     const { data } = await query;
     setRecommendations(data || []);
     setIsLoadingRecommendations(false);
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const onProfileChanged = () => {
+      fetchRecommendations();
+    };
+
+    window.addEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+
+    return () => {
+      window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    };
+  }, [fetchRecommendations]);
 
   const handleSendQuestion = async () => {
     if (!question.trim()) return;
