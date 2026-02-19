@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Info } from "lucide-react";
+import { Camera, Eye, EyeOff, Info, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,11 +34,16 @@ const SignupWizard = () => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraCaptureInputRef = useRef<HTMLInputElement>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -66,8 +71,60 @@ const SignupWizard = () => {
     return 3;
   }, [step]);
 
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+    setCameraStream(null);
+    setIsCameraOpen(false);
+  };
+
   const openPhotoPicker = () => {
     photoInputRef.current?.click();
+  };
+
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+      });
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+    } catch {
+      toast({
+        title: "Brak dostępu do kamerki",
+        description: "Na telefonie otwieram aparat urządzenia do zrobienia zdjęcia.",
+      });
+      cameraCaptureInputRef.current?.click();
+    }
+  };
+
+  const captureFromCamera = async () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.92);
+    });
+
+    if (!blob) return;
+
+    const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+      type: "image/jpeg",
+    });
+
+    setSelectedPhoto(file);
+    stopCamera();
+    toast({ title: "Zdjęcie zrobione", description: "Możesz przejść dalej." });
   };
 
   const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +141,6 @@ const SignupWizard = () => {
       return;
     }
 
-    // Figma: 10 MB max
     if (file.size > 10 * 1024 * 1024) {
       toast({
         variant: "destructive",
@@ -96,6 +152,9 @@ const SignupWizard = () => {
     }
 
     setSelectedPhoto(file);
+    if (isCameraOpen) {
+      stopCamera();
+    }
     toast({ title: "Zdjęcie wybrane", description: file.name });
   };
 
@@ -103,7 +162,7 @@ const SignupWizard = () => {
     toast({
       variant: "destructive",
       title: "Wgraj zdjęcie",
-      description: "Wybierz zdjęcie zapisane na urządzeniu albo zaznacz opcję później.",
+      description: "Wybierz zdjęcie zapisane na urządzeniu albo zrób zdjęcie kamerką.",
     });
 
   const handleStep1Submit = (data: Step1Data) => {
@@ -160,9 +219,31 @@ const SignupWizard = () => {
     return () => URL.revokeObjectURL(objectUrl);
   }, [selectedPhoto]);
 
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStream) {
+      cameraVideoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
   return (
     <div>
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+      <input
+        ref={cameraCaptureInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handlePhotoSelect}
+      />
 
       <div className="flex items-center gap-2 mb-6">
         {[1, 2, 3].map((s) => (
@@ -249,12 +330,40 @@ const SignupWizard = () => {
             <button
               type="button"
               onClick={openPhotoPicker}
-              className="w-full rounded-lg border-2 border-dashed border-border p-10 text-center hover:bg-muted/40 transition-colors"
+              className="w-full rounded-lg border-2 border-dashed border-border p-8 text-center hover:bg-muted/40 transition-colors"
             >
-              <p className="font-medium text-foreground">Wybierz plik</p>
+              <p className="font-medium text-foreground inline-flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Wybierz plik
+              </p>
               <p className="text-xs text-muted-foreground mt-1">jpg, png, maksymalny rozmiar 10 MB.</p>
               {selectedPhoto ? <p className="text-xs text-muted-foreground mt-3">{selectedPhoto.name}</p> : null}
             </button>
+
+            <Button type="button" variant="outline" className="w-full" onClick={openCamera}>
+              <Camera className="h-4 w-4 mr-2" />
+              Zrób zdjęcie kamerką (komputer/telefon)
+            </Button>
+
+            {isCameraOpen ? (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <video
+                  ref={cameraVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full max-h-72 rounded-md border border-border bg-black object-cover"
+                />
+                <div className="flex gap-2">
+                  <Button type="button" variant="black" className="flex-1" onClick={captureFromCamera}>
+                    Zrób zdjęcie
+                  </Button>
+                  <Button type="button" variant="outline" className="flex-1" onClick={stopCamera}>
+                    Anuluj
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             {photoPreviewUrl ? (
               <div className="rounded-lg border border-border p-3">
