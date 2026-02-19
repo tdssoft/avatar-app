@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "npm:resend@2.0.0";
 import {
   getAdminEmail,
@@ -23,10 +24,11 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const adminEmail = getAdminEmail();
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!stripeKey) {
       console.error("STRIPE_SECRET_KEY not configured");
@@ -38,10 +40,11 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Webhook secret is not configured");
     }
 
-    if (!resendApiKey) {
-      console.error("RESEND_API_KEY not configured");
-      throw new Error("Resend is not configured");
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase service role is not configured");
     }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     const signature = req.headers.get("stripe-signature");
     if (!signature) {
@@ -117,8 +120,46 @@ const handler = async (req: Request): Promise<Response> => {
     const event = JSON.parse(body);
     console.log("stripe-webhook: event type", event.type);
 
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      const session = event.data.object;
+      const userId =
+        session?.metadata?.user_id ||
+        session?.client_reference_id ||
+        null;
+
+      if (userId) {
+        const { error: patientUpdateError } = await supabaseAdmin
+          .from("patients")
+          .update({
+            subscription_status: "Aktywna",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+
+        if (patientUpdateError) {
+          console.error("stripe-webhook: failed to update patient subscription", patientUpdateError);
+        } else {
+          console.log("stripe-webhook: patient subscription activated", {
+            userId,
+            sessionId: session?.id,
+          });
+        }
+      } else {
+        console.warn("stripe-webhook: missing user_id in checkout metadata");
+      }
+    }
+
     // Handle invoice.paid event
     if (event.type === "invoice.paid") {
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (!resendApiKey) {
+        console.error("RESEND_API_KEY not configured");
+        throw new Error("Resend is not configured");
+      }
+
       const invoice = event.data.object;
       console.log("stripe-webhook: processing invoice", invoice.id, "number:", invoice.number);
 

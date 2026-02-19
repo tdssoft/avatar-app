@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ interface CheckoutRequest {
   packages: string[];
   origin: string;
   payment_method?: "p24" | "blik" | "card";
+  profile_id?: string | null;
 }
 
 type PackagePrice = {
@@ -35,6 +37,32 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase service role is not configured");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const userId = userData.user.id;
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       console.error("STRIPE_SECRET_KEY not configured");
@@ -63,8 +91,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const { packages, origin, payment_method }: CheckoutRequest = await req.json();
-    console.log("create-checkout-session: packages", packages, "origin", origin, "payment_method", payment_method);
+    const { packages, origin, payment_method, profile_id }: CheckoutRequest = await req.json();
+    console.log(
+      "create-checkout-session: packages",
+      packages,
+      "origin",
+      origin,
+      "payment_method",
+      payment_method,
+      "user_id",
+      userId,
+      "profile_id",
+      profile_id ?? null,
+    );
 
     if (!packages || packages.length === 0) {
       throw new Error("No packages selected");
@@ -99,12 +138,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     const hasRecurring = selectedPackageConfigs.some((pkg) => pkg.billing === "monthly");
     const mode = hasRecurring ? "subscription" : "payment";
+    const normalizedPaymentMethod = payment_method ?? "p24";
+    const checkoutPaymentMethod =
+      mode === "subscription" && normalizedPaymentMethod === "p24"
+        ? "card"
+        : normalizedPaymentMethod;
 
     const checkoutPayload: Record<string, string> = {
       mode,
       success_url: `${origin}/payment/success`,
       cancel_url: `${origin}/dashboard`,
+      locale: "pl",
+      client_reference_id: userId,
+      "metadata[user_id]": userId,
+      "metadata[selected_packages]": packages.join(","),
+      "metadata[payment_method]": normalizedPaymentMethod,
     };
+    if (profile_id) {
+      checkoutPayload["metadata[profile_id]"] = profile_id;
+    }
+
+    checkoutPayload["payment_method_types[0]"] = checkoutPaymentMethod;
 
     if (mode === "payment") {
       checkoutPayload["invoice_creation[enabled]"] = "true";

@@ -11,6 +11,7 @@ import SplitLayout from "@/components/layout/SplitLayout";
 import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
 import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
 const PaymentCheckout = () => {
   const navigate = useNavigate();
@@ -33,11 +34,13 @@ const PaymentCheckout = () => {
   const handleCheckout = async () => {
     setIsLoading(true);
     try {
+      const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           packages: draft.selectedPackages,
           origin: window.location.origin,
           payment_method: draft.paymentMethod,
+          profile_id: activeProfileId,
         },
       });
 

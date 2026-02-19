@@ -33,6 +33,12 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
+import { INTERVIEW_STEPS, InterviewQuestionConfig } from "@/components/interview/interviewFlowConfig";
+import {
+  formatFrequencyAnswer,
+  InterviewV2Content,
+  normalizeInterviewContent,
+} from "@/types/interviewV2";
 
 interface InterviewData {
   height?: string;
@@ -62,7 +68,7 @@ interface InterviewData {
 
 interface HistoryEntry {
   id: string;
-  content: InterviewData;
+  content: StoredInterviewContent;
   changed_at: string;
   changed_by: string | null;
 }
@@ -71,6 +77,8 @@ interface AdminInterviewViewProps {
   personProfileId: string;
   patientId: string;
 }
+
+type StoredInterviewContent = InterviewData & Partial<InterviewV2Content> & Record<string, unknown>;
 
 const defaultInterviewData: InterviewData = {
   height: "",
@@ -150,10 +158,46 @@ const weightGoalLabels: Record<string, string> = {
   none: "Brak celów wagowych",
 };
 
+const isInterviewV2Content = (content: StoredInterviewContent | null | undefined): boolean => {
+  if (!content) return false;
+  return (
+    typeof content.mainSymptoms === "string" ||
+    typeof content.birthDate === "string" ||
+    content.darkBreadFrequency !== undefined
+  );
+};
+
+const getInterviewV2Answer = (
+  question: InterviewQuestionConfig,
+  content: InterviewV2Content,
+): string => {
+  const value = content[question.key];
+
+  if (question.type === "checkboxGroup") {
+    const values = Array.isArray(value) ? value : [];
+    if (values.length === 0) return "";
+
+    return values
+      .map((entry) => question.options.find((option) => option.value === entry)?.label ?? entry)
+      .join(", ");
+  }
+
+  if (question.type === "select") {
+    const selected = question.options.find((option) => option.value === value);
+    return selected?.label ?? (typeof value === "string" ? value : "");
+  }
+
+  if (question.type === "frequency") {
+    return formatFrequencyAnswer(value);
+  }
+
+  return typeof value === "string" ? value : "";
+};
+
 const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewProps) => {
   const [interview, setInterview] = useState<{
     id: string;
-    content: InterviewData;
+    content: StoredInterviewContent;
     last_updated_at: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -181,7 +225,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
     if (error) {
       console.error("Error fetching interview:", error);
     } else if (data) {
-      const content = data.content as unknown as InterviewData;
+      const content = data.content as unknown as StoredInterviewContent;
       setInterview({
         id: data.id,
         content: content,
@@ -213,7 +257,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
     } else {
       setHistory((data || []).map(h => ({
         ...h,
-        content: h.content as unknown as InterviewData
+        content: h.content as unknown as StoredInterviewContent
       })));
     }
     setIsLoadingHistory(false);
@@ -340,6 +384,10 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
   }
 
   const data = isEditing ? formData : interview.content;
+  const isV2Interview = isInterviewV2Content(interview.content);
+  const normalizedV2Content = isV2Interview
+    ? normalizeInterviewContent(interview.content)
+    : null;
 
   // Edit mode form
   if (isEditing) {
@@ -747,10 +795,12 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             )}
           </DialogContent>
         </Dialog>
-        <Button onClick={handleEdit}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edytuj wywiad
-        </Button>
+        {!isV2Interview && (
+          <Button onClick={handleEdit}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edytuj wywiad
+          </Button>
+        )}
       </div>
 
       {/* Audio Recordings for Interview */}
@@ -772,104 +822,136 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
         </CardContent>
       </Card>
 
-      {/* General Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Informacje ogólne</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <InfoRow label="Wzrost" value={data.height ? `${data.height} cm` : undefined} />
-          <InfoRow label="Waga" value={data.weight ? `${data.weight} kg` : undefined} />
-          <InfoRow label="Poziom aktywności" value={activityLabels[data.activity_level || ""]} />
-          <InfoRow label="Godziny snu" value={data.sleep_hours ? `${data.sleep_hours} h` : undefined} />
-          <InfoRow label="Poziom stresu" value={stressLabels[data.stress_level || ""]} />
-        </CardContent>
-      </Card>
+      {isV2Interview && normalizedV2Content ? (
+        INTERVIEW_STEPS.map((step) => {
+          const answeredQuestions = step.questions
+            .map((question) => ({
+              key: String(question.key),
+              label: question.label,
+              value: getInterviewV2Answer(question, normalizedV2Content).trim(),
+            }))
+            .filter((item) => item.value.length > 0);
 
-      {/* Preferences */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Preferencje żywieniowe</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <InfoRow label="Typ diety" value={dietLabels[data.diet_type || ""]} />
-          <InfoRow label="Liczba posiłków" value={data.meal_frequency} />
-          <TextSection label="Ulubione produkty" value={data.favorite_foods} />
-          <TextSection label="Nielubiane produkty" value={data.disliked_foods} />
-          <TextSection label="Nawyki przekąskowe" value={data.snacking_habits} />
-        </CardContent>
-      </Card>
+          if (answeredQuestions.length === 0) return null;
 
-      {/* Allergies */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Alergie i nietolerancje</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {data.allergies && data.allergies.length > 0 && (
-            <div>
-              <Label className="text-muted-foreground">Alergie</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {data.allergies.map((allergy) => (
-                  <Badge key={allergy} variant="destructive">
-                    {allergy}
-                  </Badge>
+          return (
+            <Card key={step.id}>
+              <CardHeader>
+                <CardTitle className="text-lg">{step.heading ?? "Wywiad medyczny"}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {answeredQuestions.map((item) => (
+                  <div key={item.key} className="space-y-1">
+                    <Label className="text-muted-foreground">{item.label}</Label>
+                    <p className="text-sm bg-muted/50 rounded-lg p-3 whitespace-pre-wrap">{item.value}</p>
+                  </div>
                 ))}
-              </div>
-            </div>
-          )}
-          {data.intolerances && data.intolerances.length > 0 && (
-            <div>
-              <Label className="text-muted-foreground">Nietolerancje</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {data.intolerances.map((intolerance) => (
-                  <Badge key={intolerance} variant="secondary">
-                    {intolerance}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-          <TextSection label="Inne alergie/nietolerancje" value={data.other_allergies} />
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          );
+        })
+      ) : (
+        <>
+          {/* General Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Informacje ogólne</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <InfoRow label="Wzrost" value={data.height ? `${data.height} cm` : undefined} />
+              <InfoRow label="Waga" value={data.weight ? `${data.weight} kg` : undefined} />
+              <InfoRow label="Poziom aktywności" value={activityLabels[data.activity_level || ""]} />
+              <InfoRow label="Godziny snu" value={data.sleep_hours ? `${data.sleep_hours} h` : undefined} />
+              <InfoRow label="Poziom stresu" value={stressLabels[data.stress_level || ""]} />
+            </CardContent>
+          </Card>
 
-      {/* Health Issues */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Dolegliwości zdrowotne</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <TextSection label="Problemy trawienne" value={data.digestive_issues} />
-          <TextSection label="Problemy z energią" value={data.energy_issues} />
-          <TextSection label="Problemy skórne" value={data.skin_issues} />
-          <TextSection label="Inne dolegliwości" value={data.other_health_issues} />
-        </CardContent>
-      </Card>
+          {/* Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Preferencje żywieniowe</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <InfoRow label="Typ diety" value={dietLabels[data.diet_type || ""]} />
+              <InfoRow label="Liczba posiłków" value={data.meal_frequency} />
+              <TextSection label="Ulubione produkty" value={data.favorite_foods} />
+              <TextSection label="Nielubiane produkty" value={data.disliked_foods} />
+              <TextSection label="Nawyki przekąskowe" value={data.snacking_habits} />
+            </CardContent>
+          </Card>
 
-      {/* Supplements */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Suplementacja i leki</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <TextSection label="Aktualne suplementy" value={data.current_supplements} />
-          <TextSection label="Wcześniejsze suplementy" value={data.past_supplements} />
-          <TextSection label="Przyjmowane leki" value={data.medications} />
-        </CardContent>
-      </Card>
+          {/* Allergies */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Alergie i nietolerancje</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {data.allergies && data.allergies.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Alergie</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {data.allergies.map((allergy) => (
+                      <Badge key={allergy} variant="destructive">
+                        {allergy}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {data.intolerances && data.intolerances.length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Nietolerancje</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {data.intolerances.map((intolerance) => (
+                      <Badge key={intolerance} variant="secondary">
+                        {intolerance}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <TextSection label="Inne alergie/nietolerancje" value={data.other_allergies} />
+            </CardContent>
+          </Card>
 
-      {/* Goals */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Cele zdrowotne</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <TextSection label="Cele zdrowotne" value={data.health_goals} />
-          <InfoRow label="Cele wagowe" value={weightGoalLabels[data.weight_goals || ""]} />
-          <TextSection label="Dodatkowe uwagi" value={data.additional_notes} />
-        </CardContent>
-      </Card>
+          {/* Health Issues */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Dolegliwości zdrowotne</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextSection label="Problemy trawienne" value={data.digestive_issues} />
+              <TextSection label="Problemy z energią" value={data.energy_issues} />
+              <TextSection label="Problemy skórne" value={data.skin_issues} />
+              <TextSection label="Inne dolegliwości" value={data.other_health_issues} />
+            </CardContent>
+          </Card>
+
+          {/* Supplements */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Suplementacja i leki</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextSection label="Aktualne suplementy" value={data.current_supplements} />
+              <TextSection label="Wcześniejsze suplementy" value={data.past_supplements} />
+              <TextSection label="Przyjmowane leki" value={data.medications} />
+            </CardContent>
+          </Card>
+
+          {/* Goals */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Cele zdrowotne</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextSection label="Cele zdrowotne" value={data.health_goals} />
+              <InfoRow label="Cele wagowe" value={weightGoalLabels[data.weight_goals || ""]} />
+              <TextSection label="Dodatkowe uwagi" value={data.additional_notes} />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Last updated */}
       <p className="text-sm text-muted-foreground text-center">

@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
 interface Recommendation {
   id: string;
@@ -62,7 +63,7 @@ const Results = () => {
     setPatientId(patient.id);
 
     // 2. Pobierz aktywny profil z localStorage
-    const activeProfileId = localStorage.getItem('activeProfileId');
+    const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
 
     // 3. Pobierz zalecenia
     let query = supabase
@@ -94,7 +95,7 @@ const Results = () => {
 
     setIsSendingQuestion(true);
     try {
-      const activeProfileId = localStorage.getItem('activeProfileId');
+      const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
 
       const { error } = await supabase.from("patient_messages").insert({
         patient_id: patientId,

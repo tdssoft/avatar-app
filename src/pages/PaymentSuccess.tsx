@@ -10,7 +10,6 @@ const PaymentSuccess = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    localStorage.setItem("avatar_payment_completed", "true");
     clearPaymentDraft();
   }, []);
 

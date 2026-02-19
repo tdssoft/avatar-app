@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, MessageCircle } from "lucide-react";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
 interface ContactFormDialogProps {
   open: boolean;
@@ -50,7 +51,7 @@ export function ContactFormDialog({
 
     setIsLoading(true);
     try {
-      const activeProfileId = localStorage.getItem("activeProfileId");
+      const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
 
       const { error } = await supabase.from("support_tickets").insert({
         user_id: user.id,

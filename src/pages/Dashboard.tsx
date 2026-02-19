@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 import { useToast } from "@/hooks/use-toast";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
 interface Recommendation {
   id: string;
@@ -23,7 +24,13 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { isLoading: flowLoading, hasInterview, hasPaidPlan, hasResults } = useUserFlowStatus();
+  const {
+    isLoading: flowLoading,
+    hasInterview,
+    hasInterviewDraft,
+    hasPaidPlan,
+    hasResults,
+  } = useUserFlowStatus();
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
@@ -57,7 +64,7 @@ const Dashboard = () => {
       return;
     }
 
-    const activeProfileId = localStorage.getItem("activeProfileId");
+    const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
 
     let query = supabase
       .from("recommendations")
@@ -88,7 +95,7 @@ const Dashboard = () => {
 
       if (!patient) throw new Error("Brak profilu pacjenta");
 
-      const activeProfileId = localStorage.getItem("activeProfileId");
+      const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
 
       const { error } = await supabase.from("patient_messages").insert({
         patient_id: patient.id,
@@ -165,9 +172,15 @@ const Dashboard = () => {
             {hasPaidPlan && !hasInterview && (
               <Card>
                 <CardContent className="py-8 space-y-3">
-                  <p className="text-foreground font-semibold text-lg">Dziękujemy za zakup pakietu!</p>
-                  <p className="text-muted-foreground">Wypełnij wywiad, aby rozpocząć diagnostykę. Potrzebny czas: do 15 minut.</p>
-                  <Button onClick={() => navigate("/interview")}>Dalej {"->"}</Button>
+                  <p className="text-foreground font-semibold text-lg">Wypełnij wywiad medyczny</p>
+                  <p className="text-muted-foreground">
+                    {hasInterviewDraft
+                      ? "Masz zapisany roboczy wywiad. Kontynuuj, aby uruchomić diagnostykę."
+                      : "Aby rozpocząć diagnostykę, uzupełnij wywiad. Potrzebny czas: około 15 minut."}
+                  </p>
+                  <Button onClick={() => navigate("/interview")}>
+                    {hasInterviewDraft ? "Kontynuuj wywiad" : "Wypełnij wywiad"} {"->"}
+                  </Button>
                 </CardContent>
               </Card>
             )}

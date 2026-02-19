@@ -26,7 +26,8 @@ export interface UpdatePersonProfileData extends Partial<CreatePersonProfileData
   id: string;
 }
 
-const ACTIVE_PROFILE_KEY = "avatar_active_profile_id";
+export const ACTIVE_PROFILE_STORAGE_KEY = "avatar_active_profile_id";
+const LEGACY_ACTIVE_PROFILE_STORAGE_KEY = "activeProfileId";
 
 export function usePersonProfiles() {
   const { user } = useAuth();
@@ -56,16 +57,19 @@ export function usePersonProfiles() {
       setProfiles(data || []);
 
       // Set active profile from localStorage or default to primary
-      const storedActiveId = localStorage.getItem(ACTIVE_PROFILE_KEY);
+      const storedActiveId =
+        localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY) ||
+        localStorage.getItem(LEGACY_ACTIVE_PROFILE_STORAGE_KEY);
       const validProfile = data?.find((p) => p.id === storedActiveId);
       
       if (validProfile) {
         setActiveProfileId(validProfile.id);
+        localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, validProfile.id);
       } else {
         const primaryProfile = data?.find((p) => p.is_primary);
         if (primaryProfile) {
           setActiveProfileId(primaryProfile.id);
-          localStorage.setItem(ACTIVE_PROFILE_KEY, primaryProfile.id);
+          localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, primaryProfile.id);
         }
       }
     } catch (error) {
@@ -89,7 +93,7 @@ export function usePersonProfiles() {
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
       setActiveProfileId(profileId);
-      localStorage.setItem(ACTIVE_PROFILE_KEY, profileId);
+      localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, profileId);
       toast({
         title: "Przełączono profil",
         description: `Aktywny profil: ${profile.name}`,
