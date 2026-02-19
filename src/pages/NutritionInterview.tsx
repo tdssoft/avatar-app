@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,6 @@ import {
   InterviewV2Content,
   normalizeInterviewContent,
 } from "@/types/interviewV2";
-import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 import {
   ACTIVE_PROFILE_CHANGED_EVENT,
   ACTIVE_PROFILE_STORAGE_KEY,
@@ -31,6 +30,7 @@ import {
 import InterviewSplitLayout from "@/components/interview/InterviewSplitLayout";
 import { INTERVIEW_STEPS, InterviewQuestionConfig } from "@/components/interview/interviewFlowConfig";
 import avatarLogo from "@/assets/avatar-logo.svg";
+import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
 
 const DRAFT_STORAGE_PREFIX = "avatar_interview_v2_draft";
 const STEP_STORAGE_PREFIX = "avatar_interview_v2_step";
@@ -42,7 +42,8 @@ const NutritionInterview = () => {
   const { session, isLoading: isAuthLoading, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { hasPaidPlan, isLoading: isFlowLoading } = useUserFlowStatus();
+  const location = useLocation();
+  const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,10 +78,10 @@ const NutritionInterview = () => {
   }, [isAuthLoading, navigate, session]);
 
   useEffect(() => {
-    if (!isFlowLoading && !hasPaidPlan) {
-      navigate("/payment", { replace: true });
+    if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
+      navigate(redirectTo, { replace: true });
     }
-  }, [hasPaidPlan, isFlowLoading, navigate]);
+  }, [isFlowLoading, location.pathname, navigate, redirectTo]);
 
   const bootstrap = useCallback(async () => {
     if (!user?.id) {
@@ -513,6 +514,10 @@ const NutritionInterview = () => {
       </div>
     );
   };
+
+  if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
+    return null;
+  }
 
   if (isAuthLoading || isFlowLoading || isLoading) {
     return (

@@ -22,6 +22,10 @@ export interface CreatePersonProfileData {
   notes?: string | null;
 }
 
+export interface CreateProfileOptions {
+  setAsActive?: boolean;
+}
+
 export interface UpdatePersonProfileData extends Partial<CreatePersonProfileData> {
   id: string;
 }
@@ -89,17 +93,21 @@ export function usePersonProfiles() {
     fetchProfiles();
   }, [user?.id]);
 
+  const setActiveProfile = (profileId: string) => {
+    setActiveProfileId(profileId);
+    localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, profileId);
+    window.dispatchEvent(
+      new CustomEvent(ACTIVE_PROFILE_CHANGED_EVENT, {
+        detail: { profileId },
+      }),
+    );
+  };
+
   // Switch active profile
   const switchActiveProfile = (profileId: string) => {
     const profile = profiles.find((p) => p.id === profileId);
     if (profile) {
-      setActiveProfileId(profileId);
-      localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, profileId);
-      window.dispatchEvent(
-        new CustomEvent(ACTIVE_PROFILE_CHANGED_EVENT, {
-          detail: { profileId },
-        }),
-      );
+      setActiveProfile(profileId);
       toast({
         title: "Przełączono profil",
         description: `Aktywny profil: ${profile.name}`,
@@ -108,7 +116,10 @@ export function usePersonProfiles() {
   };
 
   // Create new profile
-  const createProfile = async (data: CreatePersonProfileData): Promise<PersonProfile | null> => {
+  const createProfile = async (
+    data: CreatePersonProfileData,
+    options?: CreateProfileOptions,
+  ): Promise<PersonProfile | null> => {
     if (!user?.id) return null;
 
     try {
@@ -128,6 +139,10 @@ export function usePersonProfiles() {
       if (error) throw error;
 
       setProfiles((prev) => [...prev, newProfile]);
+      if (options?.setAsActive) {
+        setActiveProfile(newProfile.id);
+      }
+
       toast({
         title: "Profil dodany",
         description: `Dodano profil: ${newProfile.name}`,

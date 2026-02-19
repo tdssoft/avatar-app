@@ -62,12 +62,6 @@ const LoginForm = () => {
             return;
           }
 
-          const onboardingConfirmed = user.user_metadata?.onboardingConfirmed === true;
-          if (!onboardingConfirmed) {
-            navigate("/onboarding/confirm");
-            return;
-          }
-
           navigate("/dashboard");
         } else {
           navigate("/dashboard");

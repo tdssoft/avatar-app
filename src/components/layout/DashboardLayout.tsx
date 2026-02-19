@@ -1,17 +1,20 @@
 import { ReactNode, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "./Sidebar";
 import { Bell, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
-  const { isAuthenticated, isLoading, user, session } = useAuth();
+  const { isLoading, user, session } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
 
   useEffect(() => {
     // Use session for redirect check (not user) to avoid race condition
@@ -21,8 +24,22 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     }
   }, [isLoading, session, navigate]);
 
+  useEffect(() => {
+    if (!isLoading && !isFlowLoading && session && redirectTo && redirectTo !== location.pathname) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isFlowLoading, isLoading, location.pathname, navigate, redirectTo, session]);
+
   // Show loading spinner while session is being recovered
   if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (session && isFlowLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

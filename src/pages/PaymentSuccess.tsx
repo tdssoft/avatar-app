@@ -1,17 +1,62 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { clearPaymentDraft } from "@/lib/paymentFlow";
+import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
+  const { hasPaidPlan, isLoading, refresh } = useUserFlowStatus();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pollingFinished, setPollingFinished] = useState(false);
 
   useEffect(() => {
     clearPaymentDraft();
   }, []);
+
+  useEffect(() => {
+    if (hasPaidPlan) {
+      navigate("/interview", { replace: true });
+    }
+  }, [hasPaidPlan, navigate]);
+
+  useEffect(() => {
+    let attempts = 0;
+    const maxAttempts = 24;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      await refresh();
+      if (attempts >= maxAttempts && !cancelled) {
+        setPollingFinished(true);
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, 2500);
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [refresh]);
+
+  const handleRefreshStatus = async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -35,9 +80,28 @@ const PaymentSuccess = () => {
             Wkrótce otrzymasz potwierdzenie na adres email.
           </p>
 
-          <Button onClick={() => navigate("/interview")} className="w-full">
-            Przejdź do wywiadu
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={() => navigate("/interview")} className="w-full">
+              Przejdź do wywiadu
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleRefreshStatus}
+              className="w-full"
+              disabled={isRefreshing || isLoading}
+            >
+              {(isRefreshing || isLoading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Odśwież status
+            </Button>
+            {!hasPaidPlan && !isLoading && !pollingFinished && (
+              <p className="text-xs text-muted-foreground">Sprawdzam status płatności automatycznie...</p>
+            )}
+            {!hasPaidPlan && pollingFinished && (
+              <p className="text-xs text-muted-foreground">
+                Weryfikacja trwa dłużej niż zwykle. Kliknij „Odśwież status” za chwilę.
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

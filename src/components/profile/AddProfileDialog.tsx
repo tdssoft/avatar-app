@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ interface AddProfileDialogProps {
 
 export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) {
   const { createProfile } = usePersonProfiles();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormData>({
@@ -66,11 +68,14 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
         birth_date: data.birth_date || null,
         gender: data.gender || null,
         notes: data.notes || null,
+      }, {
+        setAsActive: true,
       });
 
       if (result) {
         form.reset();
         onOpenChange(false);
+        navigate("/interview");
       }
     } finally {
       setIsSubmitting(false);

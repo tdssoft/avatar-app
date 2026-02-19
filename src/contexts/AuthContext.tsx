@@ -260,6 +260,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           referralCode: referralCode,
           referredBy: data.referralCode || null,
           photoOption: data.photoOption,
+          onboardingConfirmed: true,
         },
       },
     });

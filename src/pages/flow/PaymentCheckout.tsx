@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import avatarLogo from "@/assets/avatar-logo.svg";
@@ -12,9 +12,12 @@ import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
 import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
 import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
+import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
 
 const PaymentCheckout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
   const { toast } = useToast();
   const draft = useMemo(() => getPaymentDraft(), []);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +28,17 @@ const PaymentCheckout = () => {
     }
   }, [draft, navigate]);
 
+  useEffect(() => {
+    if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isFlowLoading, location.pathname, navigate, redirectTo]);
+
   if (!draft || draft.selectedPackages.length === 0) {
+    return null;
+  }
+
+  if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
     return null;
   }
 

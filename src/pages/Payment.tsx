@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import PackageCard from "@/components/PackageCard";
@@ -10,10 +10,13 @@ import PaymentStepper from "@/components/payment/PaymentStepper";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PaymentRightPanel from "@/components/payment/PaymentRightPanel";
+import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
 
 const Payment = () => {
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
   const [searchParams] = useSearchParams();
 
   const groupParam = searchParams.get("group");
@@ -26,6 +29,16 @@ const Payment = () => {
   );
 
   const { totalCostLabel } = calcTotals(selectedPackages);
+
+  useEffect(() => {
+    if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isFlowLoading, location.pathname, navigate, redirectTo]);
+
+  if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
+    return null;
+  }
 
   const handleToggle = (id: string) => {
     setSelectedPackages((prev) =>
