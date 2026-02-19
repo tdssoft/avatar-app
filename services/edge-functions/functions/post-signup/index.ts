@@ -21,6 +21,7 @@ interface PostSignupRequest {
   referralCode: string;
   referredBy?: string;
   interviewData?: Record<string, unknown>;
+  autoConfirmEmail?: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -43,7 +44,17 @@ Deno.serve(async (req) => {
     const replyTo = getEmailReplyTo();
 
     const body: PostSignupRequest = await req.json();
-    const { userId, email, firstName, lastName, phone, referralCode, referredBy, interviewData } = body;
+    const {
+      userId,
+      email,
+      firstName,
+      lastName,
+      phone,
+      referralCode,
+      referredBy,
+      interviewData,
+      autoConfirmEmail = true,
+    } = body;
 
     console.log("[post-signup] Processing signup for user:", userId, "email:", email);
     console.log("[post-signup] referralCode:", referralCode, "referredBy:", referredBy);
@@ -56,6 +67,19 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "User not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Auto-confirm e-mail after signup to skip manual activation flow
+    if (autoConfirmEmail) {
+      const { error: confirmError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        email_confirm: true,
+      });
+
+      if (confirmError) {
+        console.error("[post-signup] Error auto-confirming email:", confirmError);
+      } else {
+        console.log("[post-signup] Email auto-confirmed:", email);
+      }
     }
 
     // Upsert profile (idempotent)
