@@ -51,9 +51,7 @@ const Payment = () => {
         <PaymentStepper step={1} />
 
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {activeGroup === "avatar" ? "Jednorazowa diagnostyka" : "Diagnostyka i kuracja miesięczna"}
-          </h1>
+          <h1 className="text-2xl font-bold text-foreground">{groupConfig.title}</h1>
           <p className="text-muted-foreground italic mt-2">
             {groupConfig.description}
           </p>

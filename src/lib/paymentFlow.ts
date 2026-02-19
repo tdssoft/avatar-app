@@ -29,7 +29,7 @@ export const allPackages: PackageDefinition[] = [
     price: 220,
     billing: "one_time",
     description: [
-      "ocena kondycji organizmu na podstawie: wywiadu zdrowotnego, wyników badań, mini analizy online",
+      "ocena kondycji organizmu na podstawie: wywiadu zdrowotnego, wyników badań, mini analizy online (niedobory, alergie, obciążenia)",
       "indywidualnie opracowany plan kuracji",
       "dopasowane wskazówki dietetyczne",
     ],
@@ -50,7 +50,9 @@ export const allPackages: PackageDefinition[] = [
     name: "Jadłospis 7-dniowy",
     price: 170,
     billing: "one_time",
-    description: [],
+    description: [
+      "spersonalizowany jadłospis na 7 dni",
+    ],
   },
   {
     id: "autopilot",
@@ -67,7 +69,7 @@ export const allPackages: PackageDefinition[] = [
 export const paymentGroups = {
   avatar: {
     title: "Indywidualny program wsparcia ciała AVATAR",
-    description: "Wybierz pakiety w ramach programu AVATAR. Od zakresu pakietu zależy finalna cena.",
+    description: "Wybierz pakiety dopasowane do potrzeb Twojego organizmu.",
     packageIds: ["optimal", "mini", "update"],
   },
   regen: {

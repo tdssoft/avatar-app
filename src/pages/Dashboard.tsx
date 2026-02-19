@@ -168,8 +168,12 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="max-w-5xl">
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Witamy w Avatar!</h1>
-          <p className="text-white/90 text-lg font-medium">Twoja ścieżka pracy z ciałem zaczyna się w AVATAR.</p>
+          <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">
+            Twoja ścieżka pracy z ciałem zaczyna się w AVATAR
+          </h1>
+          {!hasPaidPlan && (
+            <p className="text-white/90 text-xl font-semibold">Wybierz odpowiedni program dla siebie:</p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -180,19 +184,17 @@ const Dashboard = () => {
           <div className="lg:col-span-2 space-y-4">
             {!hasPaidPlan && (
               <>
-                <h2 className="text-white text-lg font-semibold">Wybierz odpowiedni plan aby rozpocząć diagnostykę:</h2>
                 <PlanCard
-                  title="Diagnostyka i kuracja miesięczna"
-                  description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia."
-                  price="27 zł"
-                  priceUnit="miesiąc"
-                  onSelect={() => navigate("/payment?group=regen")}
-                />
-                <PlanCard
-                  title="Diagnostyka i kuracja jednorazowa"
-                  description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia."
+                  title="Indywidualny program wsparcia ciała AVATAR"
+                  description="Wybierz pakiet dopasowany do Twoich potrzeb zdrowotnych."
                   price="220 zł"
                   onSelect={() => navigate("/payment?group=avatar")}
+                />
+                <PlanCard
+                  title="Regeneracyjny program organizmu"
+                  description="Program wspierający regenerację organizmu i codzienne nawyki."
+                  price="27 zł"
+                  onSelect={() => navigate("/payment?group=regen")}
                 />
               </>
             )}
