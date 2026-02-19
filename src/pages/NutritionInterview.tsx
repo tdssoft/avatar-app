@@ -52,6 +52,7 @@ const NutritionInterview = () => {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
   const [existingInterviewId, setExistingInterviewId] = useState<string | null>(null);
+  const [existingInterviewStatus, setExistingInterviewStatus] = useState<"none" | "draft" | "sent">("none");
   const [formData, setFormData] = useState<InterviewV2Content>(EMPTY_INTERVIEW_V2);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
@@ -119,6 +120,7 @@ const NutritionInterview = () => {
       setProfileId(activeProfile.id);
       localStorage.setItem(ACTIVE_PROFILE_STORAGE_KEY, activeProfile.id);
       setExistingInterviewId(null);
+      setExistingInterviewStatus("none");
       setFormData(EMPTY_INTERVIEW_V2);
       setLastSavedAt(null);
       setCurrentStep(0);
@@ -153,6 +155,11 @@ const NutritionInterview = () => {
 
       if (existing?.id) {
         setExistingInterviewId(existing.id);
+        if (existing.status === "sent" || existing.status === "draft") {
+          setExistingInterviewStatus(existing.status);
+        } else {
+          setExistingInterviewStatus("none");
+        }
         const normalizedContent = normalizeInterviewContent(existing.content);
         setFormData(normalizedContent);
         if (existing.last_updated_at) {
@@ -198,10 +205,13 @@ const NutritionInterview = () => {
       }
 
       try {
+        const targetStatus =
+          status === "draft" && existingInterviewStatus === "sent" ? "sent" : status;
+
         const payload = {
           person_profile_id: profileId,
           content: formData,
-          status,
+          status: targetStatus,
           last_updated_at: new Date().toISOString(),
           last_updated_by: user.id,
         };
@@ -224,9 +234,10 @@ const NutritionInterview = () => {
 
         persistLocal(formData);
         setLastSavedAt(new Date());
+        setExistingInterviewStatus(targetStatus);
 
         if (!silent) {
-          if (status === "sent") {
+          if (targetStatus === "sent") {
             toast({ title: "Zapisano", description: "Wywiad został wysłany." });
           } else {
             toast({
@@ -258,7 +269,7 @@ const NutritionInterview = () => {
         }
       }
     },
-    [existingInterviewId, formData, navigate, persistLocal, profileId, toast, user?.id],
+    [existingInterviewId, existingInterviewStatus, formData, navigate, persistLocal, profileId, toast, user?.id],
   );
 
   useEffect(() => {
