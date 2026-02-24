@@ -7,6 +7,7 @@ import CreatePatientDialog from "@/components/admin/CreatePatientDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { allPackages } from "@/lib/paymentFlow";
+import { toast } from "sonner";
 
 interface Patient {
   id: string;
@@ -44,11 +47,17 @@ interface Patient {
   } | null;
 }
 
+type GrantAccessReason = "platnosc_gotowka" | "inny_przypadek";
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isGrantingAccess, setIsGrantingAccess] = useState(false);
+  const [grantPatientId, setGrantPatientId] = useState("");
+  const [grantReason, setGrantReason] = useState<GrantAccessReason | "">("");
+  const [grantProductId, setGrantProductId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [subscriptionFilter, setSubscriptionFilter] = useState("all");
   const [diagnosisFilter, setDiagnosisFilter] = useState("all");
@@ -205,6 +214,20 @@ const AdminDashboard = () => {
 
   const hasActiveFilters = subscriptionFilter !== "all" || diagnosisFilter !== "all" || selectedTags.length > 0;
 
+  const patientOptions = useMemo(() => {
+    return patients.map((patient) => {
+      const firstName = patient.profiles?.first_name?.trim() || "";
+      const lastName = patient.profiles?.last_name?.trim() || "";
+      const profileName = `${firstName} ${lastName}`.trim();
+      const personProfileName = patient.primary_person_profile?.name?.trim() || "";
+      const fullName = profileName || personProfileName || `Użytkownik ${patient.user_id.slice(0, 8)}`;
+      return {
+        id: patient.id,
+        label: `${fullName} (${patient.subscription_status || "Brak"})`,
+      };
+    });
+  }, [patients]);
+
   const handleOpenPatientMessages = async (patientId: string) => {
     await markPatientMessagesRead(patientId);
     navigate(`/admin/patient/${patientId}?tab=notes`);
@@ -213,6 +236,38 @@ const AdminDashboard = () => {
   const handleOpenPatientInterview = async (patientId: string) => {
     await markPatientInterviewRead(patientId);
     navigate(`/admin/patient/${patientId}?tab=interview`);
+  };
+
+  const handleGrantAccess = async () => {
+    if (!grantPatientId || !grantReason || !grantProductId) {
+      toast.error("Wybierz pacjenta, powód i abonament");
+      return;
+    }
+
+    setIsGrantingAccess(true);
+    try {
+      const { error } = await supabase.functions.invoke("admin-grant-access", {
+        body: {
+          patientId: grantPatientId,
+          reason: grantReason,
+          productId: grantProductId,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Dostęp został przyznany");
+      setGrantPatientId("");
+      setGrantReason("");
+      setGrantProductId("");
+      await fetchPatients();
+    } catch (error: unknown) {
+      console.error("[AdminDashboard] grant access error:", error);
+      const message = error instanceof Error ? error.message : "Nie udało się przyznać dostępu";
+      toast.error(message);
+    } finally {
+      setIsGrantingAccess(false);
+    }
   };
 
   return (
@@ -318,6 +373,62 @@ const AdminDashboard = () => {
               Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
             </p>
           ) : null}
+
+          <div className="border rounded-lg p-4 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold">Przyznaj dostęp</h2>
+              <p className="text-sm text-muted-foreground">
+                Ręczne nadanie dostępu dla pacjenta (np. płatność gotówką).
+              </p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
+              <div className="space-y-2">
+                <Label>Pacjent</Label>
+                <Select value={grantPatientId} onValueChange={setGrantPatientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz pacjenta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patientOptions.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Powód</Label>
+                <Select value={grantReason} onValueChange={(value) => setGrantReason(value as GrantAccessReason)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz powód" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="platnosc_gotowka">Płatność gotówką</SelectItem>
+                    <SelectItem value="inny_przypadek">Inny przypadek</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Abonament</Label>
+                <Select value={grantProductId} onValueChange={setGrantProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz produkt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allPackages.map((pkg) => (
+                      <SelectItem key={pkg.id} value={pkg.id}>
+                        {pkg.name} - {pkg.price} zł ({pkg.billing === "monthly" ? "miesięczny" : "jednorazowy"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleGrantAccess} disabled={isGrantingAccess}>
+                {isGrantingAccess ? "Przyznawanie..." : "Przyznaj dostęp"}
+              </Button>
+            </div>
+          </div>
 
           {/* Patient Table */}
           <PatientTable

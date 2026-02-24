@@ -28,12 +28,12 @@ const parseAuthParams = () => {
 
 const mapErrorToMessage = (errorCode: string | null, errorDescription: string | null): string => {
   if (errorCode === "otp_expired") {
-    return "Link wygasł lub jest nieprawidłowy. Użyj kodu jednorazowego z maila.";
+    return "Link wygasł lub jest nieprawidłowy. Wygeneruj nowy link resetu hasła.";
   }
   if (errorDescription) {
     return decodeURIComponent(errorDescription.replace(/\+/g, " "));
   }
-  return "Nie udało się zweryfikować linku resetu hasła. Użyj kodu jednorazowego z maila.";
+  return "Nie udało się zweryfikować linku resetu hasła. Wygeneruj nowy link i spróbuj ponownie.";
 };
 
 const ResetPassword = () => {
@@ -41,10 +41,7 @@ const ResetPassword = () => {
   const { session } = useAuth();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [email, setEmail] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isOtpSubmitting, setIsOtpSubmitting] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [didInit, setDidInit] = useState(false);
@@ -73,7 +70,7 @@ const ResetPassword = () => {
         }
       } catch (error) {
         console.error("[ResetPassword] recovery init error:", error);
-        setVerificationError("Link wygasł lub jest nieprawidłowy. Użyj kodu jednorazowego z maila.");
+        setVerificationError("Link wygasł lub jest nieprawidłowy. Wygeneruj nowy link resetu hasła.");
       }
 
       const { data } = await supabase.auth.getSession();
@@ -115,36 +112,6 @@ const ResetPassword = () => {
     }
   };
 
-  const handleOtpFallback = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!validatePassword()) return;
-    if (!email.trim() || !otpCode.trim()) {
-      toast.error("Podaj email i kod jednorazowy.");
-      return;
-    }
-
-    setIsOtpSubmitting(true);
-    try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otpCode.trim(),
-        type: "recovery",
-      });
-      if (verifyError) throw verifyError;
-
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateError) throw updateError;
-
-      toast.success("Hasło zostało zmienione. Zaloguj się nowym hasłem.");
-      navigate("/login");
-    } catch (error) {
-      console.error("[ResetPassword] otp fallback error:", error);
-      toast.error(error instanceof Error ? error.message : "Nie udało się użyć kodu jednorazowego.");
-    } finally {
-      setIsOtpSubmitting(false);
-    }
-  };
-
   const shouldShowLoggedInGuard = didInit && session && !hasRecoverySignals && !hasRecoverySession;
 
   return (
@@ -152,9 +119,7 @@ const ResetPassword = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground mb-2">Ustaw nowe hasło</h1>
-          <p className="text-muted-foreground">
-            Wpisz nowe hasło dla swojego konta. Jeśli link nie działa, użyj kodu jednorazowego z maila.
-          </p>
+          <p className="text-muted-foreground">Wpisz nowe hasło dla swojego konta.</p>
         </div>
 
         {verificationError ? (
@@ -168,60 +133,31 @@ const ResetPassword = () => {
             Jesteś już zalogowany. Przejdź do <Link to="/dashboard" className="text-accent hover:underline">dashboardu</Link>.
           </div>
         ) : (
-          <>
-            <form onSubmit={handlePasswordReset} className="space-y-4 border rounded-lg p-4">
-              <h2 className="font-semibold text-foreground">Reset przez link</h2>
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">Nowe hasło</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 6 znaków"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Potwierdź nowe hasło</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Powtórz nowe hasło"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isSubmitting || !didInit}>
-                {isSubmitting ? "Zapisywanie..." : "Ustaw nowe hasło"}
-              </Button>
-            </form>
-
-            <form onSubmit={handleOtpFallback} className="space-y-4 border rounded-lg p-4">
-              <h2 className="font-semibold text-foreground">Link nie działa? Użyj kodu jednorazowego</h2>
-              <div className="space-y-2">
-                <Label htmlFor="otpEmail">Email</Label>
-                <Input
-                  id="otpEmail"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Twój adres email"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="otpCode">Kod jednorazowy</Label>
-                <Input
-                  id="otpCode"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                  placeholder="Wpisz kod z maila"
-                />
-              </div>
-              <Button type="submit" variant="outline" className="w-full" disabled={isOtpSubmitting}>
-                {isOtpSubmitting ? "Weryfikacja..." : "Zweryfikuj kod i ustaw hasło"}
-              </Button>
-            </form>
-          </>
+          <form onSubmit={handlePasswordReset} className="space-y-4 border rounded-lg p-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nowe hasło</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Minimum 6 znaków"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Potwierdź nowe hasło</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Powtórz nowe hasło"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={isSubmitting || !didInit}>
+              {isSubmitting ? "Zapisywanie..." : "Ustaw nowe hasło"}
+            </Button>
+          </form>
         )}
       </div>
     </AuthLayout>
@@ -229,4 +165,3 @@ const ResetPassword = () => {
 };
 
 export default ResetPassword;
-
