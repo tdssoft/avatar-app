@@ -62,6 +62,21 @@ function buildVerifyLink(siteUrl, tokenHash, emailActionType, redirectTo) {
   return `${base}/auth/v1/verify?${params.toString()}`;
 }
 
+function pickActionLink(data, emailData) {
+  const candidate =
+    emailData?.action_link ||
+    emailData?.actionLink ||
+    emailData?.confirmation_url ||
+    emailData?.confirmationUrl ||
+    data?.action_link ||
+    data?.actionLink ||
+    data?.confirmation_url ||
+    data?.confirmationUrl ||
+    data?.url;
+
+  return safeHttpsUrl(candidate);
+}
+
 function subjectFor(action) {
   switch (action) {
     case "signup":
@@ -167,11 +182,7 @@ const server = http.createServer(async (req, res) => {
     const to = data?.user?.email || data?.email;
     const action = emailData?.email_action_type || data?.email_action_type;
     // GoTrue payloads can vary across versions/configs - accept several aliases.
-    const tokenHash =
-      emailData?.token_hash ||
-      emailData?.tokenHash ||
-      emailData?.hashed_token ||
-      emailData?.token;
+    const tokenHash = emailData?.token_hash || emailData?.tokenHash || emailData?.hashed_token;
     const siteUrl =
       emailData?.site_url ||
       emailData?.siteUrl ||
@@ -182,12 +193,19 @@ const server = http.createServer(async (req, res) => {
     const redirectTo = emailData?.redirect_to || emailData?.redirectTo;
     const otp = emailData?.token;
 
-    if (!to || !action || !tokenHash) {
+    if (!to || !action) {
       console.error("invalid auth hook payload");
       return json(res, 400, { error: "invalid_payload" });
     }
 
-    const link = buildVerifyLink(siteUrl, tokenHash, action, redirectTo);
+    let link = pickActionLink(data, emailData);
+    if (!link) {
+      if (!tokenHash) {
+        console.error("invalid auth hook payload: missing action link and token hash");
+        return json(res, 400, { error: "invalid_payload" });
+      }
+      link = buildVerifyLink(siteUrl, tokenHash, action, redirectTo);
+    }
     const subject = subjectFor(action);
     const html = htmlFor({ action, email: to, link, otp });
 

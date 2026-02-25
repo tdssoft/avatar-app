@@ -32,7 +32,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 describe("LoginForm", () => {
-  it("renders figma-required controls", () => {
+  it("renders key auth controls", () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
         <LoginForm />
@@ -44,3 +44,4 @@ describe("LoginForm", () => {
     expect(html).toContain("Zapomniałeś hasła?");
   });
 });
+

@@ -105,13 +105,13 @@ const LoginForm = () => {
     setIsSendingReset(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) throw error;
 
       toast({
         title: "Link wysłany",
-        description: "Sprawdź skrzynkę email i ustaw nowe hasło.",
+        description: "Sprawdź skrzynkę email. Link przeniesie Cię do ustawienia nowego hasła.",
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Nie udało się wysłać linku resetującego.";
