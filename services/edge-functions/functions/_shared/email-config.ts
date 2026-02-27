@@ -1,5 +1,5 @@
-const DEFAULT_FROM_EMAIL = "AVATAR <alan.urban23@gmail.com>";
-const DEFAULT_ADMIN_EMAIL = "alan.urban23@gmail.com";
+const DEFAULT_FROM_EMAIL = "AVATAR <onboarding@resend.dev>";
+const DEFAULT_ADMIN_EMAIL = "avatarmieszek@gmail.com";
 const DEFAULT_APP_URL = "https://app.eavatar.diet";
 
 export function getEmailFrom(): string {

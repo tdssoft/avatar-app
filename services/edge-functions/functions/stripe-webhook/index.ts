@@ -129,8 +129,43 @@ const handler = async (req: Request): Promise<Response> => {
         session?.metadata?.user_id ||
         session?.client_reference_id ||
         null;
+      const profileId = session?.metadata?.profile_id ?? null;
+      const selectedPackages = session?.metadata?.selected_packages ?? null;
 
       if (userId) {
+        if (profileId) {
+          const stripeSubscriptionId =
+            typeof session?.subscription === "string" ? session.subscription : null;
+          const { error: profileAccessError } = await supabaseAdmin
+            .from("profile_access")
+            .upsert(
+              {
+                person_profile_id: profileId,
+                account_user_id: userId,
+                status: "active",
+                source: "stripe",
+                stripe_session_id: session?.id ?? null,
+                stripe_subscription_id: stripeSubscriptionId,
+                selected_packages: selectedPackages,
+                activated_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "person_profile_id" },
+            );
+
+          if (profileAccessError) {
+            console.error("stripe-webhook: failed to upsert profile_access", profileAccessError);
+          } else {
+            console.log("stripe-webhook: profile access activated", {
+              userId,
+              profileId,
+              sessionId: session?.id,
+            });
+          }
+        } else {
+          console.warn("stripe-webhook: missing profile_id in checkout metadata");
+        }
+
         const { error: patientUpdateError } = await supabaseAdmin
           .from("patients")
           .update({

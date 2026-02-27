@@ -450,6 +450,66 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_access: {
+        Row: {
+          account_user_id: string
+          activated_at: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          person_profile_id: string
+          selected_packages: string | null
+          source: string
+          status: string
+          stripe_session_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_user_id: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          person_profile_id: string
+          selected_packages?: string | null
+          source: string
+          status: string
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_user_id?: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          person_profile_id?: string
+          selected_packages?: string | null
+          source?: string
+          status?: string
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_access_account_user_id_fkey"
+            columns: ["account_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_access_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recommendation_access_log: {
         Row: {
           access_type: string

@@ -23,9 +23,6 @@ interface Recommendation {
   recommendation_date: string;
 }
 
-type PrePaymentStep = "symptoms" | "packages";
-const PREPAYMENT_STEP_PREFIX = "avatar_prepayment_step";
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -42,9 +39,6 @@ const Dashboard = () => {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
   const [question, setQuestion] = useState("");
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
-  const [prePaymentStep, setPrePaymentStep] = useState<PrePaymentStep>("symptoms");
-
-  const prePaymentStepKey = user?.id ? `${PREPAYMENT_STEP_PREFIX}_${user.id}` : null;
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) {
@@ -83,19 +77,6 @@ const Dashboard = () => {
     setRecommendations(data || []);
     setIsLoadingRecommendations(false);
   }, [user?.id]);
-
-  useEffect(() => {
-    if (!hasPaidPlan || !prePaymentStepKey) return;
-    localStorage.removeItem(prePaymentStepKey);
-  }, [hasPaidPlan, prePaymentStepKey]);
-
-  useEffect(() => {
-    if (!prePaymentStepKey || hasPaidPlan) return;
-    const stored = localStorage.getItem(prePaymentStepKey);
-    if (stored === "packages") {
-      setPrePaymentStep("packages");
-    }
-  }, [hasPaidPlan, prePaymentStepKey]);
 
   useEffect(() => {
     if (user) {
@@ -171,35 +152,6 @@ const Dashboard = () => {
     }
   };
 
-  const handlePrePaymentContinue = async () => {
-    if (!question.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Uzupełnij opis",
-        description: "Najpierw opisz, co Ci dolega.",
-      });
-      return;
-    }
-
-    setIsSendingQuestion(true);
-    try {
-      const ok = await submitQuestion(question);
-      if (!ok) return;
-
-      setQuestion("");
-      setPrePaymentStep("packages");
-      if (prePaymentStepKey) {
-        localStorage.setItem(prePaymentStepKey, "packages");
-      }
-      toast({
-        title: "Dziękujemy",
-        description: "Przechodzimy do wyboru programu.",
-      });
-    } finally {
-      setIsSendingQuestion(false);
-    }
-  };
-
   if (flowLoading) {
     return (
       <DashboardLayout>
@@ -214,33 +166,7 @@ const Dashboard = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl">
-        {!hasPaidPlan && prePaymentStep === "symptoms" && (
-          <>
-            <div className="mb-8">
-              <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">Napisz co Ci jest</h1>
-              <p className="text-white/90 text-xl">Opisz dolegliwości, aby przejść do wyboru programu.</p>
-            </div>
-            <Card className="max-w-3xl">
-              <CardHeader>
-                <CardTitle>Twoje dolegliwości</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Napisz, co Ci dolega i od kiedy..."
-                  className="min-h-[180px]"
-                />
-                <Button onClick={handlePrePaymentContinue} disabled={isSendingQuestion || !question.trim()}>
-                  {isSendingQuestion ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                  Dalej
-                </Button>
-              </CardContent>
-            </Card>
-          </>
-        )}
-
-        {!hasPaidPlan && prePaymentStep === "packages" && (
+        {!hasPaidPlan && (
           <>
             <div className="mb-8">
               <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">

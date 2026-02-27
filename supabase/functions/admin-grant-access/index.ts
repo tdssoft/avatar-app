@@ -20,6 +20,7 @@ interface GrantAccessRequest {
   patientId: string;
   reason: "platnosc_gotowka" | "inny_przypadek";
   productId: string;
+  personProfileId?: string | null;
 }
 
 const isUuid = (value: string): boolean =>
@@ -74,7 +75,7 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const { patientId, reason, productId }: GrantAccessRequest = await req.json();
+    const { patientId, reason, productId, personProfileId }: GrantAccessRequest = await req.json();
 
     if (!patientId || !isUuid(patientId)) {
       return new Response(JSON.stringify({ error: "Invalid patientId" }), {
@@ -100,7 +101,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: patient, error: patientError } = await serviceClient
       .from("patients")
-      .select("id")
+      .select("id, user_id")
       .eq("id", patientId)
       .maybeSingle();
 
@@ -111,6 +112,38 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    let targetProfileId = personProfileId ?? null;
+    if (!targetProfileId) {
+      const { data: primaryProfile, error: primaryProfileError } = await serviceClient
+        .from("person_profiles")
+        .select("id")
+        .eq("account_user_id", patient.user_id)
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      if (primaryProfileError || !primaryProfile) {
+        return new Response(JSON.stringify({ error: "Primary profile not found for patient" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      targetProfileId = primaryProfile.id;
+    } else {
+      const { data: validatedProfile, error: validatedProfileError } = await serviceClient
+        .from("person_profiles")
+        .select("id")
+        .eq("id", targetProfileId)
+        .eq("account_user_id", patient.user_id)
+        .maybeSingle();
+
+      if (validatedProfileError || !validatedProfile) {
+        return new Response(JSON.stringify({ error: "Invalid personProfileId for patient" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const { error: updateError } = await serviceClient
       .from("patients")
       .update({ subscription_status: "Aktywna" })
@@ -118,6 +151,28 @@ serve(async (req: Request): Promise<Response> => {
 
     if (updateError) {
       return new Response(JSON.stringify({ error: "Failed to update patient subscription" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { error: profileAccessError } = await serviceClient
+      .from("profile_access")
+      .upsert(
+        {
+          person_profile_id: targetProfileId,
+          account_user_id: patient.user_id,
+          status: "active",
+          source: "admin",
+          selected_packages: productId,
+          activated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "person_profile_id" },
+      );
+
+    if (profileAccessError) {
+      return new Response(JSON.stringify({ error: "Failed to grant profile access" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -147,6 +202,7 @@ serve(async (req: Request): Promise<Response> => {
         success: true,
         grantId: grantData.id,
         patientId,
+        personProfileId: targetProfileId,
         reason,
         productId,
       }),

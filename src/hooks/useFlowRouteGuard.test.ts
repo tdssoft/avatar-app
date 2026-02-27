@@ -11,10 +11,10 @@ describe("useFlowRouteGuard helpers", () => {
     expect(resolveFlowRedirectTarget("/payment/checkout", state)).toBeNull();
   });
 
-  it("redirects PLAN_NO_INTERVIEW to interview except interview routes", () => {
+  it("keeps PLAN_NO_INTERVIEW on /dashboard and redirects payment to interview", () => {
     const state = deriveFlowState(true, false);
 
-    expect(resolveFlowRedirectTarget("/dashboard", state)).toBe("/interview");
+    expect(resolveFlowRedirectTarget("/dashboard", state)).toBeNull();
     expect(resolveFlowRedirectTarget("/payment", state)).toBe("/interview");
     expect(resolveFlowRedirectTarget("/interview", state)).toBeNull();
     expect(resolveFlowRedirectTarget("/dashboard/interview", state)).toBeNull();

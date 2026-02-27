@@ -49,6 +49,18 @@ interface Patient {
 
 type GrantAccessReason = "platnosc_gotowka" | "inny_przypadek";
 
+const isEmailLike = (value: string | null | undefined): boolean => {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+};
+
+const normalizeDisplayName = (value: string | null | undefined): string => {
+  const normalized = (value ?? "").trim();
+  if (!normalized || isEmailLike(normalized)) return "";
+  return normalized;
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -218,9 +230,9 @@ const AdminDashboard = () => {
     return patients.map((patient) => {
       const firstName = patient.profiles?.first_name?.trim() || "";
       const lastName = patient.profiles?.last_name?.trim() || "";
-      const profileName = `${firstName} ${lastName}`.trim();
-      const personProfileName = patient.primary_person_profile?.name?.trim() || "";
-      const fullName = profileName || personProfileName || `Użytkownik ${patient.user_id.slice(0, 8)}`;
+      const profileName = normalizeDisplayName(`${firstName} ${lastName}`);
+      const personProfileName = normalizeDisplayName(patient.primary_person_profile?.name || "");
+      const fullName = profileName || personProfileName || "—";
       return {
         id: patient.id,
         label: `${fullName} (${patient.subscription_status || "Brak"})`,

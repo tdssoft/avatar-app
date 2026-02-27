@@ -388,6 +388,15 @@ const NutritionInterview = () => {
     }
   };
 
+  const handleCancel = async () => {
+    await saveInterview("draft", true);
+    toast({
+      title: "Wersja robocza zapisana",
+      description: "Wrócono do dashboardu.",
+    });
+    navigate("/dashboard");
+  };
+
   const renderQuestion = (question: InterviewQuestionConfig) => {
     const key = question.key;
 
@@ -573,6 +582,14 @@ const NutritionInterview = () => {
           </Button>
 
           <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isSaving || isSubmitting}
+            >
+              Anuluj
+            </Button>
             <Button
               type="button"
               variant="outline"

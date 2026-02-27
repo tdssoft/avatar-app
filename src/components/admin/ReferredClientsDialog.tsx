@@ -21,6 +21,18 @@ interface ReferredClientsDialogProps {
   partnerName: string;
 }
 
+const isEmailLike = (value: string | null | undefined): boolean => {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+};
+
+const normalizeDisplayName = (value: string | null | undefined): string => {
+  const normalized = (value ?? "").trim();
+  if (!normalized || isEmailLike(normalized)) return "—";
+  return normalized;
+};
+
 const ReferredClientsDialog = ({
   open,
   onOpenChange,
@@ -97,7 +109,7 @@ const ReferredClientsDialog = ({
                 {clients.map((client) => (
                   <TableRow key={client.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">
-                      {client.referred_name || "—"}
+                      {normalizeDisplayName(client.referred_name)}
                     </TableCell>
                     <TableCell>{client.referred_email}</TableCell>
                     <TableCell>

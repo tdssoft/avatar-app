@@ -6,23 +6,25 @@ import {
 } from "@/hooks/flowRouteGuard";
 
 export const useFlowRouteGuard = (pathname: string) => {
-  const { isLoading, hasPaidPlan, hasInterview } = useUserFlowStatus();
+  const { isLoading, isFlowResolved, hasPaidPlanForActiveProfile, hasInterview } = useUserFlowStatus();
 
   const flowState = useMemo(
-    () => deriveFlowState(hasPaidPlan, hasInterview),
-    [hasInterview, hasPaidPlan],
+    () => deriveFlowState(hasPaidPlanForActiveProfile, hasInterview),
+    [hasInterview, hasPaidPlanForActiveProfile],
   );
 
   const redirectTo = useMemo(() => {
-    if (isLoading) return null;
+    if (isLoading || !isFlowResolved) return null;
     return resolveFlowRedirectTarget(pathname, flowState);
-  }, [flowState, isLoading, pathname]);
+  }, [flowState, isFlowResolved, isLoading, pathname]);
 
   return {
     isLoading,
+    isFlowResolved,
     flowState,
     redirectTo,
-    hasPaidPlan,
+    hasPaidPlan: hasPaidPlanForActiveProfile,
+    hasPaidPlanForActiveProfile,
     hasInterview,
   };
 };
