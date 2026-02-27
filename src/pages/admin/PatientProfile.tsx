@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Plus, Upload, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Send, MessageSquare, FileText, User, Phone, Mail, ClipboardList, Mic, RefreshCw, Tag, X, Trash2, Pencil, Upload } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,11 +88,11 @@ interface Message {
   id: string;
   message_type: string;
   message_text: string;
-  sent_at: string;
+  sent_at: string | null;
   person_profile_id: string | null;
 }
 
-const ADMIN_PATIENT_TABS = ["recommendations", "interview", "audio", "notes"] as const;
+const ADMIN_PATIENT_TABS = ["recommendations", "interview", "audio", "notes", "communication"] as const;
 type AdminPatientTab = (typeof ADMIN_PATIENT_TABS)[number];
 
 const normalizeAdminTab = (tab: string | null): AdminPatientTab =>
@@ -114,10 +114,10 @@ const PatientProfile = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newNote, setNewNote] = useState("");
-  const [newReply, setNewReply] = useState("");
+  const [newSms, setNewSms] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingNote, setIsAddingNote] = useState(false);
-  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
   const [newTag, setNewTag] = useState("");
   const [isRegeneratingToken, setIsRegeneratingToken] = useState<string | null>(null);
@@ -142,17 +142,26 @@ const PatientProfile = () => {
   };
 
   useEffect(() => {
-    if (id) {
-      fetchPatientData();
+    if (!id) {
+      toast.error("Nieprawidłowy identyfikator pacjenta");
+      navigate("/admin", { replace: true });
+      return;
     }
+
+    fetchPatientData();
   }, [id]);
 
+  const tabParam = searchParams.get("tab");
   useEffect(() => {
-    const tabFromQuery = normalizeAdminTab(searchParams.get("tab"));
+    const tabFromQuery = normalizeAdminTab(tabParam);
     setActiveTab(tabFromQuery);
-  }, [searchParams]);
+  }, [tabParam]);
 
   const fetchPatientData = async () => {
+    if (!id) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Fetch patient
@@ -160,9 +169,15 @@ const PatientProfile = () => {
         .from("patients")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (patientError) throw patientError;
+      if (!patientData) {
+        console.error("[PatientProfile] Patient not found for id:", id);
+        toast.error("Nie znaleziono pacjenta");
+        navigate("/admin", { replace: true });
+        return;
+      }
       setPatient(patientData);
 
       // Fetch profile
@@ -294,33 +309,38 @@ const PatientProfile = () => {
     }
   };
 
-  const handleSendReply = async () => {
-    if (!newReply.trim() || !id) return;
+  const handleSendSms = async () => {
+    if (!newSms.trim() || !id) return;
 
-    setIsSendingReply(true);
+    setIsSendingSms(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const { error } = await supabase
-        .from("patient_messages")
-        .insert({
+      const { data, error } = await supabase.functions.invoke("send-patient-sms", {
+        body: {
           patient_id: id,
-          admin_id: userData.user?.id,
-          message_type: "answer",
-          message_text: newReply.trim(),
           person_profile_id: selectedProfileId || null,
-        });
+          message_text: newSms.trim(),
+        },
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[PatientProfile] SMS send error:", error);
+        toast.error(getFunctionInvokeErrorMessage(error) || "Nie udało się wysłać SMS");
+        return;
+      }
 
-      toast.success("Odpowiedź została wysłana");
-      setNewReply("");
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      toast.success("SMS został wysłany");
+      setNewSms("");
       fetchPatientData();
     } catch (error) {
-      console.error("[PatientProfile] Error sending reply:", error);
-      toast.error("Nie udało się wysłać odpowiedzi");
+      console.error("[PatientProfile] Error sending SMS:", error);
+      toast.error(getFunctionInvokeErrorMessage(error) || "Nie udało się wysłać SMS");
     } finally {
-      setIsSendingReply(false);
+      setIsSendingSms(false);
     }
   };
 
@@ -424,6 +444,10 @@ const PatientProfile = () => {
   const filteredRecommendations = selectedProfileId
     ? recommendations.filter((r) => r.person_profile_id === selectedProfileId || !r.person_profile_id)
     : recommendations;
+  const smsMessages = messages.filter((msg) => msg.message_type === "sms");
+  const questionMessages = messages.filter((msg) => msg.message_type === "question");
+  const formatMessageDate = (dateValue: string | null) =>
+    dateValue ? format(new Date(dateValue), "dd.MM.yyyy HH:mm", { locale: pl }) : "Brak daty";
 
   const handleTabChange = (nextTab: string) => {
     const normalized = normalizeAdminTab(nextTab);
@@ -505,6 +529,10 @@ const PatientProfile = () => {
                 <TabsTrigger value="notes" className="gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Notatki
+                </TabsTrigger>
+                <TabsTrigger value="communication" className="gap-2">
+                  <Send className="h-4 w-4" />
+                  Komunikacja
                 </TabsTrigger>
               </TabsList>
 
@@ -678,51 +706,48 @@ const PatientProfile = () => {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
 
-                {/* Messages Section */}
+              {/* Communication Tab */}
+              <TabsContent value="communication" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Komunikacja</CardTitle>
+                    <CardTitle className="text-lg">Komunikacja SMS</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Reply form */}
                     <div className="space-y-3">
                       <Textarea
-                        placeholder="Napisz odpowiedź do pacjenta..."
-                        value={newReply}
-                        onChange={(e) => setNewReply(e.target.value)}
+                        placeholder="Napisz wiadomość SMS do pacjenta..."
+                        value={newSms}
+                        onChange={(e) => setNewSms(e.target.value)}
                         className="min-h-[80px]"
-                        disabled={isSendingReply}
+                        disabled={isSendingSms}
                       />
                       <Button 
-                        onClick={handleSendReply} 
-                        disabled={!newReply.trim() || isSendingReply}
+                        onClick={handleSendSms}
+                        disabled={!newSms.trim() || isSendingSms}
                         className="gap-2"
                       >
                         <Send className="h-4 w-4" />
-                        {isSendingReply ? "Wysyłanie..." : "Wyślij odpowiedź"}
+                        {isSendingSms ? "Wysyłanie..." : "Wyślij SMS"}
                       </Button>
                     </div>
 
-                    {messages.length > 0 && (
+                    {smsMessages.length > 0 && (
                       <>
                         <Separator />
                         <div className="space-y-3">
-                          {messages.map((msg) => (
+                          {smsMessages.map((msg) => (
                             <div 
                               key={msg.id} 
-                              className={`p-3 rounded-lg ${
-                                msg.message_type === 'question' 
-                                  ? 'bg-muted/50' 
-                                  : 'bg-primary/5 border border-primary/20'
-                              }`}
+                              className="p-3 rounded-lg bg-primary/5 border border-primary/20"
                             >
                               <div className="flex items-center gap-2 mb-1">
                                 <Badge variant="secondary" className="text-xs">
-                                  {msg.message_type === 'sms' ? 'SMS' : msg.message_type === 'question' ? 'Pytanie' : 'Odpowiedź'}
+                                  SMS
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  {format(new Date(msg.sent_at), "dd.MM.yyyy HH:mm", { locale: pl })}
+                                  {formatMessageDate(msg.sent_at)}
                                 </span>
                               </div>
                               <p className="text-sm">{msg.message_text}</p>
@@ -732,8 +757,35 @@ const PatientProfile = () => {
                       </>
                     )}
 
-                    {messages.length === 0 && (
-                      <p className="text-muted-foreground text-center py-4">Brak wiadomości od pacjenta</p>
+                    {smsMessages.length === 0 && (
+                      <p className="text-muted-foreground text-center py-4">Brak historii SMS</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Zadane pytania przez formularz</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {questionMessages.length > 0 && (
+                      <div className="space-y-3">
+                        {questionMessages.map((msg) => (
+                          <div key={msg.id} className="p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary" className="text-xs">Pytanie</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {formatMessageDate(msg.sent_at)}
+                              </span>
+                            </div>
+                            <p className="text-sm">{msg.message_text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {questionMessages.length === 0 && (
+                      <p className="text-muted-foreground text-center py-4">Brak pytań z formularza</p>
                     )}
                   </CardContent>
                 </Card>

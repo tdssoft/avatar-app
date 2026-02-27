@@ -48,6 +48,9 @@ const PaymentCheckout = () => {
     setIsLoading(true);
     try {
       const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
+      if (!activeProfileId) {
+        throw new Error("Wybierz profil, dla którego chcesz aktywować pakiet.");
+      }
       const { data, error } = await supabase.functions.invoke("create-checkout-session", {
         body: {
           packages: draft.selectedPackages,

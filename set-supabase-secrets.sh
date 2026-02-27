@@ -23,13 +23,13 @@ supabase secrets set RESEND_API_KEY=re_FpgpPQsN_AD8mMH5iWNo13ifFu1gMDEsE --proje
 
 # Set Email Configuration
 echo "📧 Setting RESEND_FROM_EMAIL..."
-supabase secrets set "RESEND_FROM_EMAIL=AVATAR <alan.urban23@gmail.com>" --project-ref $PROJECT_REF
+supabase secrets set "RESEND_FROM_EMAIL=AVATAR <onboarding@resend.dev>" --project-ref $PROJECT_REF
 
 echo "📧 Setting RESEND_REPLY_TO..."
-supabase secrets set RESEND_REPLY_TO=alan.urban23@gmail.com --project-ref $PROJECT_REF
+supabase secrets set RESEND_REPLY_TO=avatarmieszek@gmail.com --project-ref $PROJECT_REF
 
 echo "📧 Setting ADMIN_EMAIL..."
-supabase secrets set ADMIN_EMAIL=alan.urban23@gmail.com --project-ref $PROJECT_REF
+supabase secrets set ADMIN_EMAIL=avatarmieszek@gmail.com --project-ref $PROJECT_REF
 
 echo "🌐 Setting APP_URL..."
 supabase secrets set APP_URL=https://app.eavatar.diet --project-ref $PROJECT_REF

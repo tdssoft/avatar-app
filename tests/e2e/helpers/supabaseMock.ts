@@ -1,6 +1,12 @@
 import { Page, Route } from '@playwright/test';
 
 type Mode = 'user' | 'admin';
+type MockOptions = {
+  userSubscriptionStatus?: string;
+  extraReferrals?: Row[];
+  seedSentInterviewForPrimaryProfile?: boolean;
+  seedJanNoInterviewStaszekSent?: boolean;
+};
 
 type Row = Record<string, any>;
 
@@ -46,6 +52,7 @@ const baseDb = (): Db => ({
   person_profiles: [
     { id: 'pp-user-1', account_user_id: 'user-1', name: 'Jan Kowalski', is_primary: true, created_at: nowIso },
   ],
+  profile_access: [],
   nutrition_interviews: [],
   recommendations: [],
   referrals: [
@@ -67,7 +74,17 @@ const baseDb = (): Db => ({
       added_by_admin_id: 'admin-1',
     },
   ],
-  patient_messages: [],
+  patient_messages: [
+    {
+      id: 'pm-question-1',
+      patient_id: 'patient-1',
+      admin_id: null,
+      message_type: 'question',
+      message_text: 'Czy mogę łączyć suplementy z obecnymi lekami?',
+      person_profile_id: 'pp-user-1',
+      sent_at: nowIso,
+    },
+  ],
 });
 
 const USERS = {
@@ -186,8 +203,127 @@ function authUserResponse(user: any) {
   };
 }
 
-export async function installSupabaseMocks(page: Page, mode: Mode) {
+export async function installSupabaseMocks(page: Page, mode: Mode, options: MockOptions = {}) {
   const db = baseDb();
+  if (options.userSubscriptionStatus) {
+    const userPatient = db.patients.find((p) => p.user_id === USERS.user.id);
+    if (userPatient) {
+      userPatient.subscription_status = options.userSubscriptionStatus;
+    }
+  }
+  if (options.extraReferrals?.length) {
+    db.referrals.push(...options.extraReferrals);
+  }
+  if (options.seedSentInterviewForPrimaryProfile) {
+    db.nutrition_interviews.push({
+      id: "ni-primary-sent",
+      person_profile_id: "pp-user-1",
+      content: {},
+      status: "sent",
+      last_updated_at: new Date().toISOString(),
+      last_updated_by: USERS.user.id,
+    });
+  }
+  if (options.seedJanNoInterviewStaszekSent) {
+    const janProfile = db.person_profiles.find((p) => p.id === "pp-user-1");
+    if (janProfile) {
+      janProfile.name = "Jan";
+      janProfile.is_primary = true;
+    }
+
+    const hasStaszek = db.person_profiles.some((p) => p.id === "pp-user-2");
+    if (!hasStaszek) {
+      db.person_profiles.push({
+        id: "pp-user-2",
+        account_user_id: USERS.user.id,
+        name: "Staszek",
+        is_primary: false,
+        created_at: nowIso,
+      });
+    }
+
+    db.profile_access = db.profile_access.filter(
+      (pa) => pa.person_profile_id !== "pp-user-1" && pa.person_profile_id !== "pp-user-2",
+    );
+    db.profile_access.push(
+      {
+        id: "pa-user-jan",
+        person_profile_id: "pp-user-1",
+        account_user_id: USERS.user.id,
+        status: "active",
+        source: "admin",
+        stripe_session_id: null,
+        stripe_subscription_id: null,
+        selected_packages: "pakiet_diagnostyczny",
+        activated_at: nowIso,
+        expires_at: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      },
+      {
+        id: "pa-user-staszek",
+        person_profile_id: "pp-user-2",
+        account_user_id: USERS.user.id,
+        status: "active",
+        source: "admin",
+        stripe_session_id: null,
+        stripe_subscription_id: null,
+        selected_packages: "pakiet_diagnostyczny",
+        activated_at: nowIso,
+        expires_at: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      },
+    );
+
+    db.nutrition_interviews = db.nutrition_interviews.filter((ni) => ni.person_profile_id !== "pp-user-1");
+    db.nutrition_interviews = db.nutrition_interviews.filter((ni) => ni.person_profile_id !== "pp-user-2");
+    db.nutrition_interviews.push({
+      id: "ni-user-staszek-sent",
+      person_profile_id: "pp-user-2",
+      content: { summary: "Wywiad wysłany" },
+      status: "sent",
+      last_updated_at: nowIso,
+      last_updated_by: USERS.user.id,
+    });
+
+    db.patient_messages.push(
+      {
+        id: "pm-jan-question-state",
+        patient_id: "patient-1",
+        admin_id: null,
+        message_type: "question",
+        message_text: "Jan: pytanie zadane",
+        person_profile_id: "pp-user-1",
+        sent_at: nowIso,
+      },
+      {
+        id: "pm-staszek-question-state",
+        patient_id: "patient-1",
+        admin_id: null,
+        message_type: "question",
+        message_text: "Staszek: pytanie zadane",
+        person_profile_id: "pp-user-2",
+        sent_at: nowIso,
+      },
+    );
+  }
+  if ((options.userSubscriptionStatus || "").toLowerCase() === "aktywna") {
+    db.profile_access.push({
+      id: "pa-user-primary",
+      person_profile_id: "pp-user-1",
+      account_user_id: USERS.user.id,
+      status: "active",
+      source: "stripe",
+      stripe_session_id: null,
+      stripe_subscription_id: null,
+      selected_packages: "mini",
+      activated_at: nowIso,
+      expires_at: null,
+      created_at: nowIso,
+      updated_at: nowIso,
+    });
+  }
   const tokenUserMap: Record<string, any> = {};
 
   await page.route('**/*', async (route) => {
@@ -265,7 +401,71 @@ export async function installSupabaseMocks(page: Page, mode: Mode) {
     }
 
     if (url.pathname.includes('/functions/v1/create-checkout-session')) {
+      const userPatient = db.patients.find((p) => p.user_id === USERS.user.id);
+      if (userPatient) {
+        userPatient.subscription_status = 'Aktywna';
+      }
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+      if (body?.profile_id) {
+        db.profile_access = db.profile_access.filter((r) => r.person_profile_id !== body.profile_id);
+        db.profile_access.push({
+          id: `pa-${Math.random().toString(36).slice(2, 8)}`,
+          person_profile_id: body.profile_id,
+          account_user_id: USERS.user.id,
+          status: "active",
+          source: "stripe",
+          stripe_session_id: "cs_mock",
+          stripe_subscription_id: null,
+          selected_packages: Array.isArray(body?.packages) ? body.packages.join(",") : "mini",
+          activated_at: new Date().toISOString(),
+          expires_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
       return json(route, 200, { url: 'https://checkout.stripe.com/mock-session' });
+    }
+
+    if (url.pathname.includes('/functions/v1/send-patient-sms') && method === 'POST') {
+      if (mode !== 'admin') {
+        return json(route, 403, { error: 'Brak uprawnień administratora' });
+      }
+
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const messageText = `${body?.message_text || ''}`.trim();
+      const patientId = `${body?.patient_id || ''}`.trim();
+
+      if (!patientId || !messageText) {
+        return json(route, 400, { error: 'Brak wymaganych pól: patient_id, message_text' });
+      }
+
+      if (messageText.toLowerCase().includes('fail')) {
+        return json(route, 502, { error: 'Nie udało się wysłać SMS: mock provider failure' });
+      }
+
+      const newMessage = {
+        id: `pm-sms-${Math.random().toString(36).slice(2, 8)}`,
+        patient_id: patientId,
+        admin_id: USERS.admin.id,
+        message_type: 'sms',
+        message_text: messageText,
+        person_profile_id: body?.person_profile_id || null,
+        sent_at: new Date().toISOString(),
+      };
+
+      db.patient_messages.push(newMessage);
+      return json(route, 200, { success: true, message: 'SMS sent successfully', twilio_sid: 'SM_MOCK_SID' });
     }
 
     if (url.pathname.includes('/rest/v1/')) {

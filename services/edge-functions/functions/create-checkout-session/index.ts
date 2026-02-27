@@ -11,7 +11,7 @@ interface CheckoutRequest {
   packages: string[];
   origin: string;
   payment_method?: "p24" | "blik" | "card";
-  profile_id?: string | null;
+  profile_id: string;
 }
 
 type PackagePrice = {
@@ -21,7 +21,7 @@ type PackagePrice = {
 };
 
 const packagePrices: Record<string, PackagePrice> = {
-  optimal: { name: "Pełny Program Startowy", price: 37000, billing: "one_time" }, // grosze
+  optimal: { name: "Pełny Program Startowy", price: 37000, billing: "one_time" }, // in grosze
   mini: { name: "Mini Program Startowy", price: 22000, billing: "one_time" },
   update: { name: "Kontynuacja Programu Zdrowotnego", price: 22000, billing: "one_time" },
   menu: { name: "Jadłospis 7-dniowy", price: 17000, billing: "one_time" },
@@ -102,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
       "user_id",
       userId,
       "profile_id",
-      profile_id ?? null,
+      profile_id,
     );
 
     if (!packages || packages.length === 0) {
@@ -113,24 +113,45 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Origin is required");
     }
 
+    if (!profile_id) {
+      return new Response(JSON.stringify({ error: "profile_id is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: ownedProfile, error: ownedProfileError } = await supabaseAdmin
+      .from("person_profiles")
+      .select("id")
+      .eq("id", profile_id)
+      .eq("account_user_id", userId)
+      .maybeSingle();
+
+    if (ownedProfileError || !ownedProfile) {
+      return new Response(JSON.stringify({ error: "Invalid profile_id" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const selectedPackageConfigs = packages
       .map((id) => packagePrices[id])
       .filter((pkg): pkg is PackagePrice => Boolean(pkg));
 
     // Build line items
     const lineItems = selectedPackageConfigs.map((pkg) => ({
-        price_data: {
-          currency: "pln",
-          product_data: {
-            name: pkg.name,
-          },
-          unit_amount: pkg.price,
-          ...(pkg.billing === "monthly"
-            ? { recurring: { interval: "month" as const } }
-            : {}),
+      price_data: {
+        currency: "pln",
+        product_data: {
+          name: pkg.name,
         },
-        quantity: 1,
-      }));
+        unit_amount: pkg.price,
+        ...(pkg.billing === "monthly"
+          ? { recurring: { interval: "month" as const } }
+          : {}),
+      },
+      quantity: 1,
+    }));
 
     if (lineItems.length === 0) {
       throw new Error("No valid packages selected");
@@ -154,9 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
       "metadata[selected_packages]": packages.join(","),
       "metadata[payment_method]": normalizedPaymentMethod,
     };
-    if (profile_id) {
-      checkoutPayload["metadata[profile_id]"] = profile_id;
-    }
+    checkoutPayload["metadata[profile_id]"] = profile_id;
 
     checkoutPayload["payment_method_types[0]"] = checkoutPaymentMethod;
 

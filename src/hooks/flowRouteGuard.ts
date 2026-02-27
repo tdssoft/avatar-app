@@ -11,7 +11,8 @@ export const deriveFlowState = (
 
 const normalizePath = (pathname: string): string => {
   if (!pathname) return "/";
-  return pathname.split("?")[0];
+  const base = pathname.split("?")[0];
+  return base.length > 1 && base.endsWith("/") ? base.slice(0, -1) : base;
 };
 
 const isPaymentPath = (pathname: string): boolean =>
@@ -39,8 +40,10 @@ export const resolveFlowRedirectTarget = (
   }
 
   if (flowState === "PLAN_NO_INTERVIEW") {
+    if (path === "/dashboard") return null;
     if (isInterviewPath(path)) return null;
-    if (isDashboardPath(path) || isPaymentPath(path)) return "/interview";
+    if (isPaymentPath(path)) return "/interview";
+    if (isDashboardPath(path)) return "/interview";
     return null;
   }
 

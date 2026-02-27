@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { ClipboardList, MessageSquare } from "lucide-react";
+import { toast } from "sonner";
 
 interface Patient {
   id: string;
@@ -39,6 +40,18 @@ interface PatientTableProps {
 const NewDot = ({ visible }: { visible: boolean }) => {
   if (!visible) return null;
   return <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />;
+};
+
+const isEmailLike = (value: string | null | undefined): boolean => {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+};
+
+const normalizeDisplayName = (value: string | null | undefined): string => {
+  const normalized = (value ?? "").trim();
+  if (!normalized || isEmailLike(normalized)) return "";
+  return normalized;
 };
 
 const PatientTable = ({
@@ -105,11 +118,12 @@ const PatientTable = ({
         </TableHeader>
         <TableBody>
           {patients.map((patient) => {
+            const hasValidPatientId = typeof patient.id === "string" && patient.id.trim().length > 0;
             const firstName = patient.profiles?.first_name?.trim() || "";
             const lastName = patient.profiles?.last_name?.trim() || "";
-            const profileName = `${firstName} ${lastName}`.trim();
-            const personProfileName = patient.primary_person_profile?.name?.trim() || "";
-            const fullName = profileName || personProfileName || `Użytkownik ${patient.user_id.slice(0, 8)}`;
+            const profileName = normalizeDisplayName(`${firstName} ${lastName}`);
+            const personProfileName = normalizeDisplayName(patient.primary_person_profile?.name || "");
+            const fullName = profileName || personProfileName || "—";
             const unreadCounters = unreadByPatient[patient.id] ?? {
               unread_messages: 0,
               unread_interviews: 0,
@@ -145,6 +159,11 @@ const PatientTable = ({
                       className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
                       aria-label={`Wiadomości pacjenta ${fullName}`}
                       onClick={() => {
+                        if (!hasValidPatientId) {
+                          console.error("[PatientTable] Missing patient id for message action", patient);
+                          toast.error("Nie udało się otworzyć wiadomości pacjenta");
+                          return;
+                        }
                         if (onOpenPatientMessages) {
                           void onOpenPatientMessages(patient.id);
                           return;
@@ -159,6 +178,11 @@ const PatientTable = ({
                       className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
                       aria-label={`Wywiad pacjenta ${fullName}`}
                       onClick={() => {
+                        if (!hasValidPatientId) {
+                          console.error("[PatientTable] Missing patient id for interview action", patient);
+                          toast.error("Nie udało się otworzyć wywiadu pacjenta");
+                          return;
+                        }
                         if (onOpenPatientInterview) {
                           void onOpenPatientInterview(patient.id);
                           return;
@@ -175,7 +199,14 @@ const PatientTable = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/admin/patient/${patient.id}`)}
+                    onClick={() => {
+                      if (!hasValidPatientId) {
+                        console.error("[PatientTable] Missing patient id for profile navigation", patient);
+                        toast.error("Nie udało się otworzyć profilu pacjenta");
+                        return;
+                      }
+                      navigate(`/admin/patient/${patient.id}`);
+                    }}
                   >
                     Profil pacjenta
                   </Button>

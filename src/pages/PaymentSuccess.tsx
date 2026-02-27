@@ -9,7 +9,7 @@ import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
-  const { hasPaidPlan, isLoading, refresh } = useUserFlowStatus();
+  const { hasPaidPlanForActiveProfile, isLoading, refresh } = useUserFlowStatus();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pollingFinished, setPollingFinished] = useState(false);
 
@@ -18,10 +18,10 @@ const PaymentSuccess = () => {
   }, []);
 
   useEffect(() => {
-    if (hasPaidPlan) {
+    if (hasPaidPlanForActiveProfile) {
       navigate("/interview", { replace: true });
     }
-  }, [hasPaidPlan, navigate]);
+  }, [hasPaidPlanForActiveProfile, navigate]);
 
   useEffect(() => {
     let attempts = 0;
@@ -93,10 +93,10 @@ const PaymentSuccess = () => {
               {(isRefreshing || isLoading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Odśwież status
             </Button>
-            {!hasPaidPlan && !isLoading && !pollingFinished && (
+            {!hasPaidPlanForActiveProfile && !isLoading && !pollingFinished && (
               <p className="text-xs text-muted-foreground">Sprawdzam status płatności automatycznie...</p>
             )}
-            {!hasPaidPlan && pollingFinished && (
+            {!hasPaidPlanForActiveProfile && pollingFinished && (
               <p className="text-xs text-muted-foreground">
                 Weryfikacja trwa dłużej niż zwykle. Kliknij „Odśwież status” za chwilę.
               </p>

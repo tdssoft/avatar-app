@@ -29,6 +29,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { usePersonProfiles } from "@/hooks/usePersonProfiles";
+import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
@@ -47,6 +50,8 @@ interface AddProfileDialogProps {
 
 export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) {
   const { createProfile } = usePersonProfiles();
+  const { hasPaidPlan } = useUserFlowStatus();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,6 +66,7 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
   });
 
   const onSubmit = async (data: FormData) => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       const result = await createProfile({
@@ -75,7 +81,27 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
       if (result) {
         form.reset();
         onOpenChange(false);
-        navigate("/interview");
+        const { data: accessRow, error: accessError } = await supabase
+          .from("profile_access")
+          .select("id")
+          .eq("person_profile_id", result.id)
+          .eq("status", "active")
+          .limit(1)
+          .maybeSingle();
+
+        if (accessError) {
+          console.error("[AddProfileDialog] profile_access check failed", accessError);
+        }
+
+        if (hasPaidPlan && accessRow?.id) {
+          navigate("/interview");
+        } else {
+          toast({
+            title: "Profil dodany",
+            description: "Ten profil wymaga osobnego pakietu. Najpierw aktywuj pakiet dla tego profilu.",
+          });
+          navigate("/dashboard", { replace: true });
+        }
       }
     } finally {
       setIsSubmitting(false);

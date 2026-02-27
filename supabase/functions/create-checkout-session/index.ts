@@ -11,7 +11,7 @@ interface CheckoutRequest {
   packages: string[];
   origin: string;
   payment_method?: "p24" | "blik" | "card";
-  profile_id?: string | null;
+  profile_id: string;
 }
 
 type PackagePrice = {
@@ -102,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
       "user_id",
       userId,
       "profile_id",
-      profile_id ?? null,
+      profile_id,
     );
 
     if (!packages || packages.length === 0) {
@@ -111,6 +111,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!origin) {
       throw new Error("Origin is required");
+    }
+
+    if (!profile_id) {
+      return new Response(JSON.stringify({ error: "profile_id is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: ownedProfile, error: ownedProfileError } = await supabaseAdmin
+      .from("person_profiles")
+      .select("id")
+      .eq("id", profile_id)
+      .eq("account_user_id", userId)
+      .maybeSingle();
+
+    if (ownedProfileError || !ownedProfile) {
+      return new Response(JSON.stringify({ error: "Invalid profile_id" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     const selectedPackageConfigs = packages
@@ -154,9 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
       "metadata[selected_packages]": packages.join(","),
       "metadata[payment_method]": normalizedPaymentMethod,
     };
-    if (profile_id) {
-      checkoutPayload["metadata[profile_id]"] = profile_id;
-    }
+    checkoutPayload["metadata[profile_id]"] = profile_id;
 
     checkoutPayload["payment_method_types[0]"] = checkoutPaymentMethod;
 
