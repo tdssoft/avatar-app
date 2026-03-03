@@ -242,14 +242,55 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
-          Jeśli posiadasz wyniki poprzednich badań, wgraj je tutaj:
+        <CardTitle className="text-4xl font-bold leading-tight">
+          Pliki wynikowe
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {uploadedFiles.length > 0 && (
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {uploadedFiles.map((file) => (
+              <li
+                key={file.id}
+                className="rounded-md border border-border bg-muted/30 px-3 py-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="text-sm text-foreground break-all leading-5">{file.file_name}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handlePreview(file.file_path)}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Podgląd"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDownload(file.file_path, file.file_name)}
+                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Pobierz"
+                    >
+                      <Download className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFile(file.id, file.file_path)}
+                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                      title="Usuń plik"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div
           className={cn(
-            "border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer",
+            "border-2 border-dashed rounded-xl p-10 text-center transition-colors cursor-pointer",
             isDragOver
               ? "border-primary bg-primary/5"
               : "border-border hover:border-muted-foreground"
@@ -287,47 +328,6 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
           onChange={handleFileSelect}
         />
 
-        {uploadedFiles.length > 0 && (
-          <div className="mt-6">
-            <h3 className="font-semibold text-foreground mb-3">Przesłane pliki:</h3>
-            <ul className="space-y-2">
-              {uploadedFiles.map((file) => (
-                <li
-                  key={file.id}
-                  className="flex items-center justify-between bg-muted/50 rounded-lg px-4 py-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <FileCheck className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-foreground">{file.file_name}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handlePreview(file.file_path)}
-                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                      title="Podgląd"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDownload(file.file_path, file.file_name)}
-                      className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                      title="Pobierz"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFile(file.id, file.file_path)}
-                      className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Usuń plik"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
