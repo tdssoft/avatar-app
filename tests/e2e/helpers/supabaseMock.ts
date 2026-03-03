@@ -6,6 +6,9 @@ type MockOptions = {
   extraReferrals?: Row[];
   seedSentInterviewForPrimaryProfile?: boolean;
   seedJanNoInterviewStaszekSent?: boolean;
+  seedRecommendationForPrimaryProfile?: boolean;
+  seedMultipleRecommendationsForPrimaryProfile?: boolean;
+  seedInterviewSentForAdminProfile?: boolean;
 };
 
 type Row = Record<string, any>;
@@ -85,6 +88,9 @@ const baseDb = (): Db => ({
       sent_at: nowIso,
     },
   ],
+  patient_result_files: [],
+  patient_device_files: [],
+  patient_ai_entries: [],
 });
 
 const USERS = {
@@ -221,6 +227,52 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
       content: {},
       status: "sent",
       last_updated_at: new Date().toISOString(),
+      last_updated_by: USERS.user.id,
+    });
+  }
+  if (options.seedRecommendationForPrimaryProfile) {
+    db.recommendations.push({
+      id: "rec-primary-1",
+      patient_id: "patient-1",
+      person_profile_id: "pp-user-1",
+      title: "Zalecenie kontrolne",
+      diagnosis_summary: "Podsumowanie diagnozy dla profilu Jan.",
+      dietary_recommendations: "Kuracja A dla profilu Jan.",
+      recommendation_date: nowIso,
+      created_at: nowIso,
+    });
+  }
+  if (options.seedMultipleRecommendationsForPrimaryProfile) {
+    db.recommendations.push(
+      {
+        id: "rec-primary-1",
+        patient_id: "patient-1",
+        person_profile_id: "pp-user-1",
+        title: "Zalecenie kontrolne",
+        diagnosis_summary: "Podsumowanie diagnozy dla profilu Jan.",
+        dietary_recommendations: "Kuracja A dla profilu Jan.",
+        recommendation_date: "2026-01-12T00:00:00.000Z",
+        created_at: nowIso,
+      },
+      {
+        id: "rec-primary-2",
+        patient_id: "patient-1",
+        person_profile_id: "pp-user-1",
+        title: "Zalecenie rozszerzone",
+        diagnosis_summary: "Podsumowanie diagnozy B dla profilu Jan.",
+        dietary_recommendations: "Kuracja B dla profilu Jan.",
+        recommendation_date: "2026-02-15T00:00:00.000Z",
+        created_at: nowIso,
+      },
+    );
+  }
+  if (options.seedInterviewSentForAdminProfile) {
+    db.nutrition_interviews.push({
+      id: "ni-admin-sent",
+      person_profile_id: "pp-user-1",
+      content: { summary: "sent interview" },
+      status: "sent",
+      last_updated_at: nowIso,
       last_updated_by: USERS.user.id,
     });
   }
@@ -400,6 +452,21 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
       return json(route, 200, { ok: true });
     }
 
+    if (url.pathname.includes('/storage/v1/object/sign/') && method === 'POST') {
+      const parts = url.pathname.split('/storage/v1/object/sign/')[1]?.split('/') || [];
+      const bucket = parts.shift() || 'mock-bucket';
+      const filePath = decodeURIComponent(parts.join('/'));
+      return json(route, 200, { signedURL: `https://mock.storage/${bucket}/${filePath}?token=mock` });
+    }
+
+    if (url.pathname.includes('/storage/v1/object/') && (method === 'POST' || method === 'PUT')) {
+      return json(route, 200, { Key: 'mock-uploaded' });
+    }
+
+    if (url.pathname.includes('/storage/v1/object/') && method === 'DELETE') {
+      return json(route, 200, {});
+    }
+
     if (url.pathname.includes('/functions/v1/create-checkout-session')) {
       const userPatient = db.patients.find((p) => p.user_id === USERS.user.id);
       if (userPatient) {
@@ -511,7 +578,13 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
 
         const toInsert = Array.isArray(payload) ? payload : [payload];
         const inserted = toInsert.map((row) => {
-          const withId = { ...row, id: row.id || `${table}-${rows.length + Math.random().toString(36).slice(2, 8)}` };
+          const withId = {
+            ...row,
+            id: row.id || `${table}-${rows.length + Math.random().toString(36).slice(2, 8)}`,
+            created_at: row.created_at ?? nowIso,
+            uploaded_at: row.uploaded_at ?? nowIso,
+            sent_at: row.sent_at ?? nowIso,
+          };
           rows.push(withId);
           return withId;
         });

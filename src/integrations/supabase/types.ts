@@ -255,6 +255,111 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_ai_entries: {
+        Row: {
+          attachment_file_name: string | null
+          attachment_file_path: string | null
+          attachment_file_size: number | null
+          attachment_file_type: string | null
+          content: string
+          created_at: string
+          id: string
+          patient_id: string
+          person_profile_id: string
+          saved_by_admin_id: string
+        }
+        Insert: {
+          attachment_file_name?: string | null
+          attachment_file_path?: string | null
+          attachment_file_size?: number | null
+          attachment_file_type?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          saved_by_admin_id: string
+        }
+        Update: {
+          attachment_file_name?: string | null
+          attachment_file_path?: string | null
+          attachment_file_size?: number | null
+          attachment_file_type?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          saved_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_ai_entries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_ai_entries_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_device_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          uploaded_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_device_files_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_device_files_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patient_messages: {
         Row: {
           admin_id: string | null
@@ -293,6 +398,57 @@ export type Database = {
           },
           {
             foreignKeyName: "patient_messages_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_result_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          uploaded_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_result_files_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_result_files_person_profile_id_fkey"
             columns: ["person_profile_id"]
             isOneToOne: false
             referencedRelation: "person_profiles"
@@ -381,6 +537,7 @@ export type Database = {
       person_profiles: {
         Row: {
           account_user_id: string
+          avatar_url: string | null
           birth_date: string | null
           created_at: string
           gender: string | null
@@ -392,6 +549,7 @@ export type Database = {
         }
         Insert: {
           account_user_id: string
+          avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           gender?: string | null
@@ -403,6 +561,7 @@ export type Database = {
         }
         Update: {
           account_user_id?: string
+          avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           gender?: string | null

@@ -171,4 +171,38 @@ test.describe("Client fixes verification", () => {
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /Wypełnij wywiad|Kontynuuj wywiad/ })).toHaveCount(0);
   });
+
+  test("profile avatar is saved per active profile (Staszek vs Jan)", async ({ page }) => {
+    await installSupabaseMocks(page, "user", {
+      userSubscriptionStatus: "Aktywna",
+      seedJanNoInterviewStaszekSent: true,
+    });
+
+    await page.goto("/login");
+    await page.getByLabel("Email").fill("jan@example.com");
+    await page.getByLabel("Hasło").fill("Test1234!");
+    await page.getByRole("button", { name: "Log in" }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    await page.locator("aside").getByRole("button", { name: /Jan|Jan Kowalski/ }).first().click();
+    await page.getByRole("menuitem", { name: /Staszek/ }).click();
+    await expect(page.getByText("Aktywny profil: Staszek").first()).toBeVisible();
+
+    const fileInput = page.locator('input[type="file"]').last();
+    await fileInput.setInputFiles("tests/artifacts/12-admin-patients.png");
+
+    await expect(page.getByText("Zdjęcie zostało zapisane.").first()).toBeVisible();
+    const staszekImage = page.locator('img[src*="/avatars/user-1/pp-user-2/avatar."]').first();
+    await expect(staszekImage).toBeVisible();
+
+    await page.locator("aside").getByRole("button", { name: /Staszek/ }).first().click();
+    await page.getByRole("menuitem", { name: /Jan|Jan Kowalski/ }).click();
+    await expect(page.getByText("Aktywny profil: Jan").first()).toBeVisible();
+    await expect(page.locator('img[src*="/avatars/user-1/pp-user-1/avatar."]')).toHaveCount(0);
+
+    await page.locator("aside").getByRole("button", { name: /Jan/ }).first().click();
+    await page.getByRole("menuitem", { name: /Staszek/ }).click();
+    await expect(page.getByText("Aktywny profil: Staszek").first()).toBeVisible();
+    await expect(page.locator('img[src*="/avatars/user-1/pp-user-2/avatar."]').first()).toBeVisible();
+  });
 });

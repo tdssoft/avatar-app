@@ -7,6 +7,7 @@ export interface PersonProfile {
   id: string;
   account_user_id: string;
   name: string;
+  avatar_url: string | null;
   birth_date: string | null;
   gender: string | null;
   notes: string | null;
