@@ -157,7 +157,7 @@ serve(async (req: Request): Promise<Response> => {
       // Don't fail - user was created, profile might just need sync
     }
 
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fullName = `${firstName} ${lastName}`.trim() || "—";
     const { data: existingPrimaryPersonProfile, error: existingPrimaryPersonProfileError } = await serviceClient
       .from("person_profiles")
       .select("id, name")

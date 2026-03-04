@@ -27,6 +27,7 @@ interface PersonProfile {
   id: string;
   name: string;
   is_primary: boolean;
+  is_virtual?: boolean;
 }
 
 const MAX_RECOMMENDATION_FILE_SIZE = 20 * 1024 * 1024;
@@ -60,6 +61,7 @@ const RecommendationCreator = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isEnsuringProfile, setIsEnsuringProfile] = useState(false);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
   const [profiles, setProfiles] = useState<PersonProfile[]>([]);
@@ -79,9 +81,17 @@ const RecommendationCreator = () => {
     tags: [] as string[],
   });
 
+  const VIRTUAL_PRIMARY_PROFILE_ID = "virtual-primary-profile";
+
   useEffect(() => {
     fetchPatientProfiles();
   }, [id]);
+
+  useEffect(() => {
+    if (!selectedProfileId && profiles.length > 0) {
+      setSelectedProfileId(profiles[0].id);
+    }
+  }, [profiles, selectedProfileId]);
 
   useEffect(() => {
     if (isEditMode && recommendationId) {
@@ -114,13 +124,63 @@ const RecommendationCreator = () => {
       return;
     }
 
-    setProfiles(profilesData || []);
+    const normalizedProfiles = profilesData || [];
+    if (normalizedProfiles.length === 0 && !isEditMode) {
+      setIsEnsuringProfile(true);
+      try {
+        const { data: ensureData, error: ensureError } = await supabase.functions.invoke("admin-ensure-person-profile", {
+          body: { patientId: id },
+        });
+        if (ensureError || ensureData?.error) {
+          console.error("[RecommendationCreator] admin-ensure-person-profile error:", ensureError || ensureData?.error);
+          toast.error("Nie udało się przygotować profilu osoby dla pacjenta. Spróbuj ponownie.");
+        }
+      } finally {
+        setIsEnsuringProfile(false);
+      }
+
+      const { data: profilesAfterEnsure, error: profilesAfterEnsureError } = await supabase
+        .from("person_profiles")
+        .select("id, name, is_primary")
+        .eq("account_user_id", patient.user_id)
+        .order("is_primary", { ascending: false });
+
+      if (profilesAfterEnsureError) {
+        console.error("Error fetching profiles after ensure:", profilesAfterEnsureError);
+        return;
+      }
+
+      const ensuredProfiles = profilesAfterEnsure || [];
+      if (ensuredProfiles.length > 0) {
+        setProfiles(ensuredProfiles);
+        if (!isEditMode) setSelectedProfileId(ensuredProfiles[0].id);
+        return;
+      }
+
+      // If profile still does not exist, expose one deterministic main-account option in UI.
+      const { data: accountProfile } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("user_id", patient.user_id)
+        .maybeSingle();
+      const accountName = `${accountProfile?.first_name ?? ""} ${accountProfile?.last_name ?? ""}`.trim() || "—";
+      const virtualProfile: PersonProfile = {
+        id: VIRTUAL_PRIMARY_PROFILE_ID,
+        name: `${accountName} (główny)`,
+        is_primary: true,
+        is_virtual: true,
+      };
+      setProfiles([virtualProfile]);
+      setSelectedProfileId(virtualProfile.id);
+      return;
+    }
+
+    setProfiles(normalizedProfiles);
     
-    // Only auto-select primary profile if not in edit mode (edit mode will set its own profile)
+    // Auto-select first profile for new recommendation (list is sorted with primary first).
     if (!isEditMode) {
-      const primaryProfile = profilesData?.find((p) => p.is_primary);
-      if (primaryProfile) {
-        setSelectedProfileId(primaryProfile.id);
+      if (normalizedProfiles.length > 0) {
+        setSelectedProfileId(normalizedProfiles[0].id);
       }
     }
   };
@@ -245,9 +305,33 @@ const RecommendationCreator = () => {
       return;
     }
 
+    if (!id) {
+      toast.error("Brak identyfikatora pacjenta");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user?.id) {
+        throw new Error("Brak aktywnej sesji administratora");
+      }
+
+      if (!selectedProfileId) {
+        throw new Error("Wybierz profil osoby przed zapisaniem zalecenia.");
+      }
+
+      let persistedProfileId = selectedProfileId;
+      if (persistedProfileId === VIRTUAL_PRIMARY_PROFILE_ID) {
+        const { data: ensureData, error: ensureError } = await supabase.functions.invoke("admin-ensure-person-profile", {
+          body: { patientId: id },
+        });
+        if (ensureError || ensureData?.error || !ensureData?.person_profile_id) {
+          throw new Error("Nie udało się przygotować profilu osoby dla pacjenta. Spróbuj ponownie.");
+        }
+        persistedProfileId = ensureData.person_profile_id as string;
+        setSelectedProfileId(persistedProfileId);
+      }
 
       const recommendationPayload = {
         body_systems: selectedSystems,
@@ -258,15 +342,12 @@ const RecommendationCreator = () => {
         shop_links: formData.shopLinks || null,
         supporting_therapies: formData.supportingTherapies || null,
         tags: formData.tags.length > 0 ? formData.tags : null,
-        person_profile_id: selectedProfileId || null,
+        person_profile_id: persistedProfileId,
         pdf_url: existingRecommendationFilePath,
       };
 
       if (selectedRecommendationFile) {
-        if (!id || !selectedProfileId) {
-          throw new Error("Brak pacjenta lub profilu do przypisania pliku");
-        }
-        const filePath = await uploadRecommendationFile(selectedRecommendationFile, id, selectedProfileId);
+        const filePath = await uploadRecommendationFile(selectedRecommendationFile, id, persistedProfileId);
         recommendationPayload.pdf_url = filePath;
       }
 
@@ -294,7 +375,7 @@ const RecommendationCreator = () => {
           .insert({
             ...recommendationPayload,
             patient_id: id,
-            created_by_admin_id: userData.user?.id,
+            created_by_admin_id: userData.user.id,
           })
           .select("id")
           .single();
@@ -317,7 +398,11 @@ const RecommendationCreator = () => {
 
     } catch (error) {
       console.error("[RecommendationCreator] Error:", error);
-      toast.error("Nie udało się zapisać zaleceń");
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Nie udało się zapisać zaleceń";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -459,6 +544,9 @@ const RecommendationCreator = () => {
                         ))}
                       </SelectContent>
                     </Select>
+                    {isEnsuringProfile && (
+                      <p className="text-xs text-muted-foreground">Tworzenie profilu głównego...</p>
+                    )}
                   </div>
                 </div>
 
@@ -639,7 +727,7 @@ const RecommendationCreator = () => {
                     </Button>
                     <Button
                       onClick={handleSubmit}
-                      disabled={isLoading || isSendingEmail || selectedSystems.length === 0}
+                      disabled={isLoading || isSendingEmail || isEnsuringProfile || selectedSystems.length === 0 || !selectedProfileId}
                       className="gap-2"
                     >
                       {isLoading ? (

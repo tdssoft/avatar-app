@@ -10,6 +10,7 @@ type MockOptions = {
   seedMultipleRecommendationsForPrimaryProfile?: boolean;
   seedInterviewSentForAdminProfile?: boolean;
   seedEmailLikePrimaryProfileName?: boolean;
+  seedNoPersonProfiles?: boolean;
 };
 
 type Row = Record<string, any>;
@@ -283,6 +284,9 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
       primary.name = USERS.user.email;
     }
   }
+  if (options.seedNoPersonProfiles) {
+    db.person_profiles = db.person_profiles.filter((pp) => pp.account_user_id !== USERS.user.id);
+  }
   if (options.seedJanNoInterviewStaszekSent) {
     const janProfile = db.person_profiles.find((p) => p.id === "pp-user-1");
     if (janProfile) {
@@ -470,6 +474,47 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
         return json(route, 200, { email: USERS.user.email });
       }
       return json(route, 404, { error: 'Patient not found' });
+    }
+
+    if (url.pathname.includes('/functions/v1/admin-ensure-person-profile') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const patientId = `${body?.patientId || ''}`.trim();
+      const accountUserIdRaw = `${body?.accountUserId || ''}`.trim();
+      let accountUserId = accountUserIdRaw;
+      if (!accountUserId && patientId) {
+        const patient = db.patients.find((p) => `${p.id}` === patientId);
+        accountUserId = patient?.user_id || "";
+      }
+      if (!accountUserId) {
+        return json(route, 400, { error: 'Brak accountUserId lub patientId' });
+      }
+
+      const existingPrimary = db.person_profiles.find((p) => p.account_user_id === accountUserId && p.is_primary);
+      const profile = db.profiles.find((p) => p.user_id === accountUserId);
+      const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || '—';
+
+      if (!existingPrimary) {
+        const created = {
+          id: `pp-${Math.random().toString(36).slice(2, 8)}`,
+          account_user_id: accountUserId,
+          name: fullName,
+          is_primary: true,
+          created_at: nowIso,
+        };
+        db.person_profiles.push(created);
+        return json(route, 200, { success: true, person_profile_id: created.id, name: created.name });
+      }
+
+      if (!existingPrimary.name || `${existingPrimary.name}`.includes('@')) {
+        existingPrimary.name = fullName;
+      }
+      return json(route, 200, { success: true, person_profile_id: existingPrimary.id, name: existingPrimary.name });
     }
 
     if (url.pathname.includes('/storage/v1/object/sign/') && method === 'POST') {
