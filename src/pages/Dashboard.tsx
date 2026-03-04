@@ -6,7 +6,7 @@ import PlanCard from "@/components/dashboard/PlanCard";
 import PhotoUpload from "@/components/dashboard/PhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronDown, FileText, Loader2, Send } from "lucide-react";
+import { ChevronDown, Download, ExternalLink, FileText, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -366,25 +366,41 @@ const Dashboard = () => {
                       <div className="flex justify-end">
                         <div className="flex items-center gap-4">
                           {selectedRecommendation.pdf_url && (
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">
-                                Plik zalecenia: {getRecommendationFileName(selectedRecommendation.pdf_url)} ({getRecommendationFileTypeLabel(selectedRecommendation.pdf_url)})
-                              </p>
-                              <div className="mt-1 flex items-center justify-end gap-3">
-                                <Button
-                                  variant="link"
-                                  className="text-sm text-foreground p-0 h-auto"
-                                  onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}
-                                >
-                                  Otwórz plik
-                                </Button>
-                                <Button
-                                  variant="link"
-                                  className="text-sm text-foreground p-0 h-auto"
-                                  onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!, true)}
-                                >
-                                  Pobierz plik
-                                </Button>
+                            <div className="rounded-md border border-[#d9dee4] bg-white px-3 py-2">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs text-muted-foreground mb-1">Plik zalecenia</p>
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {getRecommendationFileName(selectedRecommendation.pdf_url)}
+                                    </p>
+                                    <span className="rounded-full border border-[#d9dee4] px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                                      {getRecommendationFileTypeLabel(selectedRecommendation.pdf_url)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 px-3 gap-1.5"
+                                    onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    Otwórz
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="h-8 px-3 gap-1.5 bg-black hover:bg-black/90"
+                                    onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!, true)}
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                    Pobierz
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           )}
