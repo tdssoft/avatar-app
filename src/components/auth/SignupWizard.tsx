@@ -17,6 +17,8 @@ const step1Schema = z.object({
 
 const step3Schema = z
   .object({
+    firstName: z.string().trim().min(2, "Imię musi mieć minimum 2 znaki"),
+    lastName: z.string().trim().min(2, "Nazwisko musi mieć minimum 2 znaki"),
     phone: z.string().min(9, "Podaj poprawny numer telefonu").max(15),
     email: z.string().email("Podaj poprawny adres email"),
     password: z.string().min(8, "Hasło musi mieć minimum 8 znaków"),
@@ -56,6 +58,8 @@ const SignupWizard = () => {
   const step3Form = useForm<Step3Data>({
     resolver: zodResolver(step3Schema),
     defaultValues: {
+      firstName: "",
+      lastName: "",
       phone: "",
       email: "",
       password: "",
@@ -181,8 +185,8 @@ const SignupWizard = () => {
     setIsLoading(true);
     try {
       const result = await signup({
-        firstName: "",
-        lastName: "",
+        firstName: data.firstName,
+        lastName: data.lastName,
         phone: data.phone,
         email: data.email,
         password: data.password,
@@ -408,6 +412,23 @@ const SignupWizard = () => {
           <h1 className="text-2xl font-bold text-foreground mb-2">Ustaw login i hasło</h1>
 
           <form onSubmit={step3Form.handleSubmit(handleStep3Submit)} className="space-y-5 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Imię</Label>
+                <Input id="firstName" placeholder="Imię" {...step3Form.register("firstName")} />
+                {step3Form.formState.errors.firstName && (
+                  <p className="text-sm text-destructive">{step3Form.formState.errors.firstName.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Nazwisko</Label>
+                <Input id="lastName" placeholder="Nazwisko" {...step3Form.register("lastName")} />
+                {step3Form.formState.errors.lastName && (
+                  <p className="text-sm text-destructive">{step3Form.formState.errors.lastName.message}</p>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="phone">Numer Telefonu</Label>
               <Input id="phone" placeholder="Numer Telefonu" {...step3Form.register("phone")} />

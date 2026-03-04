@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar, Loader2, Save, X } from "lucide-react";
+import { User, Mail, Calendar, Loader2, Save } from "lucide-react";
 import { PersonProfilesSection } from "@/components/profile/PersonProfilesSection";
 import { ChangePasswordDialog } from "@/components/profile/ChangePasswordDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,6 @@ import { toast } from "sonner";
 const Profile = () => {
   const { user, refreshUser } = useAuth();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   // Editable fields
@@ -49,7 +48,6 @@ const Profile = () => {
       if (error) throw error;
 
       toast.success("Dane zostały zaktualizowane");
-      setIsEditing(false);
       
       // Refresh user data in context
       if (refreshUser) {
@@ -63,13 +61,10 @@ const Profile = () => {
     }
   };
 
-  const handleCancelEdit = () => {
-    // Reset to original values
-    setFirstName(user?.firstName || "");
-    setLastName(user?.lastName || "");
-    setPhone(user?.phone || "");
-    setIsEditing(false);
-  };
+  const hasChanges =
+    firstName !== (user?.firstName || "") ||
+    lastName !== (user?.lastName || "") ||
+    phone !== (user?.phone || "");
 
   return (
     <DashboardLayout>
@@ -102,7 +97,6 @@ const Profile = () => {
                   <Input 
                     value={firstName} 
                     onChange={(e) => setFirstName(e.target.value)}
-                    disabled={!isEditing} 
                   />
                 </div>
                 <div className="space-y-2">
@@ -110,7 +104,6 @@ const Profile = () => {
                   <Input 
                     value={lastName} 
                     onChange={(e) => setLastName(e.target.value)}
-                    disabled={!isEditing} 
                   />
                 </div>
               </div>
@@ -142,7 +135,6 @@ const Profile = () => {
                   <Input 
                     value={phone} 
                     onChange={(e) => setPhone(e.target.value)}
-                    disabled={!isEditing} 
                     className="flex-1" 
                     placeholder="123456789"
                   />
@@ -190,44 +182,23 @@ const Profile = () => {
             >
               Zmień hasło
             </Button>
-            {isEditing ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={handleCancelEdit}
-                  disabled={isSaving}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Anuluj
-                </Button>
-                <Button 
-                  className="flex-1"
-                  onClick={handleSave}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Zapisywanie...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Zapisz
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <Button 
-                variant="outline" 
-                className="flex-1"
-                onClick={() => setIsEditing(true)}
-              >
-                Edytuj dane
-              </Button>
-            )}
+            <Button 
+              className="flex-1"
+              onClick={handleSave}
+              disabled={isSaving || !hasChanges}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Zapisywanie...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Zapisz dane
+                </>
+              )}
+            </Button>
           </div>
         </div>
       </div>

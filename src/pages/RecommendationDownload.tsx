@@ -7,6 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileText, Download, AlertCircle, Clock, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
+import {
+  getRecommendationFileName,
+  getRecommendationFileTypeLabel,
+  resolveRecommendationFileUrl,
+} from "@/lib/recommendationFile";
 
 interface RecommendationData {
   id: string;
@@ -75,7 +80,7 @@ const RecommendationDownload = () => {
     }
   };
 
-  const handleDownloadFile = async () => {
+  const handleDownloadFile = async (download = true) => {
     if (!recommendation?.pdf_url) return;
     
     // Log download
@@ -91,18 +96,23 @@ const RecommendationDownload = () => {
       console.error("Error logging download:", error);
     }
 
-    let fileUrl = recommendation.pdf_url;
-    if (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://")) {
-      const { data, error } = await supabase.storage
-        .from("recommendation-files")
-        .createSignedUrl(fileUrl, 120);
-      if (error || !data?.signedUrl) {
-        console.error("Error generating recommendation file URL:", error);
+    try {
+      const fileUrl = await resolveRecommendationFileUrl(recommendation.pdf_url);
+      if (download) {
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = getRecommendationFileName(recommendation.pdf_url) || "zalecenie";
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
         return;
       }
-      fileUrl = data.signedUrl;
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error opening recommendation file:", error);
     }
-    window.open(fileUrl, "_blank");
   };
 
   const bodySystemLabels: Record<string, string> = {
@@ -193,10 +203,21 @@ const RecommendationDownload = () => {
                 </p>
               </div>
               {recommendation.pdf_url && (
-                <Button onClick={handleDownloadFile} className="gap-2 shrink-0">
-                  <Download className="h-4 w-4" />
-                  Pobierz plik
-                </Button>
+                <div className="flex flex-col items-end gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Plik zalecenia: {getRecommendationFileName(recommendation.pdf_url)} ({getRecommendationFileTypeLabel(recommendation.pdf_url)})
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => void handleDownloadFile(false)} className="gap-2 shrink-0">
+                      <FileText className="h-4 w-4" />
+                      Otwórz plik
+                    </Button>
+                    <Button onClick={() => void handleDownloadFile(true)} className="gap-2 shrink-0">
+                      <Download className="h-4 w-4" />
+                      Pobierz plik
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </CardHeader>

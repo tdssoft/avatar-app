@@ -16,6 +16,11 @@ import {
   ACTIVE_PROFILE_CHANGED_EVENT,
   ACTIVE_PROFILE_STORAGE_KEY,
 } from "@/hooks/usePersonProfiles";
+import {
+  getRecommendationFileName,
+  getRecommendationFileTypeLabel,
+  resolveRecommendationFileUrl,
+} from "@/lib/recommendationFile";
 
 interface Recommendation {
   id: string;
@@ -51,17 +56,6 @@ const Dashboard = () => {
   const [question, setQuestion] = useState("");
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
   const [patientResultFiles, setPatientResultFiles] = useState<PatientResultFile[]>([]);
-
-  const resolveRecommendationFileUrl = useCallback(async (fileReference: string) => {
-    if (fileReference.startsWith("http://") || fileReference.startsWith("https://")) {
-      return fileReference;
-    }
-    const { data, error } = await supabase.storage.from("recommendation-files").createSignedUrl(fileReference, 120);
-    if (error || !data?.signedUrl) {
-      throw new Error("Nie udało się wygenerować linku do pliku");
-    }
-    return data.signedUrl;
-  }, []);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) {
@@ -198,10 +192,21 @@ const Dashboard = () => {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   };
 
-  const openRecommendationFile = async (fileReference: string) => {
+  const openRecommendationFile = async (fileReference: string, download = false) => {
     try {
       const url = await resolveRecommendationFileUrl(fileReference);
-      window.open(url, "_blank", "noopener,noreferrer");
+      if (download) {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = getRecommendationFileName(fileReference) || "zalecenie";
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku zalecenia." });
     }
@@ -361,13 +366,27 @@ const Dashboard = () => {
                       <div className="flex justify-end">
                         <div className="flex items-center gap-4">
                           {selectedRecommendation.pdf_url && (
-                            <Button
-                              variant="link"
-                              className="text-sm text-foreground p-0 h-auto"
-                              onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}
-                            >
-                              Pobierz plik zalecenia
-                            </Button>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">
+                                Plik zalecenia: {getRecommendationFileName(selectedRecommendation.pdf_url)} ({getRecommendationFileTypeLabel(selectedRecommendation.pdf_url)})
+                              </p>
+                              <div className="mt-1 flex items-center justify-end gap-3">
+                                <Button
+                                  variant="link"
+                                  className="text-sm text-foreground p-0 h-auto"
+                                  onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}
+                                >
+                                  Otwórz plik
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  className="text-sm text-foreground p-0 h-auto"
+                                  onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!, true)}
+                                >
+                                  Pobierz plik
+                                </Button>
+                              </div>
+                            </div>
                           )}
                           <Button variant="link" className="text-sm text-foreground p-0 h-auto" onClick={() => navigate("/dashboard/recommendations")}>
                             Zobacz szczegóły

@@ -68,9 +68,18 @@ Deno.serve(async (req) => {
 
     const body: PostSignupRequest = await req.json();
     const { userId, email, firstName, lastName, phone, referralCode, referredBy, interviewData } = body;
+    const normalizedFirstName = (firstName ?? "").trim();
+    const normalizedLastName = (lastName ?? "").trim();
 
     console.log("[post-signup] Processing signup for user:", userId, "email:", email);
     console.log("[post-signup] referralCode:", referralCode, "referredBy:", referredBy);
+
+    if (!normalizedFirstName || !normalizedLastName) {
+      return new Response(
+        JSON.stringify({ error: "Imię i nazwisko są wymagane" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Verify user exists
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -88,8 +97,8 @@ Deno.serve(async (req) => {
       .upsert(
         {
           user_id: userId,
-          first_name: firstName?.trim() || null,
-          last_name: lastName?.trim() || null,
+          first_name: normalizedFirstName || null,
+          last_name: normalizedLastName || null,
           phone: phone?.trim() || null,
           referral_code: referralCode,
           avatar_url: null,
@@ -131,7 +140,7 @@ Deno.serve(async (req) => {
     } else if (existingPrimaryProfile?.id) {
       primaryProfileId = existingPrimaryProfile.id;
     } else {
-      const profileName = `${firstName} ${lastName}`.trim() || email;
+      const profileName = `${normalizedFirstName} ${normalizedLastName}`.trim() || "—";
       const { data: insertedPrimaryProfile, error: insertedPrimaryProfileError } = await supabaseAdmin
         .from("person_profiles")
         .insert({
@@ -205,7 +214,7 @@ Deno.serve(async (req) => {
             referrer_code: referredBy,
             referred_user_id: userId,
             referred_email: email,
-            referred_name: `${firstName} ${lastName}`,
+            referred_name: `${normalizedFirstName} ${normalizedLastName}`.trim(),
             status: "pending",
           });
 
@@ -226,7 +235,7 @@ Deno.serve(async (req) => {
 
     // Send email notifications
     if (resend) {
-      const fullName = `${firstName} ${lastName}`.trim() || "Nowy użytkownik";
+      const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim() || "Nowy użytkownik";
       const registrationDate = new Date().toLocaleString("pl-PL", {
         timeZone: "Europe/Warsaw",
         dateStyle: "full",

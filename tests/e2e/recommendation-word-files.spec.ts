@@ -37,9 +37,13 @@ test.describe("Recommendation Word files", () => {
     await page.getByRole("button", { name: "Log in" }).click();
 
     await page.goto("/dashboard/recommendations");
-    await expect(page.getByRole("button", { name: /Pobierz plik/i }).first()).toBeVisible();
+    await expect(page.getByText(/Plik zalecenia:/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Otwórz plik" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pobierz plik" }).first()).toBeVisible();
 
     await page.goto("/dashboard");
-    await expect(page.getByRole("button", { name: "Pobierz plik zalecenia" })).toBeVisible();
+    await expect(page.getByText(/Plik zalecenia:/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Otwórz plik" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pobierz plik" })).toBeVisible();
   });
 });

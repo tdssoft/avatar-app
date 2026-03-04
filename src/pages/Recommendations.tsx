@@ -12,6 +12,11 @@ import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { toast } from "sonner";
 import {
+  getRecommendationFileName,
+  getRecommendationFileTypeLabel,
+  resolveRecommendationFileUrl,
+} from "@/lib/recommendationFile";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -201,20 +206,28 @@ const Recommendations = () => {
 
   const openRecommendationFile = async (fileReference: string) => {
     try {
-      let fileUrl = fileReference;
-      if (!fileReference.startsWith("http://") && !fileReference.startsWith("https://")) {
-        const { data, error } = await supabase.storage
-          .from("recommendation-files")
-          .createSignedUrl(fileReference, 120);
-        if (error || !data?.signedUrl) {
-          throw error ?? new Error("signed URL unavailable");
-        }
-        fileUrl = data.signedUrl;
-      }
+      const fileUrl = await resolveRecommendationFileUrl(fileReference);
       window.open(fileUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("[Recommendations] open recommendation file error:", error);
       toast.error("Nie udało się otworzyć pliku zalecenia");
+    }
+  };
+
+  const downloadRecommendationFile = async (fileReference: string) => {
+    try {
+      const fileUrl = await resolveRecommendationFileUrl(fileReference);
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = getRecommendationFileName(fileReference) || "zalecenie";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error("[Recommendations] download recommendation file error:", error);
+      toast.error("Nie udało się pobrać pliku zalecenia");
     }
   };
 
@@ -479,6 +492,24 @@ const Recommendations = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    {recommendation.pdf_url && (
+                      <div className="mb-3 rounded-md border bg-muted/30 p-3">
+                        <p className="text-sm font-medium">
+                          Plik zalecenia: {getRecommendationFileName(recommendation.pdf_url)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Typ: {getRecommendationFileTypeLabel(recommendation.pdf_url)}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => void openRecommendationFile(recommendation.pdf_url!)}>
+                            Otwórz plik
+                          </Button>
+                          <Button size="sm" onClick={() => void downloadRecommendationFile(recommendation.pdf_url!)}>
+                            Pobierz plik
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     {recommendation.diagnosis_summary && (
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                         {recommendation.diagnosis_summary}

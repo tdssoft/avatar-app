@@ -245,6 +245,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signup = async (data: SignupData): Promise<{ success: boolean; error?: string; nextRoute?: string }> => {
+    const normalizedFirstName = (data.firstName ?? "").trim();
+    const normalizedLastName = (data.lastName ?? "").trim();
     const referralCode = generateReferralCode();
     const redirectUrl = `${window.location.origin}/dashboard`;
 
@@ -254,8 +256,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
+          firstName: normalizedFirstName,
+          lastName: normalizedLastName,
           phone: data.phone,
           referralCode: referralCode,
           referredBy: data.referralCode || null,
@@ -277,8 +279,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: {
           userId: authData.user.id,
           email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
+          firstName: normalizedFirstName,
+          lastName: normalizedLastName,
           phone: data.phone,
           referralCode: referralCode,
           referredBy: data.referralCode || null,

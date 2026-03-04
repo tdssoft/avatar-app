@@ -23,6 +23,11 @@ import AdminInterviewView from "@/components/admin/AdminInterviewView";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeDisplayName, resolvePatientDisplayName } from "@/lib/patientDisplayName";
+import {
+  getRecommendationFileName,
+  getRecommendationFileTypeLabel,
+  resolveRecommendationFileUrl,
+} from "@/lib/recommendationFile";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -383,6 +388,31 @@ const PatientProfile = () => {
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const openRecommendationFile = async (fileRef: string) => {
+    try {
+      const signedUrl = await resolveRecommendationFileUrl(fileRef);
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Nie udało się otworzyć pliku zalecenia");
+    }
+  };
+
+  const downloadRecommendationFile = async (fileRef: string) => {
+    try {
+      const signedUrl = await resolveRecommendationFileUrl(fileRef);
+      const link = document.createElement("a");
+      link.href = signedUrl;
+      link.download = getRecommendationFileName(fileRef) || "zalecenie";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      toast.error("Nie udało się pobrać pliku zalecenia");
+    }
   };
 
   const uploadPatientFile = async (
@@ -856,6 +886,24 @@ const PatientProfile = () => {
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                       {selectedRecommendation.diagnosis_summary || "Brak opisu diagnozy dla tego zalecenia."}
                     </p>
+                    {selectedRecommendation.pdf_url && (
+                      <div className="rounded-md border bg-muted/20 p-3">
+                        <p className="text-sm font-medium">
+                          Plik zalecenia: {getRecommendationFileName(selectedRecommendation.pdf_url)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Typ pliku: {getRecommendationFileTypeLabel(selectedRecommendation.pdf_url)}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}>
+                            Otwórz plik
+                          </Button>
+                          <Button size="sm" onClick={() => void downloadRecommendationFile(selectedRecommendation.pdf_url!)}>
+                            Pobierz plik
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Brak zaleceń dla wybranego profilu.</p>
