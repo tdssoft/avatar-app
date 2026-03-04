@@ -32,11 +32,36 @@ const AudioRecorder = ({
   const [duration, setDuration] = useState(0);
   const [notes, setNotes] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [recordingMimeType, setRecordingMimeType] = useState<string>("audio/webm");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resolveSupportedRecordingType = (): string => {
+    if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+      return "audio/webm";
+    }
+
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4;codecs=mp4a.40.2",
+      "audio/mp4",
+      "audio/ogg;codecs=opus",
+      "audio/ogg",
+    ];
+
+    const supported = candidates.find((type) => MediaRecorder.isTypeSupported(type));
+    return supported || "audio/webm";
+  };
+
+  const getExtensionForMimeType = (mimeType: string): string => {
+    if (mimeType.includes("mp4")) return "m4a";
+    if (mimeType.includes("ogg")) return "ogg";
+    return "webm";
+  };
 
   useEffect(() => {
     return () => {
@@ -52,9 +77,10 @@ const AudioRecorder = ({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      });
+      const supportedMimeType = resolveSupportedRecordingType();
+      const recorderOptions = supportedMimeType ? { mimeType: supportedMimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
+      setRecordingMimeType(mediaRecorder.mimeType || supportedMimeType || "audio/webm");
 
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -66,7 +92,16 @@ const AudioRecorder = ({
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const finalMimeType = mediaRecorder.mimeType || supportedMimeType || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: finalMimeType });
+        if (blob.size === 0) {
+          toast.error("Nagranie jest puste. Spróbuj nagrać ponownie.");
+          stream.getTracks().forEach((track) => track.stop());
+          setAudioBlob(null);
+          setAudioUrl(null);
+          setDuration(0);
+          return;
+        }
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((track) => track.stop());
@@ -137,14 +172,15 @@ const AudioRecorder = ({
     try {
       // Generate unique file name
       const timestamp = Date.now();
-      const fileName = `recording_${timestamp}.webm`;
+      const extension = getExtensionForMimeType(recordingMimeType);
+      const fileName = `recording_${timestamp}.${extension}`;
       const filePath = `${personProfileId}/${fileName}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
         .from("audio-recordings")
         .upload(filePath, audioBlob, {
-          contentType: "audio/webm",
+          contentType: recordingMimeType || audioBlob.type || "application/octet-stream",
         });
 
       if (uploadError) {
