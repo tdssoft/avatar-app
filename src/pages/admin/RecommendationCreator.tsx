@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, Mail, X, Mic } from "lucide-react";
+import { ArrowLeft, Save, Mail, X, Mic, Upload } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,29 @@ interface PersonProfile {
   is_primary: boolean;
 }
 
+const MAX_RECOMMENDATION_FILE_SIZE = 20 * 1024 * 1024;
+const ALLOWED_RECOMMENDATION_FILE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const sanitizeFileName = (fileName: string) => fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+
+const getRecommendationFileName = (value: string | null | undefined) => {
+  if (!value) return "";
+  const normalized = value.trim();
+  if (!normalized) return "";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    try {
+      return decodeURIComponent(new URL(normalized).pathname.split("/").pop() || normalized);
+    } catch {
+      return normalized;
+    }
+  }
+  return decodeURIComponent(normalized.split("/").pop() || normalized);
+};
+
 const RecommendationCreator = () => {
   const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
   const navigate = useNavigate();
@@ -44,6 +67,8 @@ const RecommendationCreator = () => {
   const [tagInput, setTagInput] = useState("");
   const [savedRecommendationId, setSavedRecommendationId] = useState<string | null>(null);
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
+  const [selectedRecommendationFile, setSelectedRecommendationFile] = useState<File | null>(null);
+  const [existingRecommendationFilePath, setExistingRecommendationFilePath] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     diagnosisSummary: "",
@@ -129,6 +154,7 @@ const RecommendationCreator = () => {
         if (data.person_profile_id) {
           setSelectedProfileId(data.person_profile_id);
         }
+        setExistingRecommendationFilePath(data.pdf_url || null);
       }
     } catch (err) {
       console.error("Error loading recommendation:", err);
@@ -136,6 +162,34 @@ const RecommendationCreator = () => {
     } finally {
       setIsLoadingData(false);
     }
+  };
+
+  const validateRecommendationFile = (file: File): boolean => {
+    const fileName = file.name.toLowerCase();
+    const isAllowedMimeType = ALLOWED_RECOMMENDATION_FILE_TYPES.includes(file.type);
+    const hasAllowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".doc") || fileName.endsWith(".docx");
+    if (!isAllowedMimeType && !hasAllowedExtension) {
+      toast.error("Dozwolone formaty plików: PDF, DOC, DOCX");
+      return false;
+    }
+    if (file.size > MAX_RECOMMENDATION_FILE_SIZE) {
+      toast.error("Maksymalny rozmiar pliku to 20MB");
+      return false;
+    }
+    return true;
+  };
+
+  const uploadRecommendationFile = async (file: File, patientId: string, profileId: string): Promise<string> => {
+    const safeName = sanitizeFileName(file.name);
+    const filePath = `${patientId}/${profileId}/${Date.now()}_${safeName}`;
+    const { error } = await supabase.storage
+      .from("recommendation-files")
+      .upload(filePath, file, { upsert: false });
+
+    if (error) {
+      throw error;
+    }
+    return filePath;
   };
 
   const handleSystemToggle = (systemId: string) => {
@@ -205,7 +259,16 @@ const RecommendationCreator = () => {
         supporting_therapies: formData.supportingTherapies || null,
         tags: formData.tags.length > 0 ? formData.tags : null,
         person_profile_id: selectedProfileId || null,
+        pdf_url: existingRecommendationFilePath,
       };
+
+      if (selectedRecommendationFile) {
+        if (!id || !selectedProfileId) {
+          throw new Error("Brak pacjenta lub profilu do przypisania pliku");
+        }
+        const filePath = await uploadRecommendationFile(selectedRecommendationFile, id, selectedProfileId);
+        recommendationPayload.pdf_url = filePath;
+      }
 
       let recommendation;
 
@@ -242,6 +305,10 @@ const RecommendationCreator = () => {
       }
 
       setSavedRecommendationId(recommendation.id);
+      if (recommendationPayload.pdf_url) {
+        setExistingRecommendationFilePath(recommendationPayload.pdf_url);
+      }
+      setSelectedRecommendationFile(null);
 
       // Send email if enabled
       if (sendEmail && recommendation) {
@@ -432,6 +499,44 @@ const RecommendationCreator = () => {
                   )}
                 </div>
 
+                <div className="rounded-md border border-border p-4 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="recommendation-file">Plik zalecenia (PDF/DOC/DOCX)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Maksymalnie 20MB. Wgrany plik będzie widoczny na dashboardzie pacjenta.
+                    </p>
+                  </div>
+                  <Input
+                    id="recommendation-file"
+                    data-testid="recommendation-file-input"
+                    type="file"
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (!file) {
+                        setSelectedRecommendationFile(null);
+                        return;
+                      }
+                      if (!validateRecommendationFile(file)) {
+                        e.currentTarget.value = "";
+                        return;
+                      }
+                      setSelectedRecommendationFile(file);
+                    }}
+                  />
+                  {selectedRecommendationFile ? (
+                    <p className="text-sm text-foreground">
+                      Wybrany plik: <span className="font-medium">{selectedRecommendationFile.name}</span>
+                    </p>
+                  ) : existingRecommendationFilePath ? (
+                    <p className="text-sm text-muted-foreground">
+                      Obecny plik: <span className="font-medium text-foreground">{getRecommendationFileName(existingRecommendationFilePath)}</span>
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Brak wgranego pliku zalecenia.</p>
+                  )}
+                </div>
+
                 <Tabs defaultValue="diagnosis" className="flex-1 min-h-0 flex flex-col">
                   <TabsList className="w-full justify-start flex-wrap h-auto">
                     <TabsTrigger value="diagnosis">Diagnoza</TabsTrigger>
@@ -549,7 +654,7 @@ const RecommendationCreator = () => {
                         </>
                       ) : (
                         <>
-                          <Save className="h-4 w-4" />
+                          {selectedRecommendationFile ? <Upload className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                           {isEditMode ? "Zapisz zmiany" : "Zapisz zalecenia"}
                         </>
                       )}

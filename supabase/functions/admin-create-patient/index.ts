@@ -34,6 +34,12 @@ const generateReferralCode = (): string => {
   return result;
 };
 
+const isEmailLike = (value: string | null | undefined): boolean => {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+};
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -92,7 +98,11 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Parse request body
-    const { firstName, lastName, email, phone }: CreatePatientRequest = await req.json();
+    const requestBody: CreatePatientRequest = await req.json();
+    const firstName = (requestBody.firstName ?? "").trim();
+    const lastName = (requestBody.lastName ?? "").trim();
+    const email = (requestBody.email ?? "").trim().toLowerCase();
+    const phone = (requestBody.phone ?? "").trim();
 
     if (!firstName || !lastName || !email) {
       return new Response(
@@ -145,6 +155,40 @@ serve(async (req: Request): Promise<Response> => {
     if (profileError) {
       console.error("[admin-create-patient] Profile error:", profileError);
       // Don't fail - user was created, profile might just need sync
+    }
+
+    const fullName = `${firstName} ${lastName}`.trim();
+    const { data: existingPrimaryPersonProfile, error: existingPrimaryPersonProfileError } = await serviceClient
+      .from("person_profiles")
+      .select("id, name")
+      .eq("account_user_id", newUserId)
+      .eq("is_primary", true)
+      .maybeSingle();
+
+    if (existingPrimaryPersonProfileError) {
+      console.error("[admin-create-patient] person profile read error:", existingPrimaryPersonProfileError);
+    } else if (!existingPrimaryPersonProfile) {
+      const { error: personProfileInsertError } = await serviceClient
+        .from("person_profiles")
+        .insert({
+          account_user_id: newUserId,
+          name: fullName,
+          is_primary: true,
+        });
+      if (personProfileInsertError) {
+        console.error("[admin-create-patient] person profile insert error:", personProfileInsertError);
+      }
+    } else {
+      const currentName = (existingPrimaryPersonProfile.name ?? "").trim();
+      if (!currentName || isEmailLike(currentName)) {
+        const { error: personProfileUpdateError } = await serviceClient
+          .from("person_profiles")
+          .update({ name: fullName, updated_at: new Date().toISOString() })
+          .eq("id", existingPrimaryPersonProfile.id);
+        if (personProfileUpdateError) {
+          console.error("[admin-create-patient] person profile update error:", personProfileUpdateError);
+        }
+      }
     }
 
     // Create patient record

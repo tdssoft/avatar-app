@@ -22,6 +22,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import AdminInterviewView from "@/components/admin/AdminInterviewView";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeDisplayName, resolvePatientDisplayName } from "@/lib/patientDisplayName";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,6 +48,10 @@ interface ProfileData {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+}
+
+interface AdminPatientContactResponse {
+  email: string | null;
 }
 
 interface PersonProfile {
@@ -262,8 +267,16 @@ const PatientProfile = () => {
         .eq("user_id", patientData.user_id)
         .maybeSingle();
       if (profileData) setProfile(profileData);
-
-      setEmail("");
+      const { data: contactData, error: contactError } = await supabase.functions.invoke("admin-get-patient-contact", {
+        body: { patientId: patientData.id },
+      });
+      if (contactError) {
+        console.error("[PatientProfile] admin-get-patient-contact error", contactError);
+        setEmail("");
+      } else {
+        const contactPayload = contactData as AdminPatientContactResponse | null;
+        setEmail(contactPayload?.email?.trim() || "");
+      }
 
       const { data: personProfilesData } = await supabase
         .from("person_profiles")
@@ -712,9 +725,12 @@ const PatientProfile = () => {
   const lastName = profile?.last_name?.trim() || "";
   const selectedPersonProfile = personProfiles.find((p) => p.id === selectedProfileId) ?? personProfiles[0] ?? null;
   const selectedProfileAvatarUrl = selectedPersonProfile?.avatar_url || null;
-  const profileName = `${firstName} ${lastName}`.trim();
   const primaryPersonProfileName = personProfiles.find((p) => p.is_primary)?.name?.trim() || "";
-  const fullName = selectedPersonProfile?.name || profileName || primaryPersonProfileName || "Użytkownik";
+  const fullName = resolvePatientDisplayName(
+    firstName,
+    lastName,
+    selectedPersonProfile?.name || primaryPersonProfileName || null,
+  );
 
   const initials = profile?.first_name && profile?.last_name
     ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
@@ -783,7 +799,7 @@ const PatientProfile = () => {
                   <SelectContent>
                     {personProfiles.map((pp) => (
                       <SelectItem key={pp.id} value={pp.id}>
-                        {pp.name}{pp.is_primary ? " (główny)" : ""}
+                        {(normalizeDisplayName(pp.name) || "—")}{pp.is_primary ? " (główny)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1162,6 +1178,10 @@ const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Imię i nazwisko:</span>
+                    <span>{fullName}</span>
+                  </div>
                   <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-muted-foreground" /><span>{email || "Brak email"}</span></div>
                   <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><span>{profile?.phone || "Brak telefonu"}</span></div>
                 </div>
@@ -1173,7 +1193,7 @@ const PatientProfile = () => {
                   <div className="flex flex-wrap gap-2">
                     {personProfiles.map((pp) => (
                       <Badge key={pp.id} variant={pp.id === selectedProfileId ? "default" : "secondary"} className="cursor-pointer" onClick={() => setSelectedProfileId(pp.id)}>
-                        {pp.name}{pp.is_primary ? " ★" : ""}
+                        {(normalizeDisplayName(pp.name) || "—")}{pp.is_primary ? " ★" : ""}
                       </Badge>
                     ))}
                   </div>
