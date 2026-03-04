@@ -9,6 +9,7 @@ type MockOptions = {
   seedRecommendationForPrimaryProfile?: boolean;
   seedMultipleRecommendationsForPrimaryProfile?: boolean;
   seedInterviewSentForAdminProfile?: boolean;
+  seedEmailLikePrimaryProfileName?: boolean;
 };
 
 type Row = Record<string, any>;
@@ -276,6 +277,12 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
       last_updated_by: USERS.user.id,
     });
   }
+  if (options.seedEmailLikePrimaryProfileName) {
+    const primary = db.person_profiles.find((p) => p.id === "pp-user-1");
+    if (primary) {
+      primary.name = USERS.user.email;
+    }
+  }
   if (options.seedJanNoInterviewStaszekSent) {
     const janProfile = db.person_profiles.find((p) => p.id === "pp-user-1");
     if (janProfile) {
@@ -450,6 +457,19 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
 
     if (url.pathname.includes('/functions/v1/send-question-notification')) {
       return json(route, 200, { ok: true });
+    }
+
+    if (url.pathname.includes('/functions/v1/admin-get-patient-contact') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+      if (`${body?.patientId || ''}` === 'patient-1') {
+        return json(route, 200, { email: USERS.user.email });
+      }
+      return json(route, 404, { error: 'Patient not found' });
     }
 
     if (url.pathname.includes('/storage/v1/object/sign/') && method === 'POST') {

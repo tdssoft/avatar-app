@@ -23,6 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { allPackages } from "@/lib/paymentFlow";
+import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
 import { toast } from "sonner";
 
 interface Patient {
@@ -48,18 +49,6 @@ interface Patient {
 }
 
 type GrantAccessReason = "platnosc_gotowka" | "inny_przypadek";
-
-const isEmailLike = (value: string | null | undefined): boolean => {
-  const normalized = (value ?? "").trim();
-  if (!normalized) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
-};
-
-const normalizeDisplayName = (value: string | null | undefined): string => {
-  const normalized = (value ?? "").trim();
-  if (!normalized || isEmailLike(normalized)) return "";
-  return normalized;
-};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -190,7 +179,11 @@ const AdminDashboard = () => {
   const filteredPatients = useMemo(() => {
     return patients.filter((patient) => {
       // Search filter
-      const fullName = `${patient.profiles?.first_name || ""} ${patient.profiles?.last_name || ""}`.toLowerCase();
+      const fullName = resolvePatientDisplayName(
+        patient.profiles?.first_name,
+        patient.profiles?.last_name,
+        patient.primary_person_profile?.name || null,
+      ).toLowerCase();
       const phone = patient.profiles?.phone?.toLowerCase() || "";
       const searchLower = searchQuery.toLowerCase();
       
@@ -228,11 +221,11 @@ const AdminDashboard = () => {
 
   const patientOptions = useMemo(() => {
     return patients.map((patient) => {
-      const firstName = patient.profiles?.first_name?.trim() || "";
-      const lastName = patient.profiles?.last_name?.trim() || "";
-      const profileName = normalizeDisplayName(`${firstName} ${lastName}`);
-      const personProfileName = normalizeDisplayName(patient.primary_person_profile?.name || "");
-      const fullName = profileName || personProfileName || "—";
+      const fullName = resolvePatientDisplayName(
+        patient.profiles?.first_name,
+        patient.profiles?.last_name,
+        patient.primary_person_profile?.name || null,
+      );
       return {
         id: patient.id,
         label: `${fullName} (${patient.subscription_status || "Brak"})`,

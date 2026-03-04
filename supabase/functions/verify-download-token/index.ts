@@ -123,6 +123,24 @@ serve(async (req: Request): Promise<Response> => {
       // Don't fail the request if logging fails
     }
 
+    let recommendationFileUrl: string | null = recommendation.pdf_url;
+    if (
+      recommendationFileUrl &&
+      !recommendationFileUrl.startsWith("http://") &&
+      !recommendationFileUrl.startsWith("https://")
+    ) {
+      const { data: signedFileData, error: signedFileError } = await supabase.storage
+        .from("recommendation-files")
+        .createSignedUrl(recommendationFileUrl, 300);
+
+      if (signedFileError || !signedFileData?.signedUrl) {
+        console.error("Recommendation file signed URL error:", signedFileError);
+        recommendationFileUrl = null;
+      } else {
+        recommendationFileUrl = signedFileData.signedUrl;
+      }
+    }
+
     // Prepare response data
     const responseData = {
       valid: true,
@@ -138,7 +156,7 @@ serve(async (req: Request): Promise<Response> => {
         supplementation_program: recommendation.supplementation_program,
         shop_links: recommendation.shop_links,
         supporting_therapies: recommendation.supporting_therapies,
-        pdf_url: recommendation.pdf_url,
+        pdf_url: recommendationFileUrl,
         profile_name: profileName,
       },
     };

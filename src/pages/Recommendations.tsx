@@ -199,6 +199,25 @@ const Recommendations = () => {
     }
   };
 
+  const openRecommendationFile = async (fileReference: string) => {
+    try {
+      let fileUrl = fileReference;
+      if (!fileReference.startsWith("http://") && !fileReference.startsWith("https://")) {
+        const { data, error } = await supabase.storage
+          .from("recommendation-files")
+          .createSignedUrl(fileReference, 120);
+        if (error || !data?.signedUrl) {
+          throw error ?? new Error("signed URL unavailable");
+        }
+        fileUrl = data.signedUrl;
+      }
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("[Recommendations] open recommendation file error:", error);
+      toast.error("Nie udało się otworzyć pliku zalecenia");
+    }
+  };
+
   const getProfileName = (profileId: string | null): string => {
     if (!profileId) return "Brak przypisania";
     const profile = profiles.find((p) => p.id === profileId);
@@ -449,11 +468,11 @@ const Recommendations = () => {
                         {recommendation.pdf_url && (
                           <Button
                             size="sm"
-                            onClick={() => window.open(recommendation.pdf_url!, "_blank")}
+                            onClick={() => void openRecommendationFile(recommendation.pdf_url!)}
                             className="gap-2"
                           >
                             <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">PDF</span>
+                            <span className="hidden sm:inline">Pobierz plik</span>
                           </Button>
                         )}
                       </div>

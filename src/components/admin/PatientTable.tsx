@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import { ClipboardList, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
 
 interface Patient {
   id: string;
@@ -40,18 +41,6 @@ interface PatientTableProps {
 const NewDot = ({ visible }: { visible: boolean }) => {
   if (!visible) return null;
   return <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />;
-};
-
-const isEmailLike = (value: string | null | undefined): boolean => {
-  const normalized = (value ?? "").trim();
-  if (!normalized) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
-};
-
-const normalizeDisplayName = (value: string | null | undefined): string => {
-  const normalized = (value ?? "").trim();
-  if (!normalized || isEmailLike(normalized)) return "";
-  return normalized;
 };
 
 const PatientTable = ({
@@ -121,9 +110,7 @@ const PatientTable = ({
             const hasValidPatientId = typeof patient.id === "string" && patient.id.trim().length > 0;
             const firstName = patient.profiles?.first_name?.trim() || "";
             const lastName = patient.profiles?.last_name?.trim() || "";
-            const profileName = normalizeDisplayName(`${firstName} ${lastName}`);
-            const personProfileName = normalizeDisplayName(patient.primary_person_profile?.name || "");
-            const fullName = profileName || personProfileName || "—";
+            const fullName = resolvePatientDisplayName(firstName, lastName, patient.primary_person_profile?.name || "");
             const unreadCounters = unreadByPatient[patient.id] ?? {
               unread_messages: 0,
               unread_interviews: 0,

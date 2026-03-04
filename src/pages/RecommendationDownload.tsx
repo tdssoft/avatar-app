@@ -75,7 +75,7 @@ const RecommendationDownload = () => {
     }
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadFile = async () => {
     if (!recommendation?.pdf_url) return;
     
     // Log download
@@ -91,7 +91,18 @@ const RecommendationDownload = () => {
       console.error("Error logging download:", error);
     }
 
-    window.open(recommendation.pdf_url, "_blank");
+    let fileUrl = recommendation.pdf_url;
+    if (!fileUrl.startsWith("http://") && !fileUrl.startsWith("https://")) {
+      const { data, error } = await supabase.storage
+        .from("recommendation-files")
+        .createSignedUrl(fileUrl, 120);
+      if (error || !data?.signedUrl) {
+        console.error("Error generating recommendation file URL:", error);
+        return;
+      }
+      fileUrl = data.signedUrl;
+    }
+    window.open(fileUrl, "_blank");
   };
 
   const bodySystemLabels: Record<string, string> = {
@@ -182,9 +193,9 @@ const RecommendationDownload = () => {
                 </p>
               </div>
               {recommendation.pdf_url && (
-                <Button onClick={handleDownloadPdf} className="gap-2 shrink-0">
+                <Button onClick={handleDownloadFile} className="gap-2 shrink-0">
                   <Download className="h-4 w-4" />
-                  Pobierz PDF
+                  Pobierz plik
                 </Button>
               )}
             </div>

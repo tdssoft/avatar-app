@@ -23,6 +23,7 @@ interface Recommendation {
   recommendation_date: string;
   diagnosis_summary?: string | null;
   dietary_recommendations?: string | null;
+  pdf_url?: string | null;
 }
 
 interface PatientResultFile {
@@ -51,6 +52,17 @@ const Dashboard = () => {
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
   const [patientResultFiles, setPatientResultFiles] = useState<PatientResultFile[]>([]);
 
+  const resolveRecommendationFileUrl = useCallback(async (fileReference: string) => {
+    if (fileReference.startsWith("http://") || fileReference.startsWith("https://")) {
+      return fileReference;
+    }
+    const { data, error } = await supabase.storage.from("recommendation-files").createSignedUrl(fileReference, 120);
+    if (error || !data?.signedUrl) {
+      throw new Error("Nie udało się wygenerować linku do pliku");
+    }
+    return data.signedUrl;
+  }, []);
+
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) {
       setRecommendations([]);
@@ -75,7 +87,7 @@ const Dashboard = () => {
 
     let query = supabase
       .from("recommendations")
-      .select("id, title, recommendation_date, diagnosis_summary, dietary_recommendations")
+      .select("id, title, recommendation_date, diagnosis_summary, dietary_recommendations, pdf_url")
       .eq("patient_id", patient.id)
       .order("recommendation_date", { ascending: false })
       .limit(50);
@@ -184,6 +196,15 @@ const Dashboard = () => {
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const openRecommendationFile = async (fileReference: string) => {
+    try {
+      const url = await resolveRecommendationFileUrl(fileReference);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku zalecenia." });
+    }
   };
 
   const submitQuestion = useCallback(
@@ -338,9 +359,20 @@ const Dashboard = () => {
                         </p>
                       </div>
                       <div className="flex justify-end">
-                        <Button variant="link" className="text-sm text-foreground p-0 h-auto" onClick={() => navigate("/dashboard/recommendations")}>
-                          Zobacz szczegóły
-                        </Button>
+                        <div className="flex items-center gap-4">
+                          {selectedRecommendation.pdf_url && (
+                            <Button
+                              variant="link"
+                              className="text-sm text-foreground p-0 h-auto"
+                              onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!)}
+                            >
+                              Pobierz plik zalecenia
+                            </Button>
+                          )}
+                          <Button variant="link" className="text-sm text-foreground p-0 h-auto" onClick={() => navigate("/dashboard/recommendations")}>
+                            Zobacz szczegóły
+                          </Button>
+                        </div>
                       </div>
                     </>
                   ) : (
