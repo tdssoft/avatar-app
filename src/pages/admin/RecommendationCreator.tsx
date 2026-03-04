@@ -27,7 +27,6 @@ interface PersonProfile {
   id: string;
   name: string;
   is_primary: boolean;
-  is_virtual?: boolean;
 }
 
 const MAX_RECOMMENDATION_FILE_SIZE = 20 * 1024 * 1024;
@@ -80,8 +79,6 @@ const RecommendationCreator = () => {
     supportingTherapies: "",
     tags: [] as string[],
   });
-
-  const VIRTUAL_PRIMARY_PROFILE_ID = "virtual-primary-profile";
 
   useEffect(() => {
     fetchPatientProfiles();
@@ -156,22 +153,9 @@ const RecommendationCreator = () => {
         if (!isEditMode) setSelectedProfileId(ensuredProfiles[0].id);
         return;
       }
-
-      // If profile still does not exist, expose one deterministic main-account option in UI.
-      const { data: accountProfile } = await supabase
-        .from("profiles")
-        .select("first_name, last_name")
-        .eq("user_id", patient.user_id)
-        .maybeSingle();
-      const accountName = `${accountProfile?.first_name ?? ""} ${accountProfile?.last_name ?? ""}`.trim() || "—";
-      const virtualProfile: PersonProfile = {
-        id: VIRTUAL_PRIMARY_PROFILE_ID,
-        name: `${accountName} (główny)`,
-        is_primary: true,
-        is_virtual: true,
-      };
-      setProfiles([virtualProfile]);
-      setSelectedProfileId(virtualProfile.id);
+      setProfiles([]);
+      setSelectedProfileId("");
+      toast.error("Nie udało się przygotować profilu osoby dla pacjenta. Spróbuj ponownie.");
       return;
     }
 
@@ -321,17 +305,7 @@ const RecommendationCreator = () => {
         throw new Error("Wybierz profil osoby przed zapisaniem zalecenia.");
       }
 
-      let persistedProfileId = selectedProfileId;
-      if (persistedProfileId === VIRTUAL_PRIMARY_PROFILE_ID) {
-        const { data: ensureData, error: ensureError } = await supabase.functions.invoke("admin-ensure-person-profile", {
-          body: { patientId: id },
-        });
-        if (ensureError || ensureData?.error || !ensureData?.person_profile_id) {
-          throw new Error("Nie udało się przygotować profilu osoby dla pacjenta. Spróbuj ponownie.");
-        }
-        persistedProfileId = ensureData.person_profile_id as string;
-        setSelectedProfileId(persistedProfileId);
-      }
+      const persistedProfileId = selectedProfileId;
 
       const recommendationPayload = {
         body_systems: selectedSystems,
