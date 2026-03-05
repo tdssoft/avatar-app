@@ -6,7 +6,7 @@ import PlanCard from "@/components/dashboard/PlanCard";
 import PhotoUpload from "@/components/dashboard/PhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronDown, Download, ExternalLink, FileText, Loader2, Send } from "lucide-react";
+import { ChevronDown, Download, ExternalLink, FileText, Loader2, Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +21,13 @@ import {
   getRecommendationFileTypeLabel,
   resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
+import {
+  createPatientResultFileSignedUrl,
+  fetchPatientResultFilesForActiveProfile,
+  uploadPatientResultFileForActiveProfile,
+  validatePatientResultFile,
+  type PatientResultFileRecord,
+} from "@/lib/patientResultFiles";
 
 interface Recommendation {
   id: string;
@@ -29,13 +36,7 @@ interface Recommendation {
   diagnosis_summary?: string | null;
   dietary_recommendations?: string | null;
   pdf_url?: string | null;
-}
-
-interface PatientResultFile {
-  id: string;
-  file_name: string;
-  file_path: string;
-  created_at: string;
+  download_token?: string | null;
 }
 
 const Dashboard = () => {
@@ -55,7 +56,8 @@ const Dashboard = () => {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
   const [question, setQuestion] = useState("");
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
-  const [patientResultFiles, setPatientResultFiles] = useState<PatientResultFile[]>([]);
+  const [patientResultFiles, setPatientResultFiles] = useState<PatientResultFileRecord[]>([]);
+  const [isUploadingResultFile, setIsUploadingResultFile] = useState(false);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) {
@@ -81,7 +83,7 @@ const Dashboard = () => {
 
     let query = supabase
       .from("recommendations")
-      .select("id, title, recommendation_date, diagnosis_summary, dietary_recommendations, pdf_url")
+      .select("id, title, recommendation_date, diagnosis_summary, dietary_recommendations, pdf_url, download_token")
       .eq("patient_id", patient.id)
       .order("recommendation_date", { ascending: false })
       .limit(50);
@@ -125,37 +127,13 @@ const Dashboard = () => {
       return;
     }
 
-    const { data: patient } = await supabase
-      .from("patients")
-      .select("id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (!patient) {
-      setPatientResultFiles([]);
-      return;
-    }
-
-    const activeProfileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
-    if (!activeProfileId) {
-      setPatientResultFiles([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("patient_result_files")
-      .select("id, file_name, file_path, created_at")
-      .eq("patient_id", patient.id)
-      .eq("person_profile_id", activeProfileId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const files = await fetchPatientResultFilesForActiveProfile(user.id);
+      setPatientResultFiles(files);
+    } catch (error) {
       console.error("[Dashboard] patient_result_files read error", error);
       setPatientResultFiles([]);
-      return;
     }
-
-    setPatientResultFiles((data as PatientResultFile[]) || []);
   }, [user?.id]);
 
   useEffect(() => {
@@ -184,12 +162,35 @@ const Dashboard = () => {
   }, [fetchPatientResultFiles, user?.id]);
 
   const openResultFile = async (filePath: string) => {
-    const { data, error } = await supabase.storage.from("patient-result-files").createSignedUrl(filePath, 60);
-    if (error || !data?.signedUrl) {
+    try {
+      const signedUrl = await createPatientResultFileSignedUrl(filePath);
+      window.open(signedUrl, "_blank", "noopener,noreferrer");
+    } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku." });
+    }
+  };
+
+  const handlePatientResultFileUpload = async (file: File) => {
+    if (!user?.id) return;
+
+    const validationError = validatePatientResultFile(file);
+    if (validationError) {
+      toast({ variant: "destructive", title: "Błąd", description: validationError });
       return;
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+
+    setIsUploadingResultFile(true);
+    try {
+      await uploadPatientResultFileForActiveProfile(user.id, file);
+      await fetchPatientResultFiles();
+      toast({ title: "Sukces", description: "Plik został wysłany do specjalisty." });
+    } catch (error) {
+      console.error("[Dashboard] upload patient result file error", error);
+      const description = error instanceof Error ? error.message : "Nie udało się wgrać pliku.";
+      toast({ variant: "destructive", title: "Błąd", description });
+    } finally {
+      setIsUploadingResultFile(false);
+    }
   };
 
   const openRecommendationFile = async (fileReference: string, download = false) => {
@@ -210,6 +211,19 @@ const Dashboard = () => {
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku zalecenia." });
     }
+  };
+
+  const openSelectedRecommendationDetails = () => {
+    if (!selectedRecommendation?.download_token) {
+      toast({
+        variant: "destructive",
+        title: "Brak linku",
+        description: "To zalecenie nie ma aktywnego linku szczegółów.",
+      });
+      return;
+    }
+
+    navigate(`/recommendation/download?token=${selectedRecommendation.download_token}`);
   };
 
   const submitQuestion = useCallback(
@@ -318,21 +332,31 @@ const Dashboard = () => {
             <div className="space-y-3">
               <h1 className="text-[56px] leading-[1.04] font-bold text-foreground">Witamy w Avatar!</h1>
               {recommendations.length > 0 ? (
-                <Select value={selectedRecommendationId} onValueChange={setSelectedRecommendationId}>
-                  <SelectTrigger className="w-fit min-w-[280px] h-8 border-0 bg-transparent p-0 text-[16px] font-semibold shadow-none focus:ring-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recommendations.map((rec) => {
-                      const recDate = new Date(rec.recommendation_date).toLocaleDateString("pl-PL");
-                      return (
-                        <SelectItem key={rec.id} value={rec.id}>
-                          {`Zalecenia z dnia ${recDate}`}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Select value={selectedRecommendationId} onValueChange={setSelectedRecommendationId}>
+                    <SelectTrigger className="w-fit min-w-[280px] h-8 border-0 bg-transparent p-0 text-[16px] font-semibold shadow-none focus:ring-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {recommendations.map((rec) => {
+                        const recDate = new Date(rec.recommendation_date).toLocaleDateString("pl-PL");
+                        return (
+                          <SelectItem key={rec.id} value={rec.id}>
+                            {`Zalecenia z dnia ${recDate}`}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-sm"
+                    onClick={() => navigate("/dashboard/recommendations")}
+                  >
+                    Wszystkie zalecenia
+                  </Button>
+                </div>
               ) : (
                 <div className="inline-flex items-center gap-2 text-[16px] font-semibold text-foreground">
                   <ChevronDown className="h-4 w-4" />
@@ -404,7 +428,11 @@ const Dashboard = () => {
                               </div>
                             </div>
                           )}
-                          <Button variant="link" className="text-sm text-foreground p-0 h-auto" onClick={() => navigate("/dashboard/recommendations")}>
+                          <Button
+                            variant="link"
+                            className="text-sm text-foreground p-0 h-auto"
+                            onClick={openSelectedRecommendationDetails}
+                          >
                             Zobacz szczegóły
                           </Button>
                         </div>
@@ -460,6 +488,33 @@ const Dashboard = () => {
                 ) : (
                   <p className="text-sm text-muted-foreground">Brak wgranych plików wynikowych dla aktywnego profilu.</p>
                 )}
+                <div className="mt-4">
+                  <input
+                    id="patient-result-upload"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handlePatientResultFileUpload(file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isUploadingResultFile}
+                    onClick={() => document.getElementById("patient-result-upload")?.click()}
+                    className="gap-2"
+                  >
+                    {isUploadingResultFile ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    {isUploadingResultFile ? "Wgrywanie..." : "Wgraj wyniki badań"}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
