@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Download, Eye, Calendar, User, Filter, X, AlertTriangle, Clock } from "lucide-react";
+import { FileText, Download, Eye, Calendar, Filter, X, AlertTriangle, Clock } from "lucide-react";
 import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { toast } from "sonner";
@@ -17,12 +17,9 @@ import {
   resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  ACTIVE_PROFILE_CHANGED_EVENT,
+  ACTIVE_PROFILE_STORAGE_KEY,
+} from "@/hooks/usePersonProfiles";
 import {
   Popover,
   PopoverContent,
@@ -47,17 +44,12 @@ interface Recommendation {
   pdf_url: string | null;
 }
 
-interface PersonProfile {
-  id: string;
-  name: string;
-  is_primary: boolean;
-}
-
 const Recommendations = () => {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [profiles, setProfiles] = useState<PersonProfile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("all");
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(
+    () => localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY),
+  );
   const [isLoading, setIsLoading] = useState(true);
   
   // Filters
@@ -68,25 +60,19 @@ const Recommendations = () => {
 
   useEffect(() => {
     if (user) {
-      fetchProfiles();
       fetchRecommendations();
     }
-  }, [user]);
+  }, [user, activeProfileId]);
 
-  const fetchProfiles = async () => {
-    const { data, error } = await supabase
-      .from("person_profiles")
-      .select("id, name, is_primary")
-      .eq("account_user_id", user?.id)
-      .order("is_primary", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching profiles:", error);
-      return;
-    }
-
-    setProfiles(data || []);
-  };
+  useEffect(() => {
+    const onProfileChanged = () => {
+      setActiveProfileId(localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY));
+    };
+    window.addEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    return () => {
+      window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    };
+  }, []);
 
   const fetchRecommendations = async () => {
     setIsLoading(true);
@@ -105,7 +91,7 @@ const Recommendations = () => {
     }
 
     // Then get recommendations
-    const { data, error } = await supabase
+    let query = supabase
       .from("recommendations")
       .select(`
         id,
@@ -121,6 +107,12 @@ const Recommendations = () => {
       `)
       .eq("patient_id", patient.id)
       .order("recommendation_date", { ascending: false });
+
+    if (activeProfileId) {
+      query = query.eq("person_profile_id", activeProfileId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching recommendations:", error);
@@ -145,11 +137,6 @@ const Recommendations = () => {
   const filteredRecommendations = useMemo(() => {
     let result = recommendations;
 
-    // Filter by profile
-    if (selectedProfileId !== "all") {
-      result = result.filter((r) => r.person_profile_id === selectedProfileId);
-    }
-
     // Filter by date range
     if (dateFrom) {
       result = result.filter((r) => 
@@ -172,7 +159,7 @@ const Recommendations = () => {
     }
 
     return result;
-  }, [recommendations, selectedProfileId, dateFrom, dateTo, selectedTags]);
+  }, [recommendations, dateFrom, dateTo, selectedTags]);
 
   const handleDownload = async (recommendation: Recommendation) => {
     if (!recommendation.download_token) {
@@ -229,12 +216,6 @@ const Recommendations = () => {
       console.error("[Recommendations] download recommendation file error:", error);
       toast.error("Nie udało się pobrać pliku zalecenia");
     }
-  };
-
-  const getProfileName = (profileId: string | null): string => {
-    if (!profileId) return "Brak przypisania";
-    const profile = profiles.find((p) => p.id === profileId);
-    return profile?.name || "Nieznany profil";
   };
 
   const isTokenExpired = (expiresAt: string | null): boolean => {
@@ -300,25 +281,6 @@ const Recommendations = () => {
             </p>
           </div>
 
-          {profiles.length > 1 && (
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Wybierz profil" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Wszystkie profile</SelectItem>
-                  {profiles.map((profile) => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.name}
-                      {profile.is_primary && " (główny)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </div>
 
         {/* Filters Section */}
@@ -402,15 +364,13 @@ const Recommendations = () => {
               <h3 className="text-lg font-medium text-foreground mb-2">
                 Brak zaleceń
               </h3>
-              <p className="text-muted-foreground">
-                {hasActiveFilters
-                  ? "Brak zaleceń spełniających wybrane kryteria."
-                  : selectedProfileId === "all"
-                  ? "Nie masz jeszcze żadnych zaleceń."
-                  : "Brak zaleceń dla wybranego profilu."}
-              </p>
-            </CardContent>
-          </Card>
+                <p className="text-muted-foreground">
+                  {hasActiveFilters
+                    ? "Brak zaleceń spełniających wybrane kryteria."
+                  : "Brak zaleceń dla aktywnego profilu."}
+                </p>
+              </CardContent>
+            </Card>
         ) : (
           <div className="space-y-4">
             {filteredRecommendations.map((recommendation) => {
@@ -459,12 +419,6 @@ const Recommendations = () => {
                               { locale: pl }
                             )}
                           </span>
-                          {profiles.length > 1 && recommendation.person_profile_id && (
-                            <span className="flex items-center gap-1">
-                              <User className="h-4 w-4" />
-                              {getProfileName(recommendation.person_profile_id)}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="flex gap-2">

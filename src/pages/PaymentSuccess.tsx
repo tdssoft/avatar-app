@@ -31,7 +31,7 @@ const PaymentSuccess = () => {
     const poll = async () => {
       if (cancelled) return;
       attempts += 1;
-      await refresh();
+      await refresh({ force: true });
       if (attempts >= maxAttempts && !cancelled) {
         setPollingFinished(true);
       }
@@ -52,7 +52,7 @@ const PaymentSuccess = () => {
   const handleRefreshStatus = async () => {
     setIsRefreshing(true);
     try {
-      await refresh();
+      await refresh({ force: true });
     } finally {
       setIsRefreshing(false);
     }

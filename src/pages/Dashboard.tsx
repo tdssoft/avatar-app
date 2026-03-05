@@ -48,7 +48,6 @@ const Dashboard = () => {
     hasInterview,
     hasInterviewDraft,
     hasPaidPlan,
-    hasResults,
   } = useUserFlowStatus();
 
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -375,7 +374,7 @@ const Dashboard = () => {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Ładowanie zaleceń...</span>
                     </div>
-                  ) : hasResults && selectedRecommendation ? (
+                  ) : recommendations.length > 0 && selectedRecommendation ? (
                     <>
                       <p className="text-[16px] leading-7 text-foreground">
                         {selectedRecommendation.diagnosis_summary || "Szczegóły diagnozy i zalecenia dietetyczne zostały przygotowane dla Twojego profilu."}

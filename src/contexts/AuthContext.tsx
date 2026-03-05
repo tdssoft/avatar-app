@@ -83,6 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   // Guard to prevent duplicate profile fetches
   const fetchingProfileRef = useRef<string | null>(null);
+  const loadedProfileRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -94,9 +95,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (currentSession?.user) {
           // Use setTimeout to avoid deadlock with Supabase calls inside callback
           setTimeout(() => {
-            fetchUserProfile(currentSession.user);
+            fetchUserProfile(currentSession.user, { force: false });
           }, 0);
         } else {
+          loadedProfileRef.current = null;
           setUser(null);
           setIsLoading(false);
         }
@@ -108,8 +110,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log("[AuthContext] getSession:", existingSession?.user?.id);
       setSession(existingSession);
       if (existingSession?.user) {
-        fetchUserProfile(existingSession.user);
+        fetchUserProfile(existingSession.user, { force: false });
       } else {
+        loadedProfileRef.current = null;
         setIsLoading(false);
       }
     });
@@ -117,7 +120,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
+  const fetchUserProfile = async (
+    supabaseUser: SupabaseUser,
+    options?: { force?: boolean },
+  ) => {
+    const force = options?.force === true;
+
+    if (!force && loadedProfileRef.current === supabaseUser.id) {
+      setIsLoading(false);
+      return;
+    }
+
     // Prevent duplicate fetches for the same user
     if (fetchingProfileRef.current === supabaseUser.id) {
       console.log("[AuthContext] Already fetching profile for:", supabaseUser.id);
@@ -202,6 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           metadata?.onboardingConfirmed === true ||
           Boolean((profile?.first_name || "").trim() && (profile?.last_name || "").trim()),
       });
+      loadedProfileRef.current = supabaseUser.id;
     } catch (error) {
       console.error("[AuthContext] Error fetching profile:", error);
       // Still set user even if profile fetch fails
@@ -217,6 +231,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         createdAt: supabaseUser.created_at,
         onboardingConfirmed: metadata?.onboardingConfirmed === true,
       });
+      loadedProfileRef.current = supabaseUser.id;
     } finally {
       fetchingProfileRef.current = null;
       setIsLoading(false);
@@ -238,7 +253,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Wait for user profile to be loaded before returning success
     if (data.user) {
-      await fetchUserProfile(data.user);
+      await fetchUserProfile(data.user, { force: true });
     }
 
     return { success: true };
@@ -344,7 +359,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (!loginError && loginData.user) {
-        await fetchUserProfile(loginData.user);
+        await fetchUserProfile(loginData.user, { force: true });
         return true;
       }
 
@@ -369,12 +384,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+    loadedProfileRef.current = null;
   };
 
   const refreshUser = async () => {
     const { data: { user: supabaseUser } } = await supabase.auth.getUser();
     if (supabaseUser) {
-      await fetchUserProfile(supabaseUser);
+      await fetchUserProfile(supabaseUser, { force: true });
     }
   };
 
