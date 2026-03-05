@@ -192,13 +192,15 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Create patient record
-    const { error: patientError } = await serviceClient
+    const { data: createdPatient, error: patientError } = await serviceClient
       .from("patients")
       .insert({
         user_id: newUserId,
         subscription_status: "Brak",
         diagnosis_status: "Brak",
-      });
+      })
+      .select("id")
+      .single();
 
     if (patientError) {
       console.error("[admin-create-patient] Patient error:", patientError);
@@ -286,6 +288,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         userId: newUserId,
+        patientId: createdPatient?.id ?? null,
         message: "Patient account created successfully",
         emailSent,
         // Return temp password for testing (in production, only rely on email)

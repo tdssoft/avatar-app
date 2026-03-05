@@ -16,6 +16,13 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -96,74 +103,154 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Delete related data first (in case CASCADE doesn't cover everything)
-    // Most should be handled by CASCADE, but let's be explicit
-    
-    // 1. Delete audio recordings files from storage
-    const { data: audioRecordings } = await supabaseAdmin
-      .from("audio_recordings")
-      .select("file_path, person_profile_id")
-      .eq("recorded_by", userId);
+    const { data: personProfiles, error: personProfilesReadError } = await supabaseAdmin
+      .from("person_profiles")
+      .select("id, avatar_url")
+      .eq("account_user_id", userId);
 
-    if (audioRecordings && audioRecordings.length > 0) {
-      const filePaths = audioRecordings.map(r => r.file_path);
+    if (personProfilesReadError) {
+      console.error("[admin-delete-user] Error loading person profiles:", personProfilesReadError);
+    }
+
+    const personProfileIds = (personProfiles || []).map((profile) => profile.id);
+
+    // Delete storage files linked to patient result files
+    const { data: patientResultFiles } = await supabaseAdmin
+      .from("patient_result_files")
+      .select("file_path")
+      .eq("patient_id", patient_id);
+
+    if (patientResultFiles && patientResultFiles.length > 0) {
+      const filePaths = patientResultFiles.map((r) => r.file_path);
       const { error: storageError } = await supabaseAdmin.storage
-        .from("audio-recordings")
+        .from("patient-result-files")
         .remove(filePaths);
-      
       if (storageError) {
-        console.error("[admin-delete-user] Error deleting audio files:", storageError);
+        console.error("[admin-delete-user] Error deleting patient-result-files:", storageError);
       }
     }
 
-    // 2. Delete user results files from storage
+    // Delete storage files linked to patient device files
+    const { data: patientDeviceFiles } = await supabaseAdmin
+      .from("patient_device_files")
+      .select("file_path")
+      .eq("patient_id", patient_id);
+
+    if (patientDeviceFiles && patientDeviceFiles.length > 0) {
+      const filePaths = patientDeviceFiles.map((r) => r.file_path);
+      const { error: storageError } = await supabaseAdmin.storage
+        .from("patient-device-files")
+        .remove(filePaths);
+      if (storageError) {
+        console.error("[admin-delete-user] Error deleting patient-device-files:", storageError);
+      }
+    }
+
+    // Delete storage files linked to patient AI entries
+    const { data: patientAiFiles } = await supabaseAdmin
+      .from("patient_ai_entries")
+      .select("attachment_file_path")
+      .eq("patient_id", patient_id)
+      .not("attachment_file_path", "is", null);
+
+    if (patientAiFiles && patientAiFiles.length > 0) {
+      const filePaths = patientAiFiles
+        .map((r) => r.attachment_file_path)
+        .filter((path): path is string => typeof path === "string" && path.length > 0);
+      if (filePaths.length > 0) {
+        const { error: storageError } = await supabaseAdmin.storage
+          .from("patient-ai-files")
+          .remove(filePaths);
+        if (storageError) {
+          console.error("[admin-delete-user] Error deleting patient-ai-files:", storageError);
+        }
+      }
+    }
+
+    // Delete audio recordings files from storage
+    const { data: audioRecordings } = await supabaseAdmin
+      .from("audio_recordings")
+      .select("file_path")
+      .eq("recorded_by", userId);
+
+    if (audioRecordings && audioRecordings.length > 0) {
+      const filePaths = audioRecordings.map((r) => r.file_path);
+      const { error: storageError } = await supabaseAdmin.storage
+        .from("audio-recordings")
+        .remove(filePaths);
+      if (storageError) {
+        console.error("[admin-delete-user] Error deleting audio-recordings storage files:", storageError);
+      }
+    }
+
+    // Delete legacy user results files from storage
     const { data: userResults } = await supabaseAdmin
       .from("user_results")
       .select("file_path")
       .eq("user_id", userId);
 
     if (userResults && userResults.length > 0) {
-      const filePaths = userResults.map(r => r.file_path);
+      const filePaths = userResults.map((r) => r.file_path);
       const { error: storageError } = await supabaseAdmin.storage
         .from("results")
         .remove(filePaths);
-      
       if (storageError) {
-        console.error("[admin-delete-user] Error deleting result files:", storageError);
+        console.error("[admin-delete-user] Error deleting legacy result files:", storageError);
       }
     }
 
-    // 3. Delete avatar from storage
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("avatar_url")
-      .eq("user_id", userId)
-      .single();
+    // Delete person-profile avatars from storage
+    const avatarPaths = (personProfiles || [])
+      .map((profile) => {
+        const avatarUrl = profile.avatar_url;
+        if (!avatarUrl) return null;
+        const marker = "/storage/v1/object/public/avatars/";
+        const idx = avatarUrl.indexOf(marker);
+        if (idx === -1) return null;
+        return avatarUrl.slice(idx + marker.length).split("?")[0];
+      })
+      .filter((path): path is string => Boolean(path));
 
-    if (profile?.avatar_url) {
-      // Extract path from URL
-      const avatarPath = profile.avatar_url.split("/avatars/")[1];
-      if (avatarPath) {
-        await supabaseAdmin.storage.from("avatars").remove([avatarPath]);
+    if (avatarPaths.length > 0) {
+      const { error: avatarStorageError } = await supabaseAdmin.storage
+        .from("avatars")
+        .remove(avatarPaths);
+      if (avatarStorageError) {
+        console.error("[admin-delete-user] Error deleting person avatar files:", avatarStorageError);
       }
     }
 
-    // 4. Delete person_profiles (this should cascade to related records)
+    // Delete linked rows not fully covered by cascades from auth user deletion
+    if (personProfileIds.length > 0) {
+      await supabaseAdmin.from("profile_access").delete().in("person_profile_id", personProfileIds);
+      await supabaseAdmin.from("nutrition_interviews").delete().in("person_profile_id", personProfileIds);
+      await supabaseAdmin.from("audio_recordings").delete().in("person_profile_id", personProfileIds);
+    }
+
+    await supabaseAdmin.from("patient_ai_entries").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("patient_device_files").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("patient_result_files").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("patient_messages").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("patient_notes").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("recommendations").delete().eq("patient_id", patient_id);
+    await supabaseAdmin.from("profile_access").delete().eq("account_user_id", userId);
+    await supabaseAdmin.from("partner_shop_links").delete().eq("partner_user_id", userId);
+    await supabaseAdmin.from("referrals").delete().eq("referred_user_id", userId);
+    await supabaseAdmin.from("referrals").delete().eq("referrer_user_id", userId);
+
+    // Delete person profiles and patient/profile rows
     const { error: personProfilesError } = await supabaseAdmin
       .from("person_profiles")
       .delete()
       .eq("account_user_id", userId);
-
     if (personProfilesError) {
       console.error("[admin-delete-user] Error deleting person_profiles:", personProfilesError);
     }
 
-    // 5. Delete patient record
     const { error: deletePatientError } = await supabaseAdmin
       .from("patients")
       .delete()
       .eq("id", patient_id);
-
     if (deletePatientError) {
       console.error("[admin-delete-user] Error deleting patient:", deletePatientError);
       return new Response(
@@ -172,27 +259,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. Delete profile
     const { error: deleteProfileError } = await supabaseAdmin
       .from("profiles")
       .delete()
       .eq("user_id", userId);
-
     if (deleteProfileError) {
       console.error("[admin-delete-user] Error deleting profile:", deleteProfileError);
     }
 
-    // 7. Delete user_roles
     const { error: deleteRolesError } = await supabaseAdmin
       .from("user_roles")
       .delete()
       .eq("user_id", userId);
-
     if (deleteRolesError) {
       console.error("[admin-delete-user] Error deleting roles:", deleteRolesError);
     }
 
-    // 8. Finally, delete the auth user
+    // Finally, delete the auth user
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteAuthError) {

@@ -124,6 +124,19 @@ Deno.serve(async (req) => {
       console.log("[post-signup] Patient row ensured");
     }
 
+    const { data: ensuredPatient, error: ensuredPatientError } = await supabaseAdmin
+      .from("patients")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (ensuredPatientError || !ensuredPatient?.id) {
+      console.error("[post-signup] CRITICAL: patient row missing after ensure", {
+        userId,
+        ensuredPatientError,
+      });
+    }
+
     // Ensure main person profile exists
     let primaryProfileId: string | null = null;
     const { data: existingPrimaryProfile, error: existingPrimaryProfileError } = await supabaseAdmin

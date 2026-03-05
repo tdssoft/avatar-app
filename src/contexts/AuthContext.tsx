@@ -310,6 +310,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("[AuthContext] post-signup success:", fnData);
       }
 
+      const ensurePatientRow = async () => {
+        const { data: patientRow, error: patientError } = await supabase
+          .from("patients")
+          .select("id")
+          .eq("user_id", authData.user.id)
+          .maybeSingle();
+        return { patientRow, patientError };
+      };
+
+      // Verify consistency: every auth account must have a patient row.
+      let ensureResult = await ensurePatientRow();
+      if (!ensureResult.patientRow?.id && !ensureResult.patientError) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        ensureResult = await ensurePatientRow();
+      }
+
+      if (ensureResult.patientError || !ensureResult.patientRow?.id) {
+        const reason = ensureResult.patientError?.message || "Brak rekordu pacjenta po rejestracji";
+        console.error("[AuthContext] signup consistency error:", reason);
+        return {
+          success: false,
+          error: "Konto utworzone niekompletnie. Spróbuj ponownie za chwilę.",
+        };
+      }
+
       // Best-effort avatar upload selected during signup
       if (data.photoFile && data.photoOption === "upload") {
         try {

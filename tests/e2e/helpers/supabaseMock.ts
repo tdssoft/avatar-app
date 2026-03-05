@@ -90,6 +90,8 @@ const baseDb = (): Db => ({
       sent_at: nowIso,
     },
   ],
+  patient_notes: [],
+  audio_recordings: [],
   patient_result_files: [],
   patient_device_files: [],
   patient_ai_entries: [],
@@ -388,6 +390,52 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
     });
   }
   const tokenUserMap: Record<string, any> = {};
+  const dynamicUsers: any[] = [USERS.user, USERS.admin];
+
+  const getUserByEmail = (email: string) =>
+    dynamicUsers.find((u) => `${u.email}`.toLowerCase() === `${email}`.toLowerCase());
+
+  const upsertCoreRowsForUser = (user: any) => {
+    let profile = db.profiles.find((p) => p.user_id === user.id);
+    if (!profile) {
+      profile = {
+        id: `profile-${Math.random().toString(36).slice(2, 8)}`,
+        user_id: user.id,
+        first_name: user.user_metadata?.firstName || null,
+        last_name: user.user_metadata?.lastName || null,
+        phone: user.user_metadata?.phone || null,
+        avatar_url: null,
+        referral_code: user.user_metadata?.referralCode || null,
+      };
+      db.profiles.push(profile);
+    }
+
+    const hasPatient = db.patients.some((p) => p.user_id === user.id);
+    if (!hasPatient) {
+      db.patients.push({
+        id: `patient-${Math.random().toString(36).slice(2, 8)}`,
+        user_id: user.id,
+        subscription_status: "Brak",
+        diagnosis_status: "Brak",
+        last_communication_at: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+        tags: [],
+      });
+    }
+
+    const hasPrimaryProfile = db.person_profiles.some((pp) => pp.account_user_id === user.id && pp.is_primary);
+    if (!hasPrimaryProfile) {
+      const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "—";
+      db.person_profiles.push({
+        id: `pp-${Math.random().toString(36).slice(2, 8)}`,
+        account_user_id: user.id,
+        name: fullName,
+        is_primary: true,
+        created_at: nowIso,
+      });
+    }
+  };
 
   await page.route('**/*', async (route) => {
     const req = route.request();
@@ -402,7 +450,9 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
         body = {};
       }
 
-      const candidate = Object.values(USERS).find((u) => u.email === body.email && u.password === body.password);
+      const candidate = dynamicUsers.find(
+        (u) => `${u.email}`.toLowerCase() === `${body.email || ""}`.toLowerCase() && u.password === body.password
+      );
       if (!candidate) {
         return json(route, 400, { error: 'invalid_grant', error_description: 'Invalid login credentials' });
       }
@@ -417,6 +467,41 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
         refresh_token: `refresh-${candidate.id}`,
         expires_at: Math.floor(Date.now() / 1000) + 3600,
         user: authUserResponse(candidate),
+      });
+    }
+
+    if (url.pathname.includes('/auth/v1/signup') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const email = `${body?.email || ''}`.trim().toLowerCase();
+      const password = `${body?.password || ''}`;
+      if (!email || !password) {
+        return json(route, 400, { error: 'invalid_request', error_description: 'Missing email or password' });
+      }
+
+      if (getUserByEmail(email)) {
+        return json(route, 400, { error: 'User already registered' });
+      }
+
+      const newUser = {
+        id: `user-${Math.random().toString(36).slice(2, 8)}`,
+        email,
+        password,
+        user_metadata: {
+          ...(body?.data || {}),
+        },
+      };
+      dynamicUsers.push(newUser);
+      upsertCoreRowsForUser(newUser);
+
+      return json(route, 200, {
+        user: authUserResponse(newUser),
+        session: null,
       });
     }
 
@@ -474,6 +559,172 @@ export async function installSupabaseMocks(page: Page, mode: Mode, options: Mock
         return json(route, 200, { email: USERS.user.email });
       }
       return json(route, 404, { error: 'Patient not found' });
+    }
+
+    if (url.pathname.includes('/functions/v1/post-signup') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const userId = `${body?.userId || ''}`.trim();
+      const email = `${body?.email || ''}`.trim().toLowerCase();
+      const firstName = `${body?.firstName || ''}`.trim();
+      const lastName = `${body?.lastName || ''}`.trim();
+      const phone = `${body?.phone || ''}`.trim();
+      const referralCode = `${body?.referralCode || ''}`.trim();
+
+      if (!userId || !email || !firstName || !lastName) {
+        return json(route, 400, { error: 'Missing required fields' });
+      }
+
+      let user = dynamicUsers.find((u) => u.id === userId);
+      if (!user) {
+        user = { id: userId, email, password: 'Temp1234!', user_metadata: {} };
+        dynamicUsers.push(user);
+      }
+      user.user_metadata = {
+        ...user.user_metadata,
+        firstName,
+        lastName,
+        phone,
+        referralCode,
+        onboardingConfirmed: true,
+      };
+
+      upsertCoreRowsForUser(user);
+
+      const profile = db.profiles.find((p) => p.user_id === userId);
+      if (profile) {
+        profile.first_name = firstName;
+        profile.last_name = lastName;
+        profile.phone = phone || null;
+        profile.referral_code = referralCode || profile.referral_code;
+      }
+
+      const primary = db.person_profiles.find((pp) => pp.account_user_id === userId && pp.is_primary);
+      if (primary) {
+        primary.name = `${firstName} ${lastName}`.trim() || '—';
+      }
+
+      return json(route, 200, { success: true });
+    }
+
+    if (url.pathname.includes('/functions/v1/admin-create-patient') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const firstName = `${body?.firstName || ''}`.trim();
+      const lastName = `${body?.lastName || ''}`.trim();
+      const email = `${body?.email || ''}`.trim().toLowerCase();
+      const phone = `${body?.phone || ''}`.trim();
+      if (!firstName || !lastName || !email) {
+        return json(route, 400, { error: 'Missing required fields (firstName, lastName, email)' });
+      }
+
+      if (getUserByEmail(email)) {
+        return json(route, 400, { error: 'User already registered' });
+      }
+
+      const userId = `user-${Math.random().toString(36).slice(2, 8)}`;
+      const user = {
+        id: userId,
+        email,
+        password: 'Temp1234!',
+        user_metadata: {
+          firstName,
+          lastName,
+          phone,
+          referralCode: `REF${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          onboardingConfirmed: true,
+        },
+      };
+      dynamicUsers.push(user);
+      upsertCoreRowsForUser(user);
+
+      const profile = db.profiles.find((p) => p.user_id === userId);
+      if (profile) {
+        profile.first_name = firstName;
+        profile.last_name = lastName;
+        profile.phone = phone || null;
+      }
+
+      const primary = db.person_profiles.find((pp) => pp.account_user_id === userId && pp.is_primary);
+      if (primary) {
+        primary.name = `${firstName} ${lastName}`.trim() || '—';
+      }
+
+      const patient = db.patients.find((p) => p.user_id === userId);
+
+      return json(route, 200, {
+        success: true,
+        userId,
+        patientId: patient?.id || null,
+        message: 'Patient account created successfully',
+        emailSent: true,
+        tempPassword: 'Temp1234!',
+      });
+    }
+
+    if (url.pathname.includes('/functions/v1/admin-delete-user') && method === 'POST') {
+      let body: any = {};
+      try {
+        body = req.postDataJSON();
+      } catch {
+        body = {};
+      }
+
+      const patientId = `${body?.patient_id || ''}`.trim();
+      if (!patientId) {
+        return json(route, 400, { error: 'Brak ID pacjenta' });
+      }
+
+      const patient = db.patients.find((p) => `${p.id}` === patientId);
+      if (!patient) {
+        return json(route, 404, { error: 'Nie znaleziono pacjenta' });
+      }
+
+      const userId = `${patient.user_id}`;
+      if (mode === 'admin' && userId === USERS.admin.id) {
+        return json(route, 400, { error: 'Nie możesz usunąć własnego konta' });
+      }
+
+      const profileIds = db.person_profiles
+        .filter((pp) => pp.account_user_id === userId)
+        .map((pp) => pp.id);
+
+      db.patient_ai_entries = db.patient_ai_entries.filter((r) => `${r.patient_id}` !== patientId);
+      db.patient_device_files = db.patient_device_files.filter((r) => `${r.patient_id}` !== patientId);
+      db.patient_result_files = db.patient_result_files.filter((r) => `${r.patient_id}` !== patientId);
+      db.patient_messages = db.patient_messages.filter((r) => `${r.patient_id}` !== patientId);
+      db.patient_notes = db.patient_notes.filter((r) => `${r.patient_id}` !== patientId);
+      db.recommendations = db.recommendations.filter((r) => `${r.patient_id}` !== patientId);
+      db.nutrition_interviews = db.nutrition_interviews.filter((r) => !profileIds.includes(`${r.person_profile_id}`));
+      db.audio_recordings = db.audio_recordings.filter(
+        (r) => `${r.recorded_by}` !== userId && !profileIds.includes(`${r.person_profile_id}`)
+      );
+      db.profile_access = db.profile_access.filter(
+        (r) => `${r.account_user_id}` !== userId && !profileIds.includes(`${r.person_profile_id}`)
+      );
+      db.person_profiles = db.person_profiles.filter((r) => `${r.account_user_id}` !== userId);
+      db.patients = db.patients.filter((r) => `${r.id}` !== patientId);
+      db.profiles = db.profiles.filter((r) => `${r.user_id}` !== userId);
+      db.user_roles = db.user_roles.filter((r) => `${r.user_id}` !== userId);
+      db.referrals = db.referrals.filter(
+        (r) => `${r.referred_user_id}` !== userId && `${r.referrer_user_id}` !== userId
+      );
+      db.partner_shop_links = db.partner_shop_links.filter((r) => `${r.partner_user_id}` !== userId);
+
+      const userIdx = dynamicUsers.findIndex((u) => `${u.id}` === userId);
+      if (userIdx >= 0) dynamicUsers.splice(userIdx, 1);
+
+      return json(route, 200, { success: true, message: 'Użytkownik został usunięty' });
     }
 
     if (url.pathname.includes('/functions/v1/admin-ensure-person-profile') && method === 'POST') {

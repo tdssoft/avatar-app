@@ -9,7 +9,7 @@ import { toast } from "sonner";
 interface CreatePatientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
+  onSuccess: () => Promise<void> | void;
 }
 
 const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDialogProps) => {
@@ -38,10 +38,24 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
 
       if (error) throw error;
 
-      toast.success("Konto pacjenta zostało utworzone");
+      await onSuccess();
+
+      const patientId = typeof data?.patientId === "string" ? data.patientId : "";
+      if (patientId) {
+        const { data: patientRow, error: patientVerifyError } = await supabase
+          .from("patients")
+          .select("id")
+          .eq("id", patientId)
+          .maybeSingle();
+
+        if (patientVerifyError || !patientRow?.id) {
+          throw new Error("Konto utworzone, ale nie pojawiło się na liście pacjentów.");
+        }
+      }
+
+      toast.success("Konto pacjenta zostało utworzone i dodane do listy");
       setFormData({ firstName: "", lastName: "", email: "", phone: "" });
       onOpenChange(false);
-      onSuccess();
     } catch (error: any) {
       console.error("[CreatePatientDialog] Error:", error);
       toast.error(error.message || "Nie udało się utworzyć konta pacjenta");
