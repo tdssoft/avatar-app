@@ -218,6 +218,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Create patient record
+    let patientId: string | null = null;
     const { data: createdPatient, error: patientError } = await serviceClient
       .from("patients")
       .insert({
@@ -229,11 +230,38 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (patientError) {
-      console.error("[admin-create-patient] Patient error:", patientError);
-      return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
-    }
+      const isAlreadyLinkedPatient =
+        patientError.code === "23505" ||
+        (patientError.message ?? "").toLowerCase().includes("duplicate");
 
-    console.log("[admin-create-patient] Patient created successfully");
+      if (!isAlreadyLinkedPatient) {
+        console.error("[admin-create-patient] Patient error:", patientError);
+        return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
+      }
+
+      console.warn("[admin-create-patient] Patient already exists for user, loading existing row", {
+        userId: newUserId,
+      });
+
+      const { data: existingPatient, error: existingPatientError } = await serviceClient
+        .from("patients")
+        .select("id")
+        .eq("user_id", newUserId)
+        .maybeSingle();
+
+      if (existingPatientError || !existingPatient?.id) {
+        console.error("[admin-create-patient] Failed to read existing patient after duplicate error:", {
+          existingPatientError,
+          userId: newUserId,
+        });
+        return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
+      }
+
+      patientId = existingPatient.id;
+    } else {
+      patientId = createdPatient?.id ?? null;
+      console.log("[admin-create-patient] Patient created successfully");
+    }
 
     // Send email with login credentials using Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -310,7 +338,7 @@ serve(async (req: Request): Promise<Response> => {
     return jsonResponse({
       success: true,
       userId: newUserId,
-      patientId: createdPatient?.id ?? null,
+      patientId,
       message: "Patient account created successfully",
       emailSent,
       // Return temp password for testing (in production, only rely on email)

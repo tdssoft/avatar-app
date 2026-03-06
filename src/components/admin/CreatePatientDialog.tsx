@@ -70,6 +70,10 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
       return errorDetails.error || "Sprawdź poprawność danych formularza";
     }
 
+    if (errorDetails.status === 500 && errorDetails.code === "PATIENT_CREATE_FAILED") {
+      return "Konto użytkownika zostało utworzone, ale rekord pacjenta nie został poprawnie powiązany. Skontaktuj się z administratorem.";
+    }
+
     return errorDetails.error || "Nie udało się utworzyć konta pacjenta";
   };
 
