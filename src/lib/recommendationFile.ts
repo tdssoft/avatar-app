@@ -59,6 +59,34 @@ const renderEmbeddedPdfPreview = (targetWindow: Window, fileUrl: string, fileNam
   targetWindow.document.close();
 };
 
+
+const renderLoadingPreview = (targetWindow: Window) => {
+  targetWindow.document.open();
+  targetWindow.document.write(`<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ładowanie pliku…</title>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <p>Ładowanie pliku…</p>
+  </body>
+</html>`);
+  targetWindow.document.close();
+};
 const decodePath = (value: string) => {
   try {
     return decodeURIComponent(value);
@@ -119,7 +147,12 @@ export const resolveRecommendationFileUrl = async (fileRef: string): Promise<str
 };
 
 export const openRecommendationFileInNewTab = async (fileRef: string): Promise<void> => {
-  const pendingTab = window.open("", "_blank", "noopener,noreferrer");
+  const pendingTab = window.open("about:blank", "_blank");
+
+  if (pendingTab) {
+    pendingTab.opener = null;
+    renderLoadingPreview(pendingTab);
+  }
 
   try {
     const fileUrl = await resolveRecommendationFileUrl(fileRef);
@@ -127,18 +160,16 @@ export const openRecommendationFileInNewTab = async (fileRef: string): Promise<v
     const fileName = getRecommendationFileName(fileRef);
 
     if (pendingTab) {
-      pendingTab.opener = null;
-
       if (fileExtension === "pdf") {
         renderEmbeddedPdfPreview(pendingTab, fileUrl, fileName);
         return;
       }
 
-      pendingTab.location.href = fileUrl;
+      pendingTab.location.replace(fileUrl);
       return;
     }
 
-    window.open(fileUrl, "_blank", "noopener,noreferrer");
+    window.location.assign(fileUrl);
   } catch (error) {
     pendingTab?.close();
     throw error;
