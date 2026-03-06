@@ -2,6 +2,63 @@ import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_BUCKET = "recommendation-files";
 
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const renderEmbeddedPdfPreview = (targetWindow: Window, fileUrl: string, fileName: string) => {
+  const safeTitle = escapeHtml(fileName || "Podgląd pliku");
+  const safeUrl = escapeHtml(fileUrl);
+
+  targetWindow.document.open();
+  targetWindow.document.write(`<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${safeTitle}</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; background: #0f172a; }
+      .header {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        color: #e2e8f0;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        background: #111827;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      .download-link {
+        color: #67e8f9;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      iframe {
+        width: 100%;
+        height: calc(100% - 49px);
+        border: 0;
+        background: #ffffff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <span>${safeTitle}</span>
+      <a class="download-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer" download>Pobierz plik</a>
+    </div>
+    <iframe src="${safeUrl}" title="Podgląd pliku PDF"></iframe>
+  </body>
+</html>`);
+  targetWindow.document.close();
+};
+
 const decodePath = (value: string) => {
   try {
     return decodeURIComponent(value);
@@ -66,9 +123,17 @@ export const openRecommendationFileInNewTab = async (fileRef: string): Promise<v
 
   try {
     const fileUrl = await resolveRecommendationFileUrl(fileRef);
+    const fileExtension = getRecommendationFileExtension(fileRef);
+    const fileName = getRecommendationFileName(fileRef);
 
     if (pendingTab) {
       pendingTab.opener = null;
+
+      if (fileExtension === "pdf") {
+        renderEmbeddedPdfPreview(pendingTab, fileUrl, fileName);
+        return;
+      }
+
       pendingTab.location.href = fileUrl;
       return;
     }
