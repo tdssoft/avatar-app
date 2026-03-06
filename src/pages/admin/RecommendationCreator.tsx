@@ -37,7 +37,14 @@ const ALLOWED_RECOMMENDATION_FILE_TYPES = [
 ];
 
 const sanitizeFileName = (fileName: string) => fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-const RECOMMENDATION_UPLOAD_TIMEOUT_MS = 45_000;
+const RECOMMENDATION_UPLOAD_TIMEOUT_MS = 60_000;
+const RECOMMENDATION_UPLOAD_TIMEOUT_MS_FOR_WORD_FILES = 180_000;
+
+const getRecommendationUploadTimeoutMs = (file: File): number => {
+  const fileName = file.name.toLowerCase();
+  const isWordDocument = fileName.endsWith(".doc") || fileName.endsWith(".docx");
+  return isWordDocument ? RECOMMENDATION_UPLOAD_TIMEOUT_MS_FOR_WORD_FILES : RECOMMENDATION_UPLOAD_TIMEOUT_MS;
+};
 
 const getRecommendationFileName = (value: string | null | undefined) => {
   if (!value) return "";
@@ -337,9 +344,10 @@ const RecommendationCreator = () => {
       };
 
       if (selectedRecommendationFile) {
+        const uploadTimeoutMs = getRecommendationUploadTimeoutMs(selectedRecommendationFile);
         const filePath = await withTimeout(
           uploadRecommendationFile(selectedRecommendationFile, id, persistedProfileId),
-          RECOMMENDATION_UPLOAD_TIMEOUT_MS,
+          uploadTimeoutMs,
           "Przesyłanie pliku trwa zbyt długo. Spróbuj ponownie."
         );
         recommendationPayload.pdf_url = filePath;
