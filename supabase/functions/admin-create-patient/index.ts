@@ -45,6 +45,12 @@ serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed. Use POST." }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   try {
     // Verify admin role
@@ -132,6 +138,18 @@ serve(async (req: Request): Promise<Response> => {
 
     if (authError) {
       console.error("[admin-create-patient] Auth error:", authError);
+      const authMessage = (authError.message ?? "").toLowerCase();
+      if (
+        authMessage.includes("already") ||
+        authMessage.includes("registered") ||
+        authMessage.includes("exists") ||
+        authMessage.includes("duplicate")
+      ) {
+        return new Response(
+          JSON.stringify({ error: "Konto z tym adresem email już istnieje", code: "EMAIL_EXISTS" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: authError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

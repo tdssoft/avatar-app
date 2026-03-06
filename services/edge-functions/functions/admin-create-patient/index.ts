@@ -45,6 +45,12 @@ serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed. Use POST." }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   try {
     // Verify admin role
@@ -132,6 +138,18 @@ serve(async (req: Request): Promise<Response> => {
 
     if (authError) {
       console.error("[admin-create-patient] Auth error:", authError);
+      const authMessage = (authError.message ?? "").toLowerCase();
+      if (
+        authMessage.includes("already") ||
+        authMessage.includes("registered") ||
+        authMessage.includes("exists") ||
+        authMessage.includes("duplicate")
+      ) {
+        return new Response(
+          JSON.stringify({ error: "Konto z tym adresem email już istnieje", code: "EMAIL_EXISTS" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: authError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -192,13 +210,15 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Create patient record
-    const { error: patientError } = await serviceClient
+    const { data: createdPatient, error: patientError } = await serviceClient
       .from("patients")
       .insert({
         user_id: newUserId,
         subscription_status: "Brak",
         diagnosis_status: "Brak",
-      });
+      })
+      .select("id")
+      .single();
 
     if (patientError) {
       console.error("[admin-create-patient] Patient error:", patientError);
@@ -286,6 +306,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({
         success: true,
         userId: newUserId,
+        patientId: createdPatient?.id ?? null,
         message: "Patient account created successfully",
         emailSent,
         // Return temp password for testing (in production, only rely on email)

@@ -37,6 +37,7 @@ const ALLOWED_RECOMMENDATION_FILE_TYPES = [
 ];
 
 const sanitizeFileName = (fileName: string) => fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+const RECOMMENDATION_UPLOAD_TIMEOUT_MS = 45_000;
 
 const getRecommendationFileName = (value: string | null | undefined) => {
   if (!value) return "";
@@ -223,12 +224,27 @@ const RecommendationCreator = () => {
     return true;
   };
 
+  const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
   const uploadRecommendationFile = async (file: File, patientId: string, profileId: string): Promise<string> => {
     const safeName = sanitizeFileName(file.name);
     const filePath = `${patientId}/${profileId}/${Date.now()}_${safeName}`;
     const { error } = await supabase.storage
       .from("recommendation-files")
-      .upload(filePath, file, { upsert: false });
+      .upload(filePath, file, {
+        upsert: false,
+        cacheControl: "3600",
+      });
 
     if (error) {
       throw error;
@@ -321,7 +337,11 @@ const RecommendationCreator = () => {
       };
 
       if (selectedRecommendationFile) {
-        const filePath = await uploadRecommendationFile(selectedRecommendationFile, id, persistedProfileId);
+        const filePath = await withTimeout(
+          uploadRecommendationFile(selectedRecommendationFile, id, persistedProfileId),
+          RECOMMENDATION_UPLOAD_TIMEOUT_MS,
+          "Przesyłanie pliku trwa zbyt długo. Spróbuj ponownie."
+        );
         recommendationPayload.pdf_url = filePath;
       }
 
@@ -367,7 +387,7 @@ const RecommendationCreator = () => {
 
       // Send email if enabled
       if (sendEmail && recommendation) {
-        await sendNotificationEmail(recommendation.id, isEditMode);
+        void sendNotificationEmail(recommendation.id, isEditMode);
       }
 
     } catch (error) {

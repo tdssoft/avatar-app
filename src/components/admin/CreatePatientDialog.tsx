@@ -26,14 +26,16 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     setIsLoading(true);
 
     try {
+      const payload = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim(),
+      };
+
       // Call edge function to create patient account
       const { data, error } = await supabase.functions.invoke("admin-create-patient", {
-        body: {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-        },
+        body: payload,
       });
 
       if (error) throw error;
@@ -58,7 +60,12 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
       onOpenChange(false);
     } catch (error: any) {
       console.error("[CreatePatientDialog] Error:", error);
-      toast.error(error.message || "Nie udało się utworzyć konta pacjenta");
+      const message = String(error?.message || "");
+      if (message.includes("EMAIL_EXISTS") || message.includes("409")) {
+        toast.error("Konto z tym adresem email już istnieje");
+      } else {
+        toast.error(message || "Nie udało się utworzyć konta pacjenta");
+      }
     } finally {
       setIsLoading(false);
     }
