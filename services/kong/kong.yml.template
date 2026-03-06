@@ -76,6 +76,8 @@ services:
       - name: cors
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: false
       - name: acl
         config:
@@ -97,6 +99,8 @@ services:
       - name: cors
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: true
       - name: acl
         config:
@@ -118,6 +122,8 @@ services:
       - name: cors
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: true
       - name: request-transformer
         config:
@@ -145,6 +151,8 @@ services:
       - name: cors
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: false
       - name: acl
         config:
@@ -165,6 +173,8 @@ services:
       - name: cors
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: false
       - name: acl
         config:
@@ -219,6 +229,8 @@ services:
     plugins:
       - name: key-auth
         config:
+          key_names:
+            - apikey
           hide_credentials: false
       - name: acl
         config:
