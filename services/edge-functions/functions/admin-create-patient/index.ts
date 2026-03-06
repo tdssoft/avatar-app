@@ -13,8 +13,22 @@ interface CreatePatientRequest {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone?: string | null;
 }
+
+interface ErrorResponse {
+  error: string;
+  code?: string;
+}
+
+const jsonResponse = (payload: Record<string, unknown>, status = 200): Response =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const errorResponse = (payload: ErrorResponse, status: number): Response =>
+  jsonResponse(payload, status);
 
 const generateRandomPassword = (): string => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
@@ -40,26 +54,22 @@ const isEmailLike = (value: string | null | undefined): boolean => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed. Use POST." }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse({ error: "Method not allowed. Use POST.", code: "METHOD_NOT_ALLOWED" }, 405);
   }
 
   try {
     // Verify admin role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -77,10 +87,7 @@ serve(async (req: Request): Promise<Response> => {
     
     if (claimsError || !claims?.claims?.sub) {
       console.error("[admin-create-patient] Claims error:", claimsError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
     }
 
     const adminUserId = claims.claims.sub;
@@ -97,24 +104,31 @@ serve(async (req: Request): Promise<Response> => {
 
     if (roleError || !roleData) {
       console.error("[admin-create-patient] Not an admin:", adminUserId);
-      return new Response(
-        JSON.stringify({ error: "Forbidden - Admin access required" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse({ error: "Forbidden - Admin access required", code: "FORBIDDEN" }, 403);
     }
 
     // Parse request body
-    const requestBody: CreatePatientRequest = await req.json();
+    let requestBody: CreatePatientRequest;
+    try {
+      requestBody = await req.json();
+    } catch (_parseError) {
+      return errorResponse({ error: "Invalid JSON payload", code: "INVALID_BODY" }, 400);
+    }
+
     const firstName = (requestBody.firstName ?? "").trim();
     const lastName = (requestBody.lastName ?? "").trim();
     const email = (requestBody.email ?? "").trim().toLowerCase();
-    const phone = (requestBody.phone ?? "").trim();
+    const phone = (requestBody.phone ?? "").trim() || null;
 
     if (!firstName || !lastName || !email) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields (firstName, lastName, email)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return errorResponse(
+        { error: "Missing required fields (firstName, lastName, email)", code: "VALIDATION_ERROR" },
+        400,
       );
+    }
+
+    if (!EMAIL_REGEX.test(email)) {
+      return errorResponse({ error: "Invalid email format", code: "INVALID_EMAIL" }, 400);
     }
 
     console.log("[admin-create-patient] Creating patient:", { email, firstName, lastName });
@@ -145,15 +159,9 @@ serve(async (req: Request): Promise<Response> => {
         authMessage.includes("exists") ||
         authMessage.includes("duplicate")
       ) {
-        return new Response(
-          JSON.stringify({ error: "Konto z tym adresem email już istnieje", code: "EMAIL_EXISTS" }),
-          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return errorResponse({ error: "User with this email already exists", code: "EMAIL_EXISTS" }, 409);
       }
-      return new Response(
-        JSON.stringify({ error: authError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return errorResponse({ error: "Failed to create user account", code: "AUTH_CREATE_FAILED" }, 400);
     }
 
     const newUserId = authData.user.id;
@@ -166,7 +174,7 @@ serve(async (req: Request): Promise<Response> => {
         user_id: newUserId,
         first_name: firstName,
         last_name: lastName,
-        phone: phone || null,
+        phone,
         referral_code: referralCode,
       });
 
@@ -210,6 +218,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Create patient record
+    let patientId: string | null = null;
     const { data: createdPatient, error: patientError } = await serviceClient
       .from("patients")
       .insert({
@@ -221,14 +230,38 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (patientError) {
-      console.error("[admin-create-patient] Patient error:", patientError);
-      return new Response(
-        JSON.stringify({ error: "Failed to create patient record" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      const isAlreadyLinkedPatient =
+        patientError.code === "23505" ||
+        (patientError.message ?? "").toLowerCase().includes("duplicate");
 
-    console.log("[admin-create-patient] Patient created successfully");
+      if (!isAlreadyLinkedPatient) {
+        console.error("[admin-create-patient] Patient error:", patientError);
+        return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
+      }
+
+      console.warn("[admin-create-patient] Patient already exists for user, loading existing row", {
+        userId: newUserId,
+      });
+
+      const { data: existingPatient, error: existingPatientError } = await serviceClient
+        .from("patients")
+        .select("id")
+        .eq("user_id", newUserId)
+        .maybeSingle();
+
+      if (existingPatientError || !existingPatient?.id) {
+        console.error("[admin-create-patient] Failed to read existing patient after duplicate error:", {
+          existingPatientError,
+          userId: newUserId,
+        });
+        return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
+      }
+
+      patientId = existingPatient.id;
+    } else {
+      patientId = createdPatient?.id ?? null;
+      console.log("[admin-create-patient] Patient created successfully");
+    }
 
     // Send email with login credentials using Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -302,24 +335,18 @@ serve(async (req: Request): Promise<Response> => {
       console.warn("[admin-create-patient] RESEND_API_KEY not configured, skipping email");
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        userId: newUserId,
-        patientId: createdPatient?.id ?? null,
-        message: "Patient account created successfully",
-        emailSent,
-        // Return temp password for testing (in production, only rely on email)
-        tempPassword: tempPassword,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({
+      success: true,
+      userId: newUserId,
+      patientId,
+      message: "Patient account created successfully",
+      emailSent,
+      // Return temp password for testing (in production, only rely on email)
+      tempPassword: tempPassword,
+    });
 
   } catch (error) {
     console.error("[admin-create-patient] Unexpected error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return errorResponse({ error: "Internal server error", code: "INTERNAL_ERROR" }, 500);
   }
 });
