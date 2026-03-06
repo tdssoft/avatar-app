@@ -12,6 +12,13 @@ interface CreatePatientDialogProps {
   onSuccess: () => Promise<void> | void;
 }
 
+type ApiErrorPayload = {
+  error?: string;
+  code?: string;
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -21,18 +28,69 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     phone: "",
   });
 
+  const parseFunctionError = async (error: any): Promise<ApiErrorPayload & { status?: number }> => {
+    const responseLike = error?.context;
+    if (!responseLike) {
+      return { error: String(error?.message || ""), code: undefined };
+    }
+
+    try {
+      const status = Number(responseLike?.status);
+      const payload: ApiErrorPayload = await responseLike.json();
+      return {
+        status,
+        error: payload?.error,
+        code: payload?.code,
+      };
+    } catch (_responseParseError) {
+      return {
+        status: Number(responseLike?.status),
+        error: String(error?.message || ""),
+      };
+    }
+  };
+
+  const mapApiErrorToMessage = (errorDetails: ApiErrorPayload & { status?: number }): string => {
+    if (errorDetails.code === "EMAIL_EXISTS" || errorDetails.status === 409) {
+      return "Konto z tym adresem email już istnieje";
+    }
+
+    if (errorDetails.status === 403) {
+      return "Brak uprawnień administratora do utworzenia konta pacjenta";
+    }
+
+    if (errorDetails.status === 401) {
+      return "Sesja wygasła lub brak autoryzacji. Zaloguj się ponownie";
+    }
+
+    if (errorDetails.status === 400) {
+      if (errorDetails.code === "INVALID_EMAIL") {
+        return "Podaj poprawny adres email";
+      }
+      return errorDetails.error || "Sprawdź poprawność danych formularza";
+    }
+
+    return errorDetails.error || "Nie udało się utworzyć konta pacjenta";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const payload = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
+    };
+
+    if (!payload.email || !EMAIL_REGEX.test(payload.email)) {
+      toast.error("Podaj poprawny adres email");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const payload = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        email: formData.email.trim().toLowerCase(),
-        phone: formData.phone.trim(),
-      };
-
       // Call edge function to create patient account
       const { data, error } = await supabase.functions.invoke("admin-create-patient", {
         body: payload,
@@ -60,12 +118,8 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
       onOpenChange(false);
     } catch (error: any) {
       console.error("[CreatePatientDialog] Error:", error);
-      const message = String(error?.message || "");
-      if (message.includes("EMAIL_EXISTS") || message.includes("409")) {
-        toast.error("Konto z tym adresem email już istnieje");
-      } else {
-        toast.error(message || "Nie udało się utworzyć konta pacjenta");
-      }
+      const details = await parseFunctionError(error);
+      toast.error(mapApiErrorToMessage(details));
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +154,7 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
               />
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -112,16 +166,15 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
               required
             />
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="phone">Numer telefonu</Label>
+            <Label htmlFor="phone">Numer telefonu (opcjonalnie)</Label>
             <Input
               id="phone"
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="+48 123 456 789"
-              required
             />
           </div>
 
