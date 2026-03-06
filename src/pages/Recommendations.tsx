@@ -12,9 +12,10 @@ import { format, isAfter, isBefore, parseISO } from "date-fns";
 import { pl } from "date-fns/locale";
 import { toast } from "sonner";
 import {
+  downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  resolveRecommendationFileUrl,
+  openRecommendationFileInNewTab,
 } from "@/lib/recommendationFile";
 import {
   ACTIVE_PROFILE_CHANGED_EVENT,
@@ -193,8 +194,7 @@ const Recommendations = () => {
 
   const openRecommendationFile = async (fileReference: string) => {
     try {
-      const fileUrl = await resolveRecommendationFileUrl(fileReference);
-      window.open(fileUrl, "_blank", "noopener,noreferrer");
+      await openRecommendationFileInNewTab(fileReference);
     } catch (error) {
       console.error("[Recommendations] open recommendation file error:", error);
       toast.error("Nie udało się otworzyć pliku zalecenia");
@@ -203,15 +203,7 @@ const Recommendations = () => {
 
   const downloadRecommendationFile = async (fileReference: string) => {
     try {
-      const fileUrl = await resolveRecommendationFileUrl(fileReference);
-      const link = document.createElement("a");
-      link.href = fileUrl;
-      link.download = getRecommendationFileName(fileReference) || "zalecenie";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await downloadRecommendationFileByLink(fileReference);
     } catch (error) {
       console.error("[Recommendations] download recommendation file error:", error);
       toast.error("Nie udało się pobrać pliku zalecenia");

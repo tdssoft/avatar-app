@@ -24,9 +24,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeDisplayName, resolvePatientDisplayName } from "@/lib/patientDisplayName";
 import {
+  downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  resolveRecommendationFileUrl,
+  openRecommendationFileInNewTab,
 } from "@/lib/recommendationFile";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -392,8 +393,7 @@ const PatientProfile = () => {
 
   const openRecommendationFile = async (fileRef: string) => {
     try {
-      const signedUrl = await resolveRecommendationFileUrl(fileRef);
-      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      await openRecommendationFileInNewTab(fileRef);
     } catch {
       toast.error("Nie udało się otworzyć pliku zalecenia");
     }
@@ -401,15 +401,7 @@ const PatientProfile = () => {
 
   const downloadRecommendationFile = async (fileRef: string) => {
     try {
-      const signedUrl = await resolveRecommendationFileUrl(fileRef);
-      const link = document.createElement("a");
-      link.href = signedUrl;
-      link.download = getRecommendationFileName(fileRef) || "zalecenie";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      await downloadRecommendationFileByLink(fileRef);
     } catch {
       toast.error("Nie udało się pobrać pliku zalecenia");
     }

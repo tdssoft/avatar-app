@@ -61,3 +61,32 @@ export const resolveRecommendationFileUrl = async (fileRef: string): Promise<str
   return data.signedUrl;
 };
 
+export const openRecommendationFileInNewTab = async (fileRef: string): Promise<void> => {
+  const pendingTab = window.open("", "_blank", "noopener,noreferrer");
+
+  try {
+    const fileUrl = await resolveRecommendationFileUrl(fileRef);
+
+    if (pendingTab) {
+      pendingTab.opener = null;
+      pendingTab.location.href = fileUrl;
+      return;
+    }
+
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  } catch (error) {
+    pendingTab?.close();
+    throw error;
+  }
+};
+
+export const downloadRecommendationFile = async (fileRef: string): Promise<void> => {
+  const fileUrl = await resolveRecommendationFileUrl(fileRef);
+  const link = document.createElement("a");
+  link.href = fileUrl;
+  link.download = getRecommendationFileName(fileRef) || "zalecenie";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};

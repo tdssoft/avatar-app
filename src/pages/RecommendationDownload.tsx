@@ -8,9 +8,10 @@ import { FileText, Download, AlertCircle, Clock, ArrowLeft } from "lucide-react"
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 import {
+  downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  resolveRecommendationFileUrl,
+  openRecommendationFileInNewTab,
 } from "@/lib/recommendationFile";
 
 interface RecommendationData {
@@ -97,19 +98,12 @@ const RecommendationDownload = () => {
     }
 
     try {
-      const fileUrl = await resolveRecommendationFileUrl(recommendation.pdf_url);
       if (download) {
-        const link = document.createElement("a");
-        link.href = fileUrl;
-        link.download = getRecommendationFileName(recommendation.pdf_url) || "zalecenie";
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
+        await downloadRecommendationFileByLink(recommendation.pdf_url);
         return;
       }
-      window.open(fileUrl, "_blank", "noopener,noreferrer");
+
+      await openRecommendationFileInNewTab(recommendation.pdf_url);
     } catch (error) {
       console.error("Error opening recommendation file:", error);
     }

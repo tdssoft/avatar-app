@@ -17,9 +17,10 @@ import {
   ACTIVE_PROFILE_STORAGE_KEY,
 } from "@/hooks/usePersonProfiles";
 import {
+  downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  resolveRecommendationFileUrl,
+  openRecommendationFileInNewTab,
 } from "@/lib/recommendationFile";
 import {
   createPatientResultFileSignedUrl,
@@ -194,19 +195,12 @@ const Dashboard = () => {
 
   const openRecommendationFile = async (fileReference: string, download = false) => {
     try {
-      const url = await resolveRecommendationFileUrl(fileReference);
       if (download) {
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = getRecommendationFileName(fileReference) || "zalecenie";
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+        await downloadRecommendationFileByLink(fileReference);
+        return;
       }
+
+      await openRecommendationFileInNewTab(fileReference);
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku zalecenia." });
     }
