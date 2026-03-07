@@ -77,6 +77,52 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     return errorDetails.error || "Nie udało się utworzyć konta pacjenta";
   };
 
+  const tryRecoverFromPartialSuccess = async (payload: {
+    firstName: string;
+    lastName: string;
+    phone: string;
+  }): Promise<boolean> => {
+    const firstName = payload.firstName.trim();
+    const lastName = payload.lastName.trim();
+    const phone = payload.phone.trim();
+
+    if (!firstName || !lastName) {
+      return false;
+    }
+
+    let profileQuery = supabase
+      .from("profiles")
+      .select("user_id, created_at")
+      .eq("first_name", firstName)
+      .eq("last_name", lastName)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    if (phone) {
+      profileQuery = profileQuery.eq("phone", phone);
+    }
+
+    const { data: candidateProfiles, error: profileError } = await profileQuery;
+
+    if (profileError || !candidateProfiles?.length) {
+      return false;
+    }
+
+    for (const profile of candidateProfiles) {
+      const { data: patientRow, error: patientError } = await supabase
+        .from("patients")
+        .select("id")
+        .eq("user_id", profile.user_id)
+        .maybeSingle();
+
+      if (!patientError && patientRow?.id) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -123,6 +169,19 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     } catch (error: any) {
       console.error("[CreatePatientDialog] Error:", error);
       const details = await parseFunctionError(error);
+
+      const shouldCheckPartialSuccess = details.status === 500 || details.code === "INTERNAL_ERROR";
+      if (shouldCheckPartialSuccess) {
+        const createdAnyway = await tryRecoverFromPartialSuccess(payload);
+        if (createdAnyway) {
+          await onSuccess();
+          toast.success("Konto pacjenta zostało utworzone i dodane do listy");
+          setFormData({ firstName: "", lastName: "", email: "", phone: "" });
+          onOpenChange(false);
+          return;
+        }
+      }
+
       toast.error(mapApiErrorToMessage(details));
     } finally {
       setIsLoading(false);
