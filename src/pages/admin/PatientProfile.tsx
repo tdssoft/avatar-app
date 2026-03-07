@@ -231,29 +231,6 @@ const PatientProfile = () => {
     void fetchPatientData();
   }, [selectedProfileId]);
 
-  useEffect(() => {
-    if (!id) return;
-    const channel = supabase
-      .channel(`admin-patient-realtime-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_result_files", filter: `patient_id=eq.${id}` }, () => {
-        void fetchPatientData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_device_files", filter: `patient_id=eq.${id}` }, () => {
-        void fetchPatientData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_ai_entries", filter: `patient_id=eq.${id}` }, () => {
-        void fetchPatientData();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "nutrition_interviews" }, () => {
-        void fetchPatientData();
-      })
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [id, selectedProfileId]);
-
   const fetchPatientData = async () => {
     if (!id) return;
 
