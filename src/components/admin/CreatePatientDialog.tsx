@@ -80,47 +80,45 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
   const tryRecoverFromPartialSuccess = async (payload: {
     firstName: string;
     lastName: string;
-    phone: string;
   }): Promise<boolean> => {
     const firstName = payload.firstName.trim();
     const lastName = payload.lastName.trim();
-    const phone = payload.phone.trim();
 
     if (!firstName || !lastName) {
       return false;
     }
 
-    let profileQuery = supabase
+    const { data: candidateProfiles, error: profileError } = await supabase
       .from("profiles")
-      .select("user_id, created_at")
-      .eq("first_name", firstName)
-      .eq("last_name", lastName)
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (phone) {
-      profileQuery = profileQuery.eq("phone", phone);
-    }
-
-    const { data: candidateProfiles, error: profileError } = await profileQuery;
+      .select("user_id")
+      .ilike("first_name", firstName)
+      .ilike("last_name", lastName)
+      .limit(20);
 
     if (profileError || !candidateProfiles?.length) {
       return false;
     }
 
-    for (const profile of candidateProfiles) {
-      const { data: patientRow, error: patientError } = await supabase
-        .from("patients")
-        .select("id")
-        .eq("user_id", profile.user_id)
-        .maybeSingle();
+    const userIds = candidateProfiles.map((profile) => profile.user_id);
 
-      if (!patientError && patientRow?.id) {
-        return true;
-      }
+    const { data: matchingPatients, error: patientError } = await supabase
+      .from("patients")
+      .select("id, user_id")
+      .in("user_id", userIds)
+      .limit(1);
+
+    return !patientError && Boolean(matchingPatients?.length);
+  };
+
+  const shouldAttemptRecovery = (error: any, details: ApiErrorPayload & { status?: number }): boolean => {
+    if (details.status === 500 || details.code === "INTERNAL_ERROR") {
+      return true;
     }
 
-    return false;
+    const errorName = String(error?.name || "");
+    const errorMessage = String(error?.message || "").toLowerCase();
+
+    return errorName === "FunctionsHttpError" || errorMessage.includes("non-2xx");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,8 +168,7 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
       console.error("[CreatePatientDialog] Error:", error);
       const details = await parseFunctionError(error);
 
-      const shouldCheckPartialSuccess = details.status === 500 || details.code === "INTERNAL_ERROR";
-      if (shouldCheckPartialSuccess) {
+      if (shouldAttemptRecovery(error, details)) {
         const createdAnyway = await tryRecoverFromPartialSuccess(payload);
         if (createdAnyway) {
           await onSuccess();
