@@ -823,11 +823,11 @@ const PatientProfile = () => {
           }
         }}
       >
-        <DialogContent className="max-w-5xl h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-2">
+        <DialogContent className="max-w-5xl h-[90vh] p-0 overflow-hidden flex flex-col gap-1">
+          <DialogHeader className="px-6 pt-4 pb-0 space-y-0">
             <DialogTitle>{recommendationPreviewName}</DialogTitle>
           </DialogHeader>
-          <div className="h-full px-6 pb-6">
+          <div className="flex-1 px-6 pb-6 pt-1">
             {isRecommendationPreviewLoading ? (
               <div className="h-full min-h-[300px] grid place-items-center text-muted-foreground">
                 <div className="flex items-center gap-2">
