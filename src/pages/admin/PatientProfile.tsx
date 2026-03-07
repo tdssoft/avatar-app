@@ -13,6 +13,7 @@ import {
   Trash2,
   Upload,
   X,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -27,7 +28,7 @@ import {
   downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  openRecommendationFileInNewTab,
+  resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -36,6 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -159,6 +161,10 @@ const PatientProfile = () => {
   const [isUploadingResultFile, setIsUploadingResultFile] = useState(false);
   const [isUploadingDeviceFile, setIsUploadingDeviceFile] = useState(false);
   const [isSavingAiData, setIsSavingAiData] = useState(false);
+  const [isRecommendationPreviewOpen, setIsRecommendationPreviewOpen] = useState(false);
+  const [isRecommendationPreviewLoading, setIsRecommendationPreviewLoading] = useState(false);
+  const [recommendationPreviewUrl, setRecommendationPreviewUrl] = useState<string | null>(null);
+  const [recommendationPreviewName, setRecommendationPreviewName] = useState("Podgląd pliku");
 
   const resultFileInputRef = useRef<HTMLInputElement | null>(null);
   const deviceFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -393,9 +399,17 @@ const PatientProfile = () => {
 
   const openRecommendationFile = async (fileRef: string) => {
     try {
-      await openRecommendationFileInNewTab(fileRef);
+      setIsRecommendationPreviewOpen(true);
+      setIsRecommendationPreviewLoading(true);
+      setRecommendationPreviewUrl(null);
+      setRecommendationPreviewName(getRecommendationFileName(fileRef) || "Podgląd pliku");
+      const previewUrl = await resolveRecommendationFileUrl(fileRef);
+      setRecommendationPreviewUrl(previewUrl);
     } catch {
+      setIsRecommendationPreviewOpen(false);
       toast.error("Nie udało się otworzyć pliku zalecenia");
+    } finally {
+      setIsRecommendationPreviewLoading(false);
     }
   };
 
@@ -799,6 +813,43 @@ const PatientProfile = () => {
 
   return (
     <AdminLayout>
+      <Dialog
+        open={isRecommendationPreviewOpen}
+        onOpenChange={(open) => {
+          setIsRecommendationPreviewOpen(open);
+          if (!open) {
+            setRecommendationPreviewUrl(null);
+            setIsRecommendationPreviewLoading(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-5xl h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle>{recommendationPreviewName}</DialogTitle>
+          </DialogHeader>
+          <div className="h-full px-6 pb-6">
+            {isRecommendationPreviewLoading ? (
+              <div className="h-full min-h-[300px] grid place-items-center text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Ładowanie podglądu pliku...</span>
+                </div>
+              </div>
+            ) : recommendationPreviewUrl ? (
+              <iframe
+                src={recommendationPreviewUrl}
+                title={recommendationPreviewName}
+                className="w-full h-full min-h-[420px] rounded-md border bg-background"
+              />
+            ) : (
+              <div className="h-full min-h-[300px] grid place-items-center text-muted-foreground">
+                Nie udało się załadować podglądu pliku.
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-6">
         <div className="rounded-xl bg-background p-5 md:p-6 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
