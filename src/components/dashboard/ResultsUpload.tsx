@@ -64,19 +64,6 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
     return () => window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
   }, [fetchFiles]);
 
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel(`results-upload-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_result_files" }, () => {
-        void fetchFiles();
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [fetchFiles, userId]);
-
   const uploadFiles = async (files: File[]) => {
     if (!userId || files.length === 0) return;
 

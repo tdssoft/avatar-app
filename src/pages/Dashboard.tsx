@@ -148,19 +148,6 @@ const Dashboard = () => {
     return () => window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
   }, [fetchPatientResultFiles]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = supabase
-      .channel(`dashboard-result-files-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_result_files" }, () => {
-        void fetchPatientResultFiles();
-      })
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [fetchPatientResultFiles, user?.id]);
-
   const openResultFile = async (filePath: string) => {
     try {
       const signedUrl = await createPatientResultFileSignedUrl(filePath);
