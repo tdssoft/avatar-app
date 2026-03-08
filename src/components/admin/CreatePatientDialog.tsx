@@ -77,6 +77,50 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     return errorDetails.error || "Nie udało się utworzyć konta pacjenta";
   };
 
+  const tryRecoverFromPartialSuccess = async (payload: {
+    firstName: string;
+    lastName: string;
+  }): Promise<boolean> => {
+    const firstName = payload.firstName.trim();
+    const lastName = payload.lastName.trim();
+
+    if (!firstName || !lastName) {
+      return false;
+    }
+
+    const { data: candidateProfiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("user_id")
+      .ilike("first_name", firstName)
+      .ilike("last_name", lastName)
+      .limit(20);
+
+    if (profileError || !candidateProfiles?.length) {
+      return false;
+    }
+
+    const userIds = candidateProfiles.map((profile) => profile.user_id);
+
+    const { data: matchingPatients, error: patientError } = await supabase
+      .from("patients")
+      .select("id, user_id")
+      .in("user_id", userIds)
+      .limit(1);
+
+    return !patientError && Boolean(matchingPatients?.length);
+  };
+
+  const shouldAttemptRecovery = (error: any, details: ApiErrorPayload & { status?: number }): boolean => {
+    if (details.status === 500 || details.code === "INTERNAL_ERROR") {
+      return true;
+    }
+
+    const errorName = String(error?.name || "");
+    const errorMessage = String(error?.message || "").toLowerCase();
+
+    return errorName === "FunctionsHttpError" || errorMessage.includes("non-2xx");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -123,6 +167,18 @@ const CreatePatientDialog = ({ open, onOpenChange, onSuccess }: CreatePatientDia
     } catch (error: any) {
       console.error("[CreatePatientDialog] Error:", error);
       const details = await parseFunctionError(error);
+
+      if (shouldAttemptRecovery(error, details)) {
+        const createdAnyway = await tryRecoverFromPartialSuccess(payload);
+        if (createdAnyway) {
+          await onSuccess();
+          toast.success("Konto pacjenta zostało utworzone i dodane do listy");
+          setFormData({ firstName: "", lastName: "", email: "", phone: "" });
+          onOpenChange(false);
+          return;
+        }
+      }
+
       toast.error(mapApiErrorToMessage(details));
     } finally {
       setIsLoading(false);
