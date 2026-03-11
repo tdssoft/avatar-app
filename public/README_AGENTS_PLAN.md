@@ -226,7 +226,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### AI note as voice recording
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/feature-ai-voice-note`
 - Business problem: AI note was expected to be recorded as audio, not only entered in another form.
 - Current symptoms:
@@ -247,6 +247,9 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 - Dependencies and risks:
   - audio storage/transcription path,
   - browser media permissions.
+- Current branch notes:
+  - admin patient AI section now exposes a dedicated voice-note recorder and a standalone recording list for the selected profile,
+  - standalone filtering keeps AI voice notes separate from interview and recommendation recordings while reusing the existing audio storage pipeline.
 
 #### Twilio legacy account / number configuration
 

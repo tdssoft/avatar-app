@@ -14,6 +14,10 @@ interface AudioRecorderProps {
   interviewId?: string;
   onSaved?: () => void;
   className?: string;
+  startButtonLabel?: string;
+  notesLabel?: string;
+  notesPlaceholder?: string;
+  saveButtonLabel?: string;
 }
 
 const AudioRecorder = ({
@@ -22,6 +26,10 @@ const AudioRecorder = ({
   interviewId,
   onSaved,
   className,
+  startButtonLabel = "Rozpocznij nagrywanie",
+  notesLabel = "Notatki do nagrania (opcjonalne)",
+  notesPlaceholder = "Dodaj notatki do tego nagrania...",
+  saveButtonLabel = "Zapisz nagranie",
 }: AudioRecorderProps) => {
   const { user } = useAuth();
   const [isRecording, setIsRecording] = useState(false);
@@ -229,7 +237,7 @@ const AudioRecorder = ({
               className="gap-2 bg-destructive hover:bg-destructive/90"
             >
               <Mic className="h-5 w-5" />
-              Rozpocznij nagrywanie
+              {startButtonLabel}
             </Button>
           )}
 
@@ -288,10 +296,10 @@ const AudioRecorder = ({
 
             {/* Notes */}
             <div className="space-y-2">
-              <Label htmlFor="recording-notes">Notatki do nagrania (opcjonalne)</Label>
+              <Label htmlFor="recording-notes">{notesLabel}</Label>
               <Textarea
                 id="recording-notes"
-                placeholder="Dodaj notatki do tego nagrania..."
+                placeholder={notesPlaceholder}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
@@ -309,7 +317,7 @@ const AudioRecorder = ({
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {isSaving ? "Zapisywanie..." : "Zapisz nagranie"}
+              {isSaving ? "Zapisywanie..." : saveButtonLabel}
             </Button>
           </div>
         )}

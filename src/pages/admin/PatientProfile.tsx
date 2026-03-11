@@ -20,6 +20,8 @@ import { toast } from "sonner";
 
 import AdminLayout from "@/components/admin/AdminLayout";
 import AdminInterviewView from "@/components/admin/AdminInterviewView";
+import AudioRecorder from "@/components/audio/AudioRecorder";
+import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeDisplayName, resolvePatientDisplayName } from "@/lib/patientDisplayName";
@@ -158,6 +160,7 @@ const PatientProfile = () => {
   const [isUploadingResultFile, setIsUploadingResultFile] = useState(false);
   const [isUploadingDeviceFile, setIsUploadingDeviceFile] = useState(false);
   const [isSavingAiData, setIsSavingAiData] = useState(false);
+  const [aiAudioRefreshTrigger, setAiAudioRefreshTrigger] = useState(0);
 
   const resultFileInputRef = useRef<HTMLInputElement | null>(null);
   const deviceFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1049,6 +1052,29 @@ const PatientProfile = () => {
                   <Button onClick={() => void handleSaveAiEntry()} disabled={isSavingAiData || !aiData.trim()}>
                     {isSavingAiData ? "Zapisywanie..." : "Zapisz"}
                   </Button>
+                  {selectedProfileId ? (
+                    <div className="rounded-md border p-4 space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Notatka głosowa do AI</p>
+                        <p className="text-xs text-muted-foreground">
+                          Nagrania zapisują się osobno od wywiadu i komentarzy do zaleceń.
+                        </p>
+                      </div>
+                      <AudioRecorder
+                        personProfileId={selectedProfileId}
+                        onSaved={() => setAiAudioRefreshTrigger((prev) => prev + 1)}
+                        startButtonLabel="Nagraj notatkę do AI"
+                        notesLabel="Opis notatki głosowej (opcjonalne)"
+                        notesPlaceholder="Dodaj krótki opis do nagrania AI..."
+                        saveButtonLabel="Zapisz notatkę głosową"
+                      />
+                      <AudioRecordingsList
+                        personProfileId={selectedProfileId}
+                        refreshTrigger={aiAudioRefreshTrigger}
+                        scope="standalone"
+                      />
+                    </div>
+                  ) : null}
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Historia danych AI</p>
                     {aiEntries.length > 0 ? (

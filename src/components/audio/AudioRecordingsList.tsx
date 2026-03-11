@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { AudioRecordingScope, shouldFilterStandaloneAudio } from "@/lib/audioRecordingScope";
 
 interface AudioRecording {
   id: string;
@@ -33,6 +34,7 @@ interface AudioRecordingsListProps {
   interviewId?: string;
   className?: string;
   refreshTrigger?: number;
+  scope?: AudioRecordingScope;
 }
 
 const AudioRecordingsList = ({
@@ -41,6 +43,7 @@ const AudioRecordingsList = ({
   interviewId,
   className,
   refreshTrigger,
+  scope = "all",
 }: AudioRecordingsListProps) => {
   const [recordings, setRecordings] = useState<AudioRecording[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +70,10 @@ const AudioRecordingsList = ({
 
     if (interviewId) {
       query = query.eq("interview_id", interviewId);
+    }
+
+    if (shouldFilterStandaloneAudio(scope)) {
+      query = query.is("recommendation_id", null).is("interview_id", null);
     }
 
     const { data, error } = await query;
