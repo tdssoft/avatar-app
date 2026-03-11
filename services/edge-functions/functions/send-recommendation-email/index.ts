@@ -24,6 +24,16 @@ serve(async (req: Request): Promise<Response> => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed. Use POST." }),
+      {
+        status: 405,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      },
+    );
+  }
+
   try {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
@@ -125,9 +135,32 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    let downloadToken = recommendation.download_token;
+    let tokenExpiresAt = recommendation.token_expires_at;
+    const tokenExpired = tokenExpiresAt ? new Date(tokenExpiresAt).getTime() <= Date.now() : true;
+
+    if (!downloadToken || tokenExpired) {
+      downloadToken = crypto.randomUUID();
+      tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { error: tokenUpdateError } = await supabase
+        .from("recommendations")
+        .update({
+          download_token: downloadToken,
+          token_expires_at: tokenExpiresAt,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", recommendation.id);
+
+      if (tokenUpdateError) {
+        console.error("Recommendation token refresh error:", tokenUpdateError);
+        throw new Error("Nie udało się przygotować linku do zalecenia");
+      }
+    }
+
     // Generate download URL
     const appUrl = getAppUrl();
-    const downloadUrl = `${appUrl}/recommendation/download?token=${recommendation.download_token}`;
+    const downloadUrl = `${appUrl}/recommendation/download?token=${downloadToken}`;
 
     // Format date
     const recDate = new Date(recommendation.recommendation_date).toLocaleDateString("pl-PL", {

@@ -92,7 +92,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### Patient notification about new recommendations
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/fix-recommendation-notifications`
 - Business problem: patient should receive a clear notification when a new recommendation is added.
 - Current symptoms:
@@ -112,6 +112,9 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 - Dependencies and risks:
   - mail provider config,
   - notification UX expectations.
+- Current branch notes:
+  - edge function now enforces `POST` explicitly and refreshes `download_token` before sending, so notification emails do not carry missing or expired recommendation links,
+  - end-to-end delivery still depends on valid Resend configuration and a real admin-authenticated smoke run.
 
 ### 2. Admin Stability
 
