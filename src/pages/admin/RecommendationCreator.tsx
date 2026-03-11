@@ -23,19 +23,13 @@ import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
 import { resolveRecommendationProfileId } from "@/lib/recommendationProfile";
+import { getRecommendationUploadValidationError } from "@/lib/recommendationUpload";
 
 interface PersonProfile {
   id: string;
   name: string;
   is_primary: boolean;
 }
-
-const MAX_RECOMMENDATION_FILE_SIZE = 20 * 1024 * 1024;
-const ALLOWED_RECOMMENDATION_FILE_TYPES = [
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
 
 const sanitizeFileName = (fileName: string) => fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 const RECOMMENDATION_UPLOAD_TIMEOUT_MS = 60_000;
@@ -220,15 +214,9 @@ const RecommendationCreator = () => {
   };
 
   const validateRecommendationFile = (file: File): boolean => {
-    const fileName = file.name.toLowerCase();
-    const isAllowedMimeType = ALLOWED_RECOMMENDATION_FILE_TYPES.includes(file.type);
-    const hasAllowedExtension = fileName.endsWith(".pdf") || fileName.endsWith(".doc") || fileName.endsWith(".docx");
-    if (!isAllowedMimeType && !hasAllowedExtension) {
-      toast.error("Dozwolone formaty plików: PDF, DOC, DOCX");
-      return false;
-    }
-    if (file.size > MAX_RECOMMENDATION_FILE_SIZE) {
-      toast.error("Maksymalny rozmiar pliku to 20MB");
+    const validationError = getRecommendationUploadValidationError(file);
+    if (validationError) {
+      toast.error(validationError);
       return false;
     }
     return true;
