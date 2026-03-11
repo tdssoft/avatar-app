@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Download, ArrowLeft, Loader2, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { triggerDownload } from "@/lib/download";
 
 const exportFields = [
   { id: "email", label: "Email", category: "account" },
@@ -86,13 +87,11 @@ const ExportData = () => {
       const csvContent = data.csv;
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `eksport_pacjentow_${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      triggerDownload({
+        href: url,
+        fileName: `eksport_pacjentow_${new Date().toISOString().split("T")[0]}.csv`,
+        revokeObjectUrl: true,
+      });
 
       toast.success(`Eksportowano ${data.count} rekordów`);
     } catch (error) {

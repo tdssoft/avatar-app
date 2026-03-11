@@ -117,7 +117,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### White screen and refresh crash in admin
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/fix-admin-white-screen-refresh`
 - Business problem: admin panel still shows a white screen on refresh.
 - Current symptoms:
@@ -140,6 +140,10 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 - Dependencies and risks:
   - third-party component cleanup,
   - race conditions during route teardown.
+- Current branch notes:
+  - defensive fix added for anchor cleanup during CSV export to prevent `removeChild` teardown crashes,
+  - targeted unit coverage added for the DOM cleanup path,
+  - full admin refresh smoke on real backend still requires valid admin credentials.
 
 ### 3. Child Flow
 
