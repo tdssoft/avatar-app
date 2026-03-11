@@ -4,6 +4,7 @@ import avatarLogo from "@/assets/avatar-logo.svg";
 interface SplitLayoutProps {
   children: ReactNode;
   right?: ReactNode;
+  mediaPosition?: "left" | "right";
 }
 
 const DefaultRight = () => (
@@ -17,13 +18,16 @@ const DefaultRight = () => (
   </div>
 );
 
-const SplitLayout = ({ children, right }: SplitLayoutProps) => {
+const SplitLayout = ({ children, right, mediaPosition = "right" }: SplitLayoutProps) => {
+  const contentColumn = <div className="p-8 md:p-10">{children}</div>;
+  const mediaColumn = <div className="hidden lg:block p-8 md:p-10">{right ?? <DefaultRight />}</div>;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-10">
       <div className="w-full max-w-6xl bg-card border border-border rounded-2xl shadow-sm">
         <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr]">
-          <div className="p-8 md:p-10">{children}</div>
-          <div className="hidden lg:block p-8 md:p-10">{right ?? <DefaultRight />}</div>
+          {mediaPosition === "left" ? mediaColumn : contentColumn}
+          {mediaPosition === "left" ? contentColumn : mediaColumn}
         </div>
       </div>
     </div>
@@ -31,4 +35,3 @@ const SplitLayout = ({ children, right }: SplitLayoutProps) => {
 };
 
 export default SplitLayout;
-
