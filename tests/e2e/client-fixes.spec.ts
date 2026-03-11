@@ -100,13 +100,14 @@ test.describe("Client fixes verification", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder("np. Jan").fill("Dziecko E2E");
+    await dialog.getByPlaceholder("np. Kowalska").fill("Testowe");
     await dialog.getByRole("combobox").click();
     await page.getByRole("option", { name: "Kobieta" }).click();
     await dialog.getByRole("button", { name: "Dodaj profil" }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/);
     await expect(
-      page.getByText("Ten profil wymaga osobnego pakietu. Najpierw aktywuj pakiet dla tego profilu.").first(),
+      page.getByText("Profil jest aktywny. Możesz teraz dodać zdjęcie na dashboardzie i aktywować osobny pakiet dla tego profilu.").first(),
     ).toBeVisible();
   });
 

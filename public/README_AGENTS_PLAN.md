@@ -145,7 +145,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### Child profile flow fixes
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/fix-child-flow`
 - Business problem: child-related onboarding/profile flow is incomplete.
 - Current symptoms:
@@ -172,6 +172,10 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
   - `person_profiles` model,
   - storage rules,
   - notification channel design.
+- Current branch notes:
+  - add/edit profile dialogs now capture separate first and last name while still persisting a single `name` field for DB compatibility,
+  - post-create guidance now explicitly points the user to add the child's photo from the dashboard with the new active profile selected,
+  - notification about child creation is still blocked by the current admin event model, which only supports `patient_question`, `support_ticket`, `interview_sent`, and `new_registration`.
 
 ### 4. Signup And Onboarding UI
 

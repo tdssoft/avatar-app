@@ -33,9 +33,11 @@ import { useUserFlowStatus } from "@/hooks/useUserFlowStatus";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { buildProfileName } from "@/lib/profileName";
 
 const formSchema = z.object({
-  name: z.string().min(2, "Imię musi mieć co najmniej 2 znaki"),
+  first_name: z.string().trim().min(2, "Imię musi mieć co najmniej 2 znaki"),
+  last_name: z.string().trim().min(2, "Nazwisko musi mieć co najmniej 2 znaki"),
   birth_date: z.string().optional(),
   gender: z.string().optional(),
   notes: z.string().optional(),
@@ -58,7 +60,8 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      first_name: "",
+      last_name: "",
       birth_date: "",
       gender: undefined,
       notes: "",
@@ -69,8 +72,9 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
+      const profileName = buildProfileName(data.first_name, data.last_name);
       const result = await createProfile({
-        name: data.name,
+        name: profileName,
         birth_date: data.birth_date || null,
         gender: data.gender || null,
         notes: data.notes || null,
@@ -98,7 +102,8 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
         } else {
           toast({
             title: "Profil dodany",
-            description: "Ten profil wymaga osobnego pakietu. Najpierw aktywuj pakiet dla tego profilu.",
+            description:
+              "Profil jest aktywny. Możesz teraz dodać zdjęcie na dashboardzie i aktywować osobny pakiet dla tego profilu.",
           });
           navigate("/dashboard", { replace: true });
         }
@@ -123,12 +128,26 @@ export function AddProfileDialog({ open, onOpenChange }: AddProfileDialogProps) 
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="first_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Imię *</FormLabel>
                   <FormControl>
                     <Input placeholder="np. Jan" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="last_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nazwisko *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="np. Kowalska" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
