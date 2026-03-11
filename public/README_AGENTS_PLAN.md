@@ -40,7 +40,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### DOC/DOCX upload for recommendations
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/fix-recommendation-word-upload`
 - Business problem: Lucyna reports that Word files still do not save correctly in recommendations, while images and PDF do.
 - Current symptoms:
@@ -65,6 +65,10 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
   - storage bucket policies,
   - browser handling of Word files,
   - Kong/storage timeout behavior.
+- Current branch notes:
+  - upload hard-timeout, Word MIME support and async email send are already present in the branch history,
+  - file validation moved to a dedicated helper with unit coverage for `doc`/`docx` acceptance and size/type rejection,
+  - full admin/patient real-data smoke still requires valid credentials for the production-backed test account.
 
 #### Edit existing recommendations
 
