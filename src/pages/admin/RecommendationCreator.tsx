@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
+import { resolveRecommendationAttachmentPath } from "@/lib/recommendationAttachment";
 
 interface PersonProfile {
   id: string;
@@ -71,6 +72,7 @@ const RecommendationCreator = () => {
   const [audioRefreshTrigger, setAudioRefreshTrigger] = useState(0);
   const [selectedRecommendationFile, setSelectedRecommendationFile] = useState<File | null>(null);
   const [existingRecommendationFilePath, setExistingRecommendationFilePath] = useState<string | null>(null);
+  const [removeExistingRecommendationFile, setRemoveExistingRecommendationFile] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     diagnosisSummary: "",
@@ -200,6 +202,7 @@ const RecommendationCreator = () => {
           setSelectedProfileId(data.person_profile_id);
         }
         setExistingRecommendationFilePath(data.pdf_url || null);
+        setRemoveExistingRecommendationFile(false);
       }
     } catch (err) {
       console.error("Error loading recommendation:", err);
@@ -333,7 +336,10 @@ const RecommendationCreator = () => {
         supporting_therapies: formData.supportingTherapies || null,
         tags: formData.tags.length > 0 ? formData.tags : null,
         person_profile_id: persistedProfileId,
-        pdf_url: existingRecommendationFilePath,
+        pdf_url: resolveRecommendationAttachmentPath({
+          existingFilePath: existingRecommendationFilePath,
+          removeExistingFile: removeExistingRecommendationFile,
+        }),
       };
 
       if (selectedRecommendationFile) {
@@ -382,6 +388,9 @@ const RecommendationCreator = () => {
       setSavedRecommendationId(recommendation.id);
       if (recommendationPayload.pdf_url) {
         setExistingRecommendationFilePath(recommendationPayload.pdf_url);
+        setRemoveExistingRecommendationFile(false);
+      } else {
+        setExistingRecommendationFilePath(null);
       }
       setSelectedRecommendationFile(null);
 
@@ -603,6 +612,7 @@ const RecommendationCreator = () => {
                         e.currentTarget.value = "";
                         return;
                       }
+                      setRemoveExistingRecommendationFile(false);
                       setSelectedRecommendationFile(file);
                     }}
                   />
@@ -611,9 +621,31 @@ const RecommendationCreator = () => {
                       Wybrany plik: <span className="font-medium">{selectedRecommendationFile.name}</span>
                     </p>
                   ) : existingRecommendationFilePath ? (
-                    <p className="text-sm text-muted-foreground">
-                      Obecny plik: <span className="font-medium text-foreground">{getRecommendationFileName(existingRecommendationFilePath)}</span>
-                    </p>
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm text-muted-foreground">
+                        Obecny plik:{" "}
+                        <span className="font-medium text-foreground">
+                          {getRecommendationFileName(existingRecommendationFilePath)}
+                        </span>
+                      </p>
+                      {isEditMode ? (
+                        <div className="flex items-center gap-3">
+                          <Button
+                            type="button"
+                            variant={removeExistingRecommendationFile ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => setRemoveExistingRecommendationFile((prev) => !prev)}
+                          >
+                            {removeExistingRecommendationFile ? "Przywróć plik" : "Usuń obecny plik"}
+                          </Button>
+                          {removeExistingRecommendationFile ? (
+                            <p className="text-xs text-destructive">
+                              Plik zostanie usunięty przy zapisie zmian.
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">Brak wgranego pliku zalecenia.</p>
                   )}

@@ -68,7 +68,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### Edit existing recommendations
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/feature-edit-recommendations`
 - Business problem: Lucyna asked for easy editing of recommendations already attached to a patient.
 - Current symptoms:
@@ -89,6 +89,9 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 - Dependencies and risks:
   - existing recommendation schema,
   - file lifecycle when replacing attachments.
+- Current branch notes:
+  - edit flow now treats the current attachment as first-class state: admin can keep it, replace it, or explicitly remove it during save,
+  - targeted helper coverage added for attachment resolution so edit saves do not accidentally resurrect deleted files.
 
 #### Patient notification about new recommendations
 
