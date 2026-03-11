@@ -28,9 +28,11 @@ import {
 } from "@/components/ui/select";
 import { usePersonProfiles, PersonProfile } from "@/hooks/usePersonProfiles";
 import { Loader2 } from "lucide-react";
+import { buildProfileName, splitProfileName } from "@/lib/profileName";
 
 const formSchema = z.object({
-  name: z.string().min(2, "Imię musi mieć co najmniej 2 znaki"),
+  first_name: z.string().trim().min(2, "Imię musi mieć co najmniej 2 znaki"),
+  last_name: z.string().trim().min(2, "Nazwisko musi mieć co najmniej 2 znaki"),
   birth_date: z.string().optional(),
   gender: z.string().optional().nullable(),
   notes: z.string().optional(),
@@ -55,7 +57,7 @@ export function EditProfileDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: profile.name,
+      ...splitProfileName(profile.name),
       birth_date: profile.birth_date || "",
       gender: profile.gender || undefined,
       notes: profile.notes || "",
@@ -65,7 +67,7 @@ export function EditProfileDialog({
   // Reset form when profile changes
   useEffect(() => {
     form.reset({
-      name: profile.name,
+      ...splitProfileName(profile.name),
       birth_date: profile.birth_date || "",
       gender: profile.gender || undefined,
       notes: profile.notes || "",
@@ -77,7 +79,7 @@ export function EditProfileDialog({
     try {
       const success = await updateProfile({
         id: profile.id,
-        name: data.name,
+        name: buildProfileName(data.first_name, data.last_name),
         birth_date: data.birth_date || null,
         gender: data.gender || null,
         notes: data.notes || null,
@@ -102,12 +104,26 @@ export function EditProfileDialog({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="first_name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Imię *</FormLabel>
                   <FormControl>
                     <Input placeholder="np. Jan" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="last_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nazwisko *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="np. Kowalska" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
