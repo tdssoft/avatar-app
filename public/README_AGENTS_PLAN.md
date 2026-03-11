@@ -177,7 +177,7 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
 
 #### Signup layout image placement
 
-- Status: `planned`
+- Status: `in_progress`
 - Branch: `codex/fix-signup-layout-image-right`
 - Business problem: Lucyna wants the image on the right side during account setup, also before purchase.
 - Current symptoms:
@@ -196,6 +196,9 @@ This document splits Lucyna's reported issues into separate delivery streams. Wo
   - smoke E2E for signup layout rendering.
 - Dependencies and risks:
   - preserving current design system and responsiveness.
+- Current branch notes:
+  - `SplitLayout` now supports explicit media positioning so auth/signup screens can lock the visual panel on the right,
+  - targeted render coverage added to keep the auth form first and the image panel second on desktop layouts.
 
 ### 5. Integrations And Operations
 
