@@ -25,6 +25,7 @@ interface GrantAccessRequest {
 
 interface PersonProfileRow {
   id: string;
+  name?: string | null;
 }
 
 const isUuid = (value: string): boolean =>
@@ -86,7 +87,7 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const { patientId, reason, productId }: GrantAccessRequest = await req.json();
+    const { patientId, reason, productId, personProfileId }: GrantAccessRequest = await req.json();
 
     if (!patientId || !isUuid(patientId)) {
       return new Response(JSON.stringify({ error: "Invalid patientId" }), {
@@ -97,6 +98,13 @@ serve(async (req: Request): Promise<Response> => {
 
     if (!reason || !GRANT_REASONS.has(reason)) {
       return new Response(JSON.stringify({ error: "Invalid reason" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!personProfileId || !isUuid(personProfileId)) {
+      return new Response(JSON.stringify({ error: "Invalid personProfileId" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -137,9 +145,17 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const targetProfiles = (personProfiles ?? []) as PersonProfileRow[];
-    if (targetProfiles.length === 0) {
+    const availableProfiles = (personProfiles ?? []) as PersonProfileRow[];
+    if (availableProfiles.length === 0) {
       return new Response(JSON.stringify({ error: "No profiles found for patient" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const targetProfile = availableProfiles.find((profile) => profile.id === personProfileId);
+    if (!targetProfile) {
+      return new Response(JSON.stringify({ error: "Selected profile does not belong to this patient" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -160,18 +176,15 @@ serve(async (req: Request): Promise<Response> => {
     const now = new Date().toISOString();
     const { error: profileAccessError } = await serviceClient
       .from("profile_access")
-      .upsert(
-        targetProfiles.map((profile) => ({
-          person_profile_id: profile.id,
-          account_user_id: patient.user_id,
-          status: "active",
-          source: "admin",
-          selected_packages: productId,
-          activated_at: now,
-          updated_at: now,
-        })),
-        { onConflict: "person_profile_id" },
-      );
+      .upsert({
+        person_profile_id: targetProfile.id,
+        account_user_id: patient.user_id,
+        status: "active",
+        source: "admin",
+        selected_packages: productId,
+        activated_at: now,
+        updated_at: now,
+      }, { onConflict: "person_profile_id" });
 
     if (profileAccessError) {
       return new Response(JSON.stringify({ error: "Failed to grant profile access" }), {
@@ -204,8 +217,9 @@ serve(async (req: Request): Promise<Response> => {
         success: true,
         grantId: grantData.id,
         patientId,
-        grantedProfileIds: targetProfiles.map((profile) => profile.id),
-        grantedProfilesCount: targetProfiles.length,
+        personProfileId: targetProfile.id,
+        grantedProfileIds: [targetProfile.id],
+        grantedProfilesCount: 1,
         reason,
         productId,
       }),

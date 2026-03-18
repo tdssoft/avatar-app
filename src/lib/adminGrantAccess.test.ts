@@ -6,12 +6,14 @@ import {
 } from "@/lib/adminGrantAccess";
 
 describe("adminGrantAccess", () => {
-  it("formats singular success message", () => {
-    expect(formatGrantAccessSuccessMessage(1)).toBe("Dostęp został przyznany dla 1 profilu");
+  it("formats selected profile success message", () => {
+    expect(formatGrantAccessSuccessMessage(1, "Ania Kowalska")).toBe(
+      "Dostęp został przyznany dla profilu: Ania Kowalska",
+    );
   });
 
-  it("formats plural success message", () => {
-    expect(formatGrantAccessSuccessMessage(3)).toBe("Dostęp został przyznany dla 3 profili");
+  it("formats fallback singular success message", () => {
+    expect(formatGrantAccessSuccessMessage(1)).toBe("Dostęp został przyznany dla wybranego profilu");
   });
 
   it("prefers function payload error message", async () => {

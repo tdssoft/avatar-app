@@ -26,6 +26,7 @@ import { allPackages } from "@/lib/paymentFlow";
 import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
 import {
   formatGrantAccessSuccessMessage,
+  invokeAdminGrantAccess,
   resolveGrantAccessErrorMessage,
   type GrantAccessResponse,
 } from "@/lib/adminGrantAccess";
@@ -47,6 +48,11 @@ interface Patient {
   primary_person_profile?: {
     name: string | null;
   } | null;
+  person_profiles?: {
+    id: string;
+    name: string | null;
+    is_primary: boolean | null;
+  }[];
   referral?: {
     referrer_code: string;
     referrer_name: string | null;
@@ -62,6 +68,7 @@ const AdminDashboard = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isGrantingAccess, setIsGrantingAccess] = useState(false);
   const [grantPatientId, setGrantPatientId] = useState("");
+  const [grantPersonProfileId, setGrantPersonProfileId] = useState("");
   const [grantReason, setGrantReason] = useState<GrantAccessReason | "">("");
   const [grantProductId, setGrantProductId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -97,12 +104,13 @@ const AdminDashboard = () => {
 
         if (profilesError) throw profilesError;
 
-        // Fetch primary person profiles (fallback display name)
+        // Fetch all person profiles so admin can grant access per profile
         const { data: personProfilesData, error: personProfilesError } = await supabase
           .from("person_profiles")
-          .select("account_user_id, name, is_primary")
+          .select("id, account_user_id, name, is_primary")
           .in("account_user_id", userIds)
-          .eq("is_primary", true);
+          .order("is_primary", { ascending: false })
+          .order("created_at", { ascending: true });
 
         if (personProfilesError) {
           console.error("[AdminDashboard] Error fetching person profiles:", personProfilesError);
@@ -133,7 +141,8 @@ const AdminDashboard = () => {
         // Merge profiles and referrals with patients
         const patientsWithProfiles = patientsData.map(patient => {
           const profile = profilesData?.find(p => p.user_id === patient.user_id);
-          const primaryPersonProfile = personProfilesData?.find(pp => pp.account_user_id === patient.user_id);
+          const accountProfiles = (personProfilesData ?? []).filter(pp => pp.account_user_id === patient.user_id);
+          const primaryPersonProfile = accountProfiles.find(pp => pp.is_primary);
           const referral = referralsData?.find(r => r.referred_user_id === patient.user_id);
           
           let referralInfo = null;
@@ -152,6 +161,11 @@ const AdminDashboard = () => {
             ...patient,
             profiles: profile || { first_name: null, last_name: null, phone: null },
             primary_person_profile: primaryPersonProfile ? { name: primaryPersonProfile.name } : null,
+            person_profiles: accountProfiles.map((accountProfile) => ({
+              id: accountProfile.id,
+              name: accountProfile.name,
+              is_primary: accountProfile.is_primary,
+            })),
             referral: referralInfo
           };
         });
@@ -238,6 +252,20 @@ const AdminDashboard = () => {
     });
   }, [patients]);
 
+  const grantProfileOptions = useMemo(() => {
+    const selectedPatient = patients.find((patient) => patient.id === grantPatientId);
+    return (selectedPatient?.person_profiles ?? []).map((profile) => ({
+      id: profile.id,
+      label: profile.is_primary
+        ? `${profile.name || "Profil główny"} (profil główny)`
+        : profile.name || "Profil dodatkowy",
+    }));
+  }, [patients, grantPatientId]);
+
+  useEffect(() => {
+    setGrantPersonProfileId("");
+  }, [grantPatientId]);
+
   const handleOpenPatientMessages = async (patientId: string) => {
     await markPatientMessagesRead(patientId);
     navigate(`/admin/patient/${patientId}?tab=notes`);
@@ -249,25 +277,27 @@ const AdminDashboard = () => {
   };
 
   const handleGrantAccess = async () => {
-    if (!grantPatientId || !grantReason || !grantProductId) {
-      toast.error("Wybierz pacjenta, powód i abonament");
+    if (!grantPatientId || !grantPersonProfileId || !grantReason || !grantProductId) {
+      toast.error("Wybierz pacjenta, profil, powód i abonament");
       return;
     }
 
     setIsGrantingAccess(true);
     try {
-      const { data, error } = await supabase.functions.invoke<GrantAccessResponse>("admin-grant-access", {
-        body: {
-          patientId: grantPatientId,
-          reason: grantReason,
-          productId: grantProductId,
-        },
+      const { data, error } = await invokeAdminGrantAccess({
+        patientId: grantPatientId,
+        personProfileId: grantPersonProfileId,
+        reason: grantReason,
+        productId: grantProductId,
       });
 
       if (error) throw error;
 
-      toast.success(formatGrantAccessSuccessMessage(data?.grantedProfilesCount ?? 1));
+      const selectedProfileLabel =
+        grantProfileOptions.find((profile) => profile.id === grantPersonProfileId)?.label ?? null;
+      toast.success(formatGrantAccessSuccessMessage(data?.grantedProfilesCount ?? 1, selectedProfileLabel));
       setGrantPatientId("");
+      setGrantPersonProfileId("");
       setGrantReason("");
       setGrantProductId("");
       await fetchPatients();
@@ -388,11 +418,11 @@ const AdminDashboard = () => {
             <div>
               <h2 className="text-base font-semibold">Przyznaj dostęp</h2>
               <p className="text-sm text-muted-foreground">
-                Ręczne nadanie dostępu dla całego konta pacjenta, w tym profilu głównego,
-                dzieci i innych podpiętych profili.
+                Ręczne nadanie dostępu dla wybranego profilu pacjenta. Wybierz osobno
+                profil główny albo dziecko.
               </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
               <div className="space-y-2">
                 <Label>Pacjent</Label>
                 <Select value={grantPatientId} onValueChange={setGrantPatientId}>
@@ -403,6 +433,25 @@ const AdminDashboard = () => {
                     {patientOptions.map((patient) => (
                       <SelectItem key={patient.id} value={patient.id}>
                         {patient.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Profil</Label>
+                <Select
+                  value={grantPersonProfileId}
+                  onValueChange={setGrantPersonProfileId}
+                  disabled={!grantPatientId || grantProfileOptions.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={grantPatientId ? "Wybierz profil" : "Najpierw wybierz pacjenta"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grantProfileOptions.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
