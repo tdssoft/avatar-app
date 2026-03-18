@@ -876,7 +876,14 @@ const PatientProfile = () => {
               </SelectContent>
             </Select>
 
-            <Button size="sm" onClick={() => navigate(`/admin/patient/${id}/recommendation/new`)}>
+            <Button
+              size="sm"
+              onClick={() =>
+                navigate(
+                  `/admin/patient/${id}/recommendation/new${selectedProfileId ? `?profileId=${selectedProfileId}` : ""}`,
+                )
+              }
+            >
               Dodaj zalecenia
             </Button>
             {selectedRecommendation && (

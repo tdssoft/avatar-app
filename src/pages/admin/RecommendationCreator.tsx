@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save, Mail, X, Mic, Upload } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
+import { resolveRecommendationProfileId } from "@/lib/recommendationProfile";
 
 interface PersonProfile {
   id: string;
@@ -63,7 +64,9 @@ const getRecommendationFileName = (value: string | null | undefined) => {
 const RecommendationCreator = () => {
   const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isEditMode = !!recommendationId;
+  const requestedProfileId = searchParams.get("profileId");
   
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -93,10 +96,10 @@ const RecommendationCreator = () => {
   }, [id]);
 
   useEffect(() => {
-    if (!selectedProfileId && profiles.length > 0) {
-      setSelectedProfileId(profiles[0].id);
+    if (!selectedProfileId && profiles.length > 0 && !isEditMode) {
+      setSelectedProfileId(resolveRecommendationProfileId(profiles, requestedProfileId));
     }
-  }, [profiles, selectedProfileId]);
+  }, [profiles, selectedProfileId, isEditMode, requestedProfileId]);
 
   useEffect(() => {
     if (isEditMode && recommendationId) {
@@ -158,7 +161,7 @@ const RecommendationCreator = () => {
       const ensuredProfiles = profilesAfterEnsure || [];
       if (ensuredProfiles.length > 0) {
         setProfiles(ensuredProfiles);
-        if (!isEditMode) setSelectedProfileId(ensuredProfiles[0].id);
+        if (!isEditMode) setSelectedProfileId(resolveRecommendationProfileId(ensuredProfiles, requestedProfileId));
         return;
       }
       setProfiles([]);
@@ -172,7 +175,7 @@ const RecommendationCreator = () => {
     // Auto-select first profile for new recommendation (list is sorted with primary first).
     if (!isEditMode) {
       if (normalizedProfiles.length > 0) {
-        setSelectedProfileId(normalizedProfiles[0].id);
+        setSelectedProfileId(resolveRecommendationProfileId(normalizedProfiles, requestedProfileId));
       }
     }
   };
