@@ -23,12 +23,23 @@ interface GrantAccessRequest {
   personProfileId?: string | null;
 }
 
+interface PersonProfileRow {
+  id: string;
+}
+
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -75,7 +86,7 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    const { patientId, reason, productId, personProfileId }: GrantAccessRequest = await req.json();
+    const { patientId, reason, productId }: GrantAccessRequest = await req.json();
 
     if (!patientId || !isUuid(patientId)) {
       return new Response(JSON.stringify({ error: "Invalid patientId" }), {
@@ -112,36 +123,26 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    let targetProfileId = personProfileId ?? null;
-    if (!targetProfileId) {
-      const { data: primaryProfile, error: primaryProfileError } = await serviceClient
-        .from("person_profiles")
-        .select("id")
-        .eq("account_user_id", patient.user_id)
-        .eq("is_primary", true)
-        .maybeSingle();
+    const { data: personProfiles, error: personProfilesError } = await serviceClient
+      .from("person_profiles")
+      .select("id")
+      .eq("account_user_id", patient.user_id)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: true });
 
-      if (primaryProfileError || !primaryProfile) {
-        return new Response(JSON.stringify({ error: "Primary profile not found for patient" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      targetProfileId = primaryProfile.id;
-    } else {
-      const { data: validatedProfile, error: validatedProfileError } = await serviceClient
-        .from("person_profiles")
-        .select("id")
-        .eq("id", targetProfileId)
-        .eq("account_user_id", patient.user_id)
-        .maybeSingle();
+    if (personProfilesError) {
+      return new Response(JSON.stringify({ error: "Failed to load patient profiles" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-      if (validatedProfileError || !validatedProfile) {
-        return new Response(JSON.stringify({ error: "Invalid personProfileId for patient" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    const targetProfiles = (personProfiles ?? []) as PersonProfileRow[];
+    if (targetProfiles.length === 0) {
+      return new Response(JSON.stringify({ error: "No profiles found for patient" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const { error: updateError } = await serviceClient
@@ -156,18 +157,19 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    const now = new Date().toISOString();
     const { error: profileAccessError } = await serviceClient
       .from("profile_access")
       .upsert(
-        {
-          person_profile_id: targetProfileId,
+        targetProfiles.map((profile) => ({
+          person_profile_id: profile.id,
           account_user_id: patient.user_id,
           status: "active",
           source: "admin",
           selected_packages: productId,
-          activated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
+          activated_at: now,
+          updated_at: now,
+        })),
         { onConflict: "person_profile_id" },
       );
 
@@ -202,7 +204,8 @@ serve(async (req: Request): Promise<Response> => {
         success: true,
         grantId: grantData.id,
         patientId,
-        personProfileId: targetProfileId,
+        grantedProfileIds: targetProfiles.map((profile) => profile.id),
+        grantedProfilesCount: targetProfiles.length,
         reason,
         productId,
       }),
