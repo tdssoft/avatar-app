@@ -24,6 +24,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/hooks/useAdminNotifications";
 import { allPackages } from "@/lib/paymentFlow";
 import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
+import {
+  formatGrantAccessSuccessMessage,
+  resolveGrantAccessErrorMessage,
+  type GrantAccessResponse,
+} from "@/lib/adminGrantAccess";
 import { toast } from "sonner";
 
 interface Patient {
@@ -251,7 +256,7 @@ const AdminDashboard = () => {
 
     setIsGrantingAccess(true);
     try {
-      const { error } = await supabase.functions.invoke("admin-grant-access", {
+      const { data, error } = await supabase.functions.invoke<GrantAccessResponse>("admin-grant-access", {
         body: {
           patientId: grantPatientId,
           reason: grantReason,
@@ -261,14 +266,14 @@ const AdminDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("Dostęp został przyznany");
+      toast.success(formatGrantAccessSuccessMessage(data?.grantedProfilesCount ?? 1));
       setGrantPatientId("");
       setGrantReason("");
       setGrantProductId("");
       await fetchPatients();
     } catch (error: unknown) {
       console.error("[AdminDashboard] grant access error:", error);
-      const message = error instanceof Error ? error.message : "Nie udało się przyznać dostępu";
+      const message = await resolveGrantAccessErrorMessage(error);
       toast.error(message);
     } finally {
       setIsGrantingAccess(false);
@@ -383,7 +388,8 @@ const AdminDashboard = () => {
             <div>
               <h2 className="text-base font-semibold">Przyznaj dostęp</h2>
               <p className="text-sm text-muted-foreground">
-                Ręczne nadanie dostępu dla pacjenta (np. płatność gotówką).
+                Ręczne nadanie dostępu dla całego konta pacjenta, w tym profilu głównego,
+                dzieci i innych podpiętych profili.
               </p>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 items-end">
