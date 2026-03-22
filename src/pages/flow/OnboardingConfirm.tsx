@@ -73,7 +73,7 @@ const OnboardingConfirm = () => {
           <CardHeader>
             <CardTitle className="text-2xl">Witamy w aplikacji Avatar!</CardTitle>
             <p className="text-muted-foreground">
-              Uzupełnij dane osobowe i przejdź dalej do diagnostyki.
+              Uzupełnij dane osobowe i przejdź dalej do wywiadu dietetycznego.
             </p>
           </CardHeader>
           <CardContent className="space-y-5">

@@ -26,7 +26,7 @@ const exportFields = [
   { id: "birth_date", label: "Data urodzenia", category: "profile" },
   { id: "gender", label: "Płeć", category: "profile" },
   { id: "subscription_status", label: "Status subskrypcji", category: "patient" },
-  { id: "diagnosis_status", label: "Status diagnozy", category: "patient" },
+  { id: "diagnosis_status", label: "Status analizy organizmu", category: "patient" },
   { id: "created_at", label: "Data rejestracji", category: "patient" },
   { id: "recommendations_count", label: "Liczba zaleceń", category: "stats" },
   { id: "last_recommendation_date", label: "Data ostatniego zalecenia", category: "stats" },

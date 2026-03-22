@@ -904,14 +904,14 @@ const PatientProfile = () => {
           <div className="xl:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Podsumowanie diagnozy i zalecenia dietetyczne</CardTitle>
+                <CardTitle>Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedRecommendation ? (
                   <div className="space-y-3">
                     <p className="font-semibold">{selectedRecommendation.title || "Zalecenie"}</p>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {selectedRecommendation.diagnosis_summary || "Brak opisu diagnozy dla tego zalecenia."}
+                      {selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla tego zalecenia."}
                     </p>
                     {selectedRecommendation.pdf_url && (
                       <div className="rounded-md border bg-muted/20 p-3">
@@ -1112,12 +1112,12 @@ const PatientProfile = () => {
                   </Badge>
                 </div>
                 <div className="rounded-md border p-4 flex items-center justify-between">
-                  <span className="font-semibold">Status diagnozy</span>
+                  <span className="font-semibold">Status analizy organizmu</span>
                   <Badge variant="secondary">{patient?.diagnosis_status || "Brak"}</Badge>
                 </div>
                 <Button variant="outline" className="w-full justify-start" onClick={setInterviewTab} disabled={!canOpenInterview}>
                   <ClipboardList className="h-4 w-4 mr-2" />
-                  Zobacz wyniki ankiety (wywiad medyczny)
+                  Zobacz wyniki ankiety (wywiad dietetyczny)
                 </Button>
                 {!canOpenInterview && (
                   <p className="text-xs text-muted-foreground">Brak wysłanego wywiadu dla tego profilu.</p>

@@ -141,7 +141,7 @@ const Results = () => {
           <div className="space-y-6">
             <div className="rounded-xl bg-background p-6 space-y-5">
               <h1 className="text-3xl md:text-4xl font-bold text-foreground">Wyniki badań</h1>
-              <p className="text-muted-foreground">Strona wynikowa dla aktywnego profilu pacjenta.</p>
+              <p className="text-muted-foreground">Strona wynikowa dla aktywnego profilu.</p>
 
               <div className="flex flex-wrap items-center gap-3">
                 <Label className="text-sm font-medium whitespace-nowrap">Zalecenia z dnia</Label>
@@ -174,7 +174,7 @@ const Results = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Podsumowanie diagnozy i zalecenia dietetyczne</CardTitle>
+                <CardTitle>Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -186,7 +186,7 @@ const Results = () => {
                   <div className="space-y-4">
                     <p className="font-semibold text-foreground">{selectedRecommendation.title || "Zalecenie"}</p>
                     <p className="text-muted-foreground whitespace-pre-wrap">
-                      {selectedRecommendation.diagnosis_summary || "Brak opisu diagnozy dla wybranego wyniku."}
+                      {selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla wybranego wyniku."}
                     </p>
                   </div>
                 ) : (
@@ -198,7 +198,7 @@ const Results = () => {
                     <div className="space-y-3">
                       <PlanCard
                         title="Indywidualny program wsparcia ciała AVATAR"
-                        description="Kompleksowy program diagnostyczny i terapeutyczny dopasowany do Twojego organizmu."
+                        description="Kompleksowy program analizy i wsparcia dopasowany do Twojego organizmu."
                         price="od 220 zł"
                         onSelect={() => navigate("/payment?group=avatar")}
                       />

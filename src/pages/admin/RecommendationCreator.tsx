@@ -484,7 +484,7 @@ const RecommendationCreator = () => {
               {isEditMode ? "Edycja zalecenia" : "Kreator zaleceń"}
             </h1>
             <p className="text-white/80">
-              {isEditMode ? "Edytuj istniejące zalecenie dla pacjenta" : "Utwórz nowe zalecenia dla pacjenta"}
+              {isEditMode ? "Edytuj istniejące zalecenie dla klienta" : "Utwórz nowe zalecenia dla klienta"}
             </p>
           </div>
         </div>
@@ -629,10 +629,10 @@ const RecommendationCreator = () => {
 
                   <TabsContent value="diagnosis" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="diagnosisSummary">Podsumowanie diagnozy</Label>
+                      <Label htmlFor="diagnosisSummary">Podsumowanie funkcjonowania organizmu</Label>
                       <Textarea
                         id="diagnosisSummary"
-                        placeholder="Wprowadź podsumowanie diagnozy..."
+                        placeholder="Wprowadź podsumowanie funkcjonowania organizmu..."
                         value={formData.diagnosisSummary}
                         onChange={(e) =>
                           setFormData({ ...formData, diagnosisSummary: e.target.value })

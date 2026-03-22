@@ -247,7 +247,7 @@ const RecommendationDownload = () => {
             {/* Diagnosis Summary */}
             {recommendation.diagnosis_summary && (
               <div className="mb-6">
-                <h3 className="font-medium text-foreground mb-2">Podsumowanie diagnozy:</h3>
+                <h3 className="font-medium text-foreground mb-2">Podsumowanie funkcjonowania organizmu:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <p className="text-foreground whitespace-pre-wrap">
                     {recommendation.diagnosis_summary}

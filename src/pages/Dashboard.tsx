@@ -347,7 +347,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie diagnozy i zalecenia dietetyczne</CardTitle>
+                  <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {isLoadingRecommendations ? (
@@ -358,7 +358,7 @@ const Dashboard = () => {
                   ) : recommendations.length > 0 && selectedRecommendation ? (
                     <>
                       <p className="text-[16px] leading-7 text-foreground">
-                        {selectedRecommendation.diagnosis_summary || "Szczegóły diagnozy i zalecenia dietetyczne zostały przygotowane dla Twojego profilu."}
+                        {selectedRecommendation.diagnosis_summary || "Szczegóły funkcjonowania organizmu i zalecenia dietetyczne zostały przygotowane dla Twojego profilu."}
                       </p>
                       <div>
                         <p className="text-[30px] leading-none font-bold mb-2">Kuracja</p>
@@ -434,10 +434,8 @@ const Dashboard = () => {
               </Card>
               <PhotoUpload
                 className="rounded-lg border-[#d9dee4] shadow-none"
-                title="Twój profil"
-                actionLabel="Zobacz szczegóły"
-                editable={false}
-                onAction={() => navigate("/profile")}
+                title="Twoje zdjęcie"
+                actionLabel="Zmień zdjęcie"
               />
             </div>
 
@@ -518,18 +516,18 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader>
-                  <CardTitle className="text-[24px] leading-tight font-bold">Zleć kolejną diagnostykę:</CardTitle>
+                  <CardTitle className="text-[24px] leading-tight font-bold">Zleć kolejną analizę organizmu</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <PlanCard
-                    title="Jednorazowa diagnostyka"
-                    description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu zdrowia."
+                    title="Jednorazowa analiza organizmu"
+                    description="Płacisz raz i otrzymujesz wyniki na podstawie aktualnego stanu organizmu."
                     price="150 zł"
                     onSelect={() => navigate("/payment?group=avatar")}
                   />
                   <PlanCard
                     title="Pakiet miesięczny"
-                    description="Płatność miesięczna umożliwiająca regularne badanie i monitorowanie stanu zdrowia."
+                    description="Płatność miesięczna umożliwia regularne monitorowanie funkcjonowania organizmu."
                     price="90 zł"
                     priceUnit="miesiąc"
                     onSelect={() => navigate("/payment?group=regen")}

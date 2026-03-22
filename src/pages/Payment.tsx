@@ -76,7 +76,7 @@ const Payment = () => {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Wybierz jakie informacje diagnostyka powinna zawierać. Od ilości informacji zależy finalna cena pakietu.
+              Wybierz, jakie elementy ma zawierać analiza organizmu. Od zakresu materiału zależy finalna cena pakietu.
             </p>
             <div className="pt-2">
               {packages.map((pkg) => (

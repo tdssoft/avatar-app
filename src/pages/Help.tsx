@@ -14,19 +14,19 @@ import { ContactFormDialog } from "@/components/support/ContactFormDialog";
 
 const faqs = [
   {
-    question: "Jak działa diagnostyka biorezonansowa?",
+    question: "Jak działa analiza organizmu w AVATAR?",
     answer:
-      "Diagnostyka biorezonansowa to metoda analizy stanu zdrowia organizmu poprzez pomiar częstotliwości rezonansowych ciała. Na podstawie przesłanego zdjęcia i wywiadu zdrowotnego nasi specjaliści przeprowadzają analizę i przygotowują indywidualny plan terapii.",
+      "Analiza organizmu w AVATAR opiera się na przesłanym zdjęciu, wywiadzie dietetycznym i materiałach uzupełniających. Na tej podstawie przygotowujemy podsumowanie funkcjonowania organizmu oraz indywidualne zalecenia.",
   },
   {
     question: "Jak długo trzeba czekać na wyniki?",
     answer:
-      "Standardowy czas oczekiwania na wyniki to 3-5 dni roboczych od momentu przesłania wszystkich wymaganych dokumentów i zdjęć. W przypadku pilnych potrzeb oferujemy również opcję ekspresowej analizy.",
+      "Standardowy czas oczekiwania na wyniki to 3-5 dni roboczych od momentu przesłania wszystkich wymaganych dokumentów i zdjęć. W przypadku pilnych potrzeb oferujemy również opcję ekspresowego opracowania.",
   },
   {
-    question: "Co zawiera pakiet diagnostyczny?",
+    question: "Co zawiera pakiet analizy organizmu?",
     answer:
-      "Pakiet diagnostyczny zawiera: pełną analizę kondycji organizmu, raport zdrowotny, indywidualny plan terapii oraz wskazówki dietetyczne. W zależności od wybranego pakietu możesz otrzymać dodatkowe elementy jak jadłospis czy plan profilaktyczny.",
+      "Pakiet analizy organizmu zawiera podsumowanie funkcjonowania organizmu, indywidualne zalecenia oraz wskazówki dietetyczne. W zależności od wybranego pakietu możesz otrzymać dodatkowe elementy, takie jak jadłospis lub plan wspierający.",
   },
   {
     question: "Jak mogę zmienić swoje dane osobowe?",

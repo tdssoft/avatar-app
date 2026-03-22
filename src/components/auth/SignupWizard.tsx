@@ -302,7 +302,7 @@ const SignupWizard = () => {
               <div className="text-sm text-foreground">
                 <p className="font-semibold">Dlaczego zdjęcie jest potrzebne?</p>
                 <p className="text-muted-foreground">
-                  Diagnoza powstaje na podstawie Twojego zdjęcia, dlatego przesłanie go jest niezbędne. Możesz wgrać
+                  Analiza organizmu powstaje na podstawie Twojego zdjęcia, dlatego przesłanie go jest niezbędne. Możesz wgrać
                   zdjęcie później.
                 </p>
               </div>
@@ -387,7 +387,7 @@ const SignupWizard = () => {
               <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
               <p className="text-sm text-muted-foreground">
                 Upewnij się, że na zdjęciu widać tylko Ciebie. Przesłanie innej osoby na zdjęciu może doprowadzić do
-                błędnej diagnozy.
+                błędnej analizy.
               </p>
             </div>
 
