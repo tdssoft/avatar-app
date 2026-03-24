@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePersonProfiles } from "@/hooks/usePersonProfiles";
 import Sidebar from "./Sidebar";
 import { Bell, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const { isLoading, user, session } = useAuth();
+  const { activeProfile } = usePersonProfiles();
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
@@ -52,13 +54,25 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     return null;
   }
 
-  const userInitials = user?.firstName && user?.lastName 
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : "U";
+  // Show child profile name when a non-primary profile is active
+  const showChildName = activeProfile && !activeProfile.is_primary;
 
-  const fullName = user?.firstName && user?.lastName 
-    ? `${user.firstName} ${user.lastName}`
-    : "Użytkownik";
+  const displayName = showChildName
+    ? activeProfile.name
+    : user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : "Użytkownik";
+
+  const userInitials = showChildName
+    ? activeProfile.name
+        .split(/\s+/)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2) || "U"
+    : user?.firstName && user?.lastName
+      ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+      : "U";
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -73,7 +87,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </AvatarFallback>
             </Avatar>
             <span className="text-sm font-medium text-foreground hidden sm:block">
-              {fullName}
+              {displayName}
             </span>
             <div className="h-6 w-px bg-border mx-1" />
             <button className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Powiadomienia">
