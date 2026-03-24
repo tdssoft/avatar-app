@@ -234,6 +234,12 @@ Deno.serve(async (req) => {
     }
 
     // Send email notifications
+    console.log("[post-signup] Email notification config:", {
+      adminEmail,
+      fromEmail,
+      resendInitialized: !!resend,
+    });
+
     if (resend) {
       const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim() || "Nowy użytkownik";
       const registrationDate = new Date().toLocaleString("pl-PL", {
