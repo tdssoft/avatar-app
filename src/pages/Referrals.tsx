@@ -307,7 +307,7 @@ const Referrals = () => {
                     <h4 className="font-medium">Za każde aktywne polecenie</h4>
                     <p className="text-sm text-muted-foreground">
                       Otrzymujesz <strong>10% zniżki</strong> na kolejny pakiet
-                      diagnostyczny
+                      dietetyczny
                     </p>
                   </div>
                 </div>

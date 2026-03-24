@@ -441,7 +441,7 @@ const Dashboard = () => {
 
             <Card className="rounded-lg border-[#d9dee4] shadow-none">
               <CardHeader className="pb-3">
-                <CardTitle className="text-[24px] leading-tight font-bold">Pliki wynikowe</CardTitle>
+                <CardTitle className="text-[24px] leading-tight font-bold">Twoje wyniki badań laboratoryjne (z krwi, moczu i inne)</CardTitle>
               </CardHeader>
               <CardContent>
                 {patientResultFiles.length > 0 ? (
@@ -534,7 +534,7 @@ const Dashboard = () => {
                   />
                   <Card className="border border-[#d9dee4] shadow-none">
                     <CardContent className="flex items-center justify-between p-4">
-                      <p className="font-semibold text-foreground text-[24px] leading-tight">Wypełnij ponownie ankietę</p>
+                      <p className="font-semibold text-foreground text-[24px] leading-tight">Wypełnij ponownie wywiad dietetyczny</p>
                       <Button variant="secondary" className="font-semibold text-foreground bg-[#d8dce1] hover:bg-[#cdd2d8]" onClick={() => navigate("/interview")}>
                         Wypełnij
                       </Button>

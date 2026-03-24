@@ -559,7 +559,7 @@ const NutritionInterview = () => {
       <div className="h-full flex flex-col">
         <img src={avatarLogo} alt="Avatar" className="h-10 w-auto mb-6" />
 
-        <h1 className="text-[44px] font-bold text-[#111] leading-none mb-5">Wywiad medyczny</h1>
+        <h1 className="text-[44px] font-bold text-[#111] leading-none mb-5">Wywiad dietetyczny</h1>
 
         <div className="h-2 bg-[#d9d9d9] rounded-full overflow-hidden mb-4">
           <div className="h-full bg-black rounded-full transition-all" style={{ width: `${progress}%` }} />

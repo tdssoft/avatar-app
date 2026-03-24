@@ -940,7 +940,7 @@ const PatientProfile = () => {
 
             <Card className="border-primary/50 border-2">
               <CardHeader>
-                <CardTitle>Pliki wynikowe dla pacjenta</CardTitle>
+                <CardTitle>Wyniki badań laboratoryjne klienta</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {resultFiles.length > 0 ? (

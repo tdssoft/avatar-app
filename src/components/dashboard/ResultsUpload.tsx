@@ -186,7 +186,7 @@ const ResultsUpload = ({ className }: ResultsUploadProps) => {
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="text-4xl font-bold leading-tight">Pliki wynikowe</CardTitle>
+        <CardTitle className="text-4xl font-bold leading-tight">Twoje wyniki badań laboratoryjne (z krwi, moczu i inne)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {uploadedFiles.length > 0 && (

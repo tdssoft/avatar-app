@@ -17,9 +17,7 @@ const InterviewSplitLayout = ({ children }: InterviewSplitLayoutProps) => {
           <div className="rounded-2xl bg-[#ececec] border border-[#d8d8d8] p-8 hidden lg:flex flex-col items-center justify-center text-center">
             <img src={avatarLogo} alt="Avatar" className="h-20 w-auto mb-14" />
             <p className="text-4xl font-semibold text-[#222] leading-tight">
-              Wszystko jest możliwe ale decyzja
-              <br />
-              należy do Ciebie
+              Zadbaj o swoje ciało
             </p>
           </div>
         </div>
