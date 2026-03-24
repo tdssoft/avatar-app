@@ -205,6 +205,16 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const session = await stripeResponse.json();
+
+    if (!stripeResponse.ok) {
+      console.error("Stripe API error:", stripeResponse.status, JSON.stringify(session));
+      const errorMessage = session?.error?.message || `Stripe returned HTTP ${stripeResponse.status}`;
+      return new Response(
+        JSON.stringify({ error: errorMessage }),
+        { status: stripeResponse.status, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     console.log("create-checkout-session: session created", session.id);
 
     if (session.error) {
