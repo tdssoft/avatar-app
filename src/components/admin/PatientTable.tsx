@@ -195,7 +195,7 @@ const PatientTable = ({
                       navigate(`/admin/patient/${patient.id}`);
                     }}
                   >
-                    Profil pacjenta
+                    Profil klienta
                   </Button>
                 </TableCell>
                 <TableCell className="text-muted-foreground">

@@ -1128,7 +1128,7 @@ const PatientProfile = () => {
             {activeTab === "interview" && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Wywiad medyczny</CardTitle>
+                  <CardTitle>Wywiad dietetyczny</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {selectedProfileId ? (
@@ -1301,12 +1301,12 @@ const PatientProfile = () => {
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="w-full" disabled={isDeleting || isDeletingSelf}>
                       <Trash2 className="h-4 w-4 mr-2" />
-                      {isDeleting ? "Usuwanie..." : isDeletingSelf ? "Nie można usunąć" : "Usuń pacjenta"}
+                      {isDeleting ? "Usuwanie..." : isDeletingSelf ? "Nie można usunąć" : "Usuń klienta"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Czy na pewno chcesz usunąć tego pacjenta?</AlertDialogTitle>
+                      <AlertDialogTitle>Czy na pewno chcesz usunąć tego klienta?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Ta akcja jest nieodwracalna. Zostaną usunięte profile, zalecenia, wyniki badań, notatki i wiadomości.
                       </AlertDialogDescription>
@@ -1314,7 +1314,7 @@ const PatientProfile = () => {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Anuluj</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDeletePatient} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Usuń pacjenta
+                        Usuń klienta
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
