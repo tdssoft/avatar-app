@@ -302,8 +302,8 @@ const SignupWizard = () => {
               <div className="text-sm text-foreground">
                 <p className="font-semibold">Dlaczego zdjęcie jest potrzebne?</p>
                 <p className="text-muted-foreground">
-                  Analiza organizmu powstaje na podstawie Twojego zdjęcia, dlatego przesłanie go jest niezbędne. Możesz wgrać
-                  zdjęcie później.
+                  Zdjęcie jest niezbędne, aby system mógł odczytać indywidualną informację o aktualnym stanie funkcjonowania
+                  Twojego organizmu. Możesz wgrać zdjęcie później.
                 </p>
               </div>
             </div>
@@ -337,20 +337,20 @@ const SignupWizard = () => {
           >
             <button
               type="button"
-              onClick={openPhotoPicker}
+              onClick={openCamera}
               className="w-full rounded-lg border-2 border-dashed border-border p-8 text-center hover:bg-muted/40 transition-colors"
             >
               <p className="font-medium text-foreground inline-flex items-center gap-2">
-                <Upload className="h-4 w-4" />
-                Wybierz plik
+                <Camera className="h-4 w-4" />
+                Zrób zdjęcie kamerką (komputer/telefon)
               </p>
-              <p className="text-xs text-muted-foreground mt-1">jpg, png, maksymalny rozmiar 10 MB.</p>
+              <p className="text-xs text-muted-foreground mt-1">Użyj kamerki, aby zrobić zdjęcie.</p>
               {selectedPhoto ? <p className="text-xs text-muted-foreground mt-3">{selectedPhoto.name}</p> : null}
             </button>
 
-            <Button type="button" variant="outline" className="w-full" onClick={openCamera}>
-              <Camera className="h-4 w-4 mr-2" />
-              Zrób zdjęcie kamerką (komputer/telefon)
+            <Button type="button" variant="outline" className="w-full" onClick={openPhotoPicker}>
+              <Upload className="h-4 w-4 mr-2" />
+              Wybierz plik z urządzenia
             </Button>
 
             {isCameraOpen ? (
@@ -386,8 +386,7 @@ const SignupWizard = () => {
             <div className="rounded-lg bg-muted p-4 flex gap-3">
               <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
               <p className="text-sm text-muted-foreground">
-                Upewnij się, że na zdjęciu widać tylko Ciebie. Przesłanie innej osoby na zdjęciu może doprowadzić do
-                błędnej analizy.
+                Na zdjęciu powinna znajdować się wyłącznie Twoja twarz – bez innych osób, z możliwie jednolitym tłem.
               </p>
             </div>
 

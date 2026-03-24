@@ -287,7 +287,7 @@ const Dashboard = () => {
           <>
             <div className="mb-8 space-y-2">
               <p className="text-foreground text-sm">Witamy w Avatar!</p>
-              <h1 className="text-3xl md:text-5xl font-bold text-foreground">Twoja ścieżka pracy z ciałem zaczyna się w AVATAR</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground">Twoja ścieżka pracy z ciałem zaczyna się w AVATAR</h1>
               <p className="text-muted-foreground text-lg font-semibold">Wybierz odpowiedni program dla siebie:</p>
             </div>
             <div className="space-y-4 max-w-4xl">
