@@ -376,7 +376,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             Brak wywiadu żywieniowego
           </h3>
           <p className="text-muted-foreground">
-            Pacjent nie wypełnił jeszcze wywiadu żywieniowego.
+            Klient nie wypełnił jeszcze wywiadu żywieniowego.
           </p>
         </CardContent>
       </Card>
@@ -837,7 +837,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
           return (
             <Card key={step.id}>
               <CardHeader>
-                <CardTitle className="text-lg">{step.heading ?? "Wywiad medyczny"}</CardTitle>
+                <CardTitle className="text-lg">{step.heading ?? "Wywiad dietetyczny"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {answeredQuestions.map((item) => (

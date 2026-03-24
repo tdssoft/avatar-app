@@ -424,7 +424,7 @@ const AdminDashboard = () => {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
               <div className="space-y-2">
-                <Label>Pacjent</Label>
+                <Label>Klient</Label>
                 <Select value={grantPatientId} onValueChange={setGrantPatientId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Wybierz pacjenta" />
