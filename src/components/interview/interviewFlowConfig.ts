@@ -33,6 +33,7 @@ export type InterviewQuestionConfig =
 export type InterviewStepConfig = {
   id: string;
   heading?: string;
+  layout?: "two-column";
   questions: InterviewQuestionConfig[];
 };
 
@@ -151,6 +152,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   {
     id: "grains",
     heading: "Produkty zbożowe",
+    layout: "two-column",
     questions: [
       { type: "frequency", key: "darkBreadFrequency", label: "Jak często spożywane jest ciemne pieczywo?", helper: "Podaj uwagi i kategorie: żytnie, graham, pumpernikiel." },
       { type: "frequency", key: "whiteBreadFrequency", label: "Jak często spożywane jest jasne pieczywo?", helper: "Podaj uwagi i kategorie: pszenne, orkiszowe, ryżowe." },
@@ -162,6 +164,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   {
     id: "dairy-protein-a",
     heading: "Nabiał i białko - 1",
+    layout: "two-column",
     questions: [
       { type: "frequency", key: "milkFrequency", label: "Jak często spożywane jest mleko?", helper: "Podaj uwagi i rodzaj: krowie, kozie, roślinne." },
       { type: "frequency", key: "kefirYogurtFrequency", label: "Jak często spożywane są kefir, jogurt, maślanka?" },
@@ -173,6 +176,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   {
     id: "protein-b",
     heading: "Białko - 2",
+    layout: "two-column",
     questions: [
       { type: "frequency", key: "eggsFrequency", label: "Jak często spożywane są jaja?" },
       { type: "frequency", key: "whiteMeatFrequency", label: "Jak często spożywane jest mięso białe?", helper: "Podaj uwagi i rodzaj: kurczak, indyk, królik." },
@@ -185,6 +189,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   {
     id: "fats-plants",
     heading: "Tłuszcze i produkty roślinne",
+    layout: "two-column",
     questions: [
       { type: "frequency", key: "butterFrequency", label: "Jak często spożywane jest masło?", helper: "Podaj uwagi i podaj kategorie: 82% tłuszczu." },
       { type: "frequency", key: "margarineFrequency", label: "Jak często spożywane są margaryny miękkie?" },
@@ -200,6 +205,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   {
     id: "sweet-intolerances",
     heading: "Słodycze i nietolerancje",
+    layout: "two-column",
     questions: [
       { type: "frequency", key: "honeyFrequency", label: "Jak często spożywany jest miód?" },
       { type: "frequency", key: "jamsFrequency", label: "Jak często spożywane są dżemy?" },

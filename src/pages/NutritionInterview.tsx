@@ -535,6 +535,62 @@ const NutritionInterview = () => {
     );
   };
 
+  const renderTwoColumnFrequencyQuestion = (question: InterviewQuestionConfig) => {
+    if (question.type !== "frequency") {
+      return renderQuestion(question);
+    }
+
+    const key = question.key;
+    const frequencyValue = formData[key] as FrequencyAnswer;
+
+    return (
+      <div
+        key={String(key)}
+        className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-x-6 gap-y-2 items-start border-b border-[#dddddd] pb-4 last:border-0"
+      >
+        <div className="space-y-1">
+          <Label className="text-base font-semibold leading-tight text-[#191919]">
+            {question.label}
+          </Label>
+          {question.helper ? (
+            <p className="text-sm text-[#8a8a8a]">{question.helper}</p>
+          ) : null}
+          <Textarea
+            value={frequencyValue.note}
+            onChange={(event) => updateFrequencyField(key, { note: event.target.value })}
+            placeholder={question.notePlaceholder ?? "Dodaj uwagi"}
+            className="mt-2 min-h-[60px] bg-transparent border-[#cfcfcf]"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-[#8a8a8a] uppercase tracking-wide mb-1">
+            Jak często?
+          </p>
+          {FREQUENCY_OPTIONS.map((option) => {
+            const checked = frequencyValue.frequency === option.value;
+            return (
+              <label
+                key={option.value}
+                className={`flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer ${
+                  checked ? "bg-[#e5e5e5]" : "bg-transparent"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={`frequency-${String(key)}`}
+                  checked={checked}
+                  onChange={() => updateFrequencyField(key, { frequency: option.value })}
+                />
+                <span className="text-sm text-[#1f1f1f]">{option.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
     return null;
   }
@@ -573,7 +629,11 @@ const NutritionInterview = () => {
           </p>
         </div>
 
-        <div className="space-y-5 overflow-y-auto pr-1">{current.questions.map(renderQuestion)}</div>
+        <div className="space-y-5 overflow-y-auto pr-1">
+          {current.layout === "two-column"
+            ? current.questions.map(renderTwoColumnFrequencyQuestion)
+            : current.questions.map(renderQuestion)}
+        </div>
 
         <div className="mt-6 flex items-center justify-between gap-3">
           <Button type="button" variant="ghost" onClick={handleBack} className="text-[#111]">
