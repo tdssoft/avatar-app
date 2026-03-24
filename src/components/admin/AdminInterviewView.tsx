@@ -823,33 +823,96 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
       </Card>
 
       {isV2Interview && normalizedV2Content ? (
-        INTERVIEW_STEPS.map((step) => {
-          const answeredQuestions = step.questions
-            .map((question) => ({
-              key: String(question.key),
-              label: question.label,
-              value: getInterviewV2Answer(question, normalizedV2Content).trim(),
-            }))
-            .filter((item) => item.value.length > 0);
+        <div className="relative">
+          {/* Sticky section navigation */}
+          <nav className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border py-2 mb-6 -mx-1 px-1">
+            <div className="flex flex-wrap gap-1.5">
+              {INTERVIEW_STEPS.map((step) => {
+                const hasAnswers = step.questions.some((question) => {
+                  const value = getInterviewV2Answer(question, normalizedV2Content).trim();
+                  return value.length > 0;
+                });
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => {
+                      const element = document.getElementById(`interview-section-${step.id}`);
+                      element?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      hasAnswers
+                        ? "border-foreground/20 text-foreground hover:bg-muted"
+                        : "border-border text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {step.heading ?? step.id}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
 
-          if (answeredQuestions.length === 0) return null;
+          {/* All sections rendered vertically */}
+          <div className="space-y-8">
+            {INTERVIEW_STEPS.map((step) => {
+              const answeredQuestions = step.questions
+                .map((question) => ({
+                  key: String(question.key),
+                  label: question.label,
+                  value: getInterviewV2Answer(question, normalizedV2Content).trim(),
+                  helper: "helper" in question ? question.helper : undefined,
+                  type: question.type,
+                }))
+                .filter((item) => item.value.length > 0);
 
-          return (
-            <Card key={step.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">{step.heading ?? "Wywiad medyczny"}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {answeredQuestions.map((item) => (
-                  <div key={item.key} className="space-y-1">
-                    <Label className="text-muted-foreground">{item.label}</Label>
-                    <p className="text-sm bg-muted/50 rounded-lg p-3 whitespace-pre-wrap">{item.value}</p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          );
-        })
+              return (
+                <section
+                  key={step.id}
+                  id={`interview-section-${step.id}`}
+                  className="scroll-mt-16"
+                >
+                  <h3 className="text-lg font-semibold text-foreground mb-3 border-b border-border pb-2">
+                    {step.heading ?? "Wywiad medyczny"}
+                  </h3>
+                  {answeredQuestions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">Brak odpowiedzi w tej sekcji.</p>
+                  ) : step.layout === "two-column" ? (
+                    <div className="space-y-3">
+                      {answeredQuestions.map((item) => (
+                        <div
+                          key={item.key}
+                          className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-x-4 gap-y-1 border-b border-border/50 pb-3 last:border-0"
+                        >
+                          <div className="space-y-0.5">
+                            <Label className="text-muted-foreground">{item.label}</Label>
+                            {item.helper ? (
+                              <p className="text-xs text-muted-foreground/70">{item.helper}</p>
+                            ) : null}
+                          </div>
+                          <p className="text-sm bg-muted/50 rounded-lg p-2 whitespace-pre-wrap">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {answeredQuestions.map((item) => (
+                        <div key={item.key} className="space-y-1">
+                          <Label className="text-muted-foreground">{item.label}</Label>
+                          <p className="text-sm bg-muted/50 rounded-lg p-3 whitespace-pre-wrap">
+                            {item.value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        </div>
       ) : (
         <>
           {/* General Info */}
