@@ -95,6 +95,23 @@ export const fetchPatientResultFilesForActiveProfile = async (
   return (data ?? []) as PatientResultFileRecord[];
 };
 
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+const resolveContentType = (file: File): string => {
+  if (file.type && file.type !== "application/octet-stream") {
+    return file.type;
+  }
+  const ext = "." + file.name.split(".").pop()?.toLowerCase();
+  return EXTENSION_MIME_MAP[ext] || "application/octet-stream";
+};
+
 export const uploadPatientResultFileForActiveProfile = async (
   userId: string,
   file: File,
@@ -108,7 +125,7 @@ export const uploadPatientResultFileForActiveProfile = async (
     .from("patient-result-files")
     .upload(filePath, file, {
       upsert: false,
-      contentType: file.type || "application/octet-stream",
+      contentType: resolveContentType(file),
     });
 
   if (uploadError) {
@@ -124,7 +141,7 @@ export const uploadPatientResultFileForActiveProfile = async (
       file_name: file.name,
       file_path: filePath,
       file_size: file.size,
-      file_type: file.type || null,
+      file_type: resolveContentType(file),
     })
     .select("id, file_name, file_path, created_at, file_size, file_type")
     .single();
