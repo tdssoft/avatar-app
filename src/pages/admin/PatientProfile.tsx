@@ -190,7 +190,22 @@ const PatientProfile = () => {
   };
 
   const MAX_FILE_SIZE = 20 * 1024 * 1024;
-  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+  const ALLOWED_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ];
+  const ALLOWED_EXTENSIONS: Record<string, string> = {
+    ".pdf": "application/pdf",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  };
 
   const sanitizeFileName = (fileName: string) => fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
 
@@ -199,9 +214,16 @@ const PatientProfile = () => {
     return err?.message || err?.error_description || err?.details || fallback;
   };
 
+  const resolveContentType = (file: File): string => {
+    if (file.type) return file.type;
+    const ext = ("." + file.name.split(".").pop()?.toLowerCase()) as string;
+    return ALLOWED_EXTENSIONS[ext] || "application/octet-stream";
+  };
+
   const validateUploadFile = (file: File): boolean => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Dozwolone formaty: PDF, JPG, JPEG, PNG");
+    const contentType = resolveContentType(file);
+    if (!ALLOWED_TYPES.includes(contentType)) {
+      toast.error("Dozwolone formaty: PDF, JPG, JPEG, PNG, DOC, DOCX");
       return false;
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -408,7 +430,8 @@ const PatientProfile = () => {
 
     const safeName = sanitizeFileName(file.name);
     const filePath = `${id}/${profileId}/${Date.now()}_${safeName}`;
-    const { error } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: false });
+    const contentType = resolveContentType(file);
+    const { error } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: false, contentType });
     if (error) {
       console.error("[PatientProfile] Upload error", { bucket, filePath, error });
       toast.error(getSupabaseErrorMessage(error, "Nie udało się wgrać pliku"));
@@ -971,7 +994,7 @@ const PatientProfile = () => {
                   ref={resultFileInputRef}
                   data-testid="result-file-input"
                   type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -1023,7 +1046,7 @@ const PatientProfile = () => {
                     ref={deviceFileInputRef}
                     data-testid="device-file-input"
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -1053,7 +1076,7 @@ const PatientProfile = () => {
                     ref={aiFileInputRef}
                     data-testid="ai-file-input"
                     type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
