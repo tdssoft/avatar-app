@@ -51,9 +51,12 @@ export const useUserFlowStatus = () => {
 
   const refresh = useCallback(async (options?: RefreshOptions) => {
     if (!user?.id) {
+      // No user yet — mark as NOT resolved so the guard waits for the real user load.
+      // isFlowResolved: false means useFlowRouteGuard returns redirectTo=null, preventing
+      // a premature redirect before the second refresh() (with the real user ID) completes.
       setStatus({
         isLoading: false,
-        isFlowResolved: true,
+        isFlowResolved: false,
         hasPaidPlanForActiveProfile: false,
         hasPaidPlan: false,
         hasInterview: false,
