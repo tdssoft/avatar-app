@@ -5,7 +5,8 @@ import { pl } from "date-fns/locale";
 import { Bell, CheckCheck, ClipboardList, Loader2, Mail, MessageSquare, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { useAdminNotifications, type AdminEventItem, type AdminEventType, type AdminFeedScope } from "@/hooks/useAdminNotifications";
+import { type AdminEventItem, type AdminEventType, type AdminFeedScope } from "@/hooks/useAdminNotifications";
+import { AdminNotificationsProvider, useAdminNotificationsContext } from "@/contexts/AdminNotificationsContext";
 import AdminSidebar from "./AdminSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -169,7 +170,7 @@ const AdminEventsPopover = ({
   );
 };
 
-const AdminLayout = ({ children }: AdminLayoutProps) => {
+const AdminLayoutInner = ({ children }: AdminLayoutProps) => {
   const { session, user, isLoading: authLoading } = useAuth();
   const { isAdmin, isLoading: roleLoading } = useAdminRole();
   const {
@@ -181,7 +182,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     isUpdating,
     markEventRead,
     markEventsRead,
-  } = useAdminNotifications();
+  } = useAdminNotificationsContext();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -259,5 +260,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     </div>
   );
 };
+
+const AdminLayout = ({ children }: AdminLayoutProps) => (
+  <AdminNotificationsProvider>
+    <AdminLayoutInner>{children}</AdminLayoutInner>
+  </AdminNotificationsProvider>
+);
 
 export default AdminLayout;

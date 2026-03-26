@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
-import { useAdminNotifications } from "@/hooks/useAdminNotifications";
+import { useAdminNotificationsContext } from "@/contexts/AdminNotificationsContext";
 import { allPackages } from "@/lib/paymentFlow";
 import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
 import {
@@ -79,7 +79,7 @@ const AdminDashboard = () => {
     byPatientMap,
     markPatientInterviewRead,
     markPatientMessagesRead,
-  } = useAdminNotifications();
+  } = useAdminNotificationsContext();
 
   const fetchPatients = async () => {
     setIsLoading(true);
