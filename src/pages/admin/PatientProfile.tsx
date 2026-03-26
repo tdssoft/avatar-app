@@ -14,6 +14,9 @@ import {
   Upload,
   X,
   Loader2,
+  CreditCard,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -106,6 +109,20 @@ interface PatientFileRecord {
   created_at: string;
 }
 
+interface PaymentHistoryRecord {
+  id: string;
+  person_profile_id: string;
+  profile_name: string | null;
+  status: string;
+  source: string;
+  selected_packages: string | null;
+  stripe_session_id: string | null;
+  stripe_subscription_id: string | null;
+  activated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PatientAiEntry {
   id: string;
   content: string;
@@ -144,6 +161,7 @@ const PatientProfile = () => {
   const [deviceFiles, setDeviceFiles] = useState<PatientFileRecord[]>([]);
   const [aiEntries, setAiEntries] = useState<PatientAiEntry[]>([]);
   const [canOpenInterview, setCanOpenInterview] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryRecord[]>([]);
 
   const [newNote, setNewNote] = useState("");
   const [newSms, setNewSms] = useState("");
@@ -304,6 +322,28 @@ const PatientProfile = () => {
           : primaryProfile.id;
         effectiveProfileId = nextSelected;
         setSelectedProfileId(nextSelected);
+      }
+
+      // Fetch payment history for all person profiles of this user
+      if (personProfilesData && personProfilesData.length > 0) {
+        const profileIds = personProfilesData.map((p) => p.id);
+        const { data: paymentData, error: paymentError } = await supabase
+          .from("profile_access")
+          .select("id, person_profile_id, status, source, selected_packages, stripe_session_id, stripe_subscription_id, activated_at, created_at, updated_at")
+          .in("person_profile_id", profileIds)
+          .order("created_at", { ascending: false });
+
+        if (paymentError) {
+          console.error("[PatientProfile] profile_access read error", paymentError);
+        } else {
+          const enriched: PaymentHistoryRecord[] = (paymentData || []).map((pa) => ({
+            ...pa,
+            profile_name: personProfilesData.find((p) => p.id === pa.person_profile_id)?.name ?? null,
+          }));
+          setPaymentHistory(enriched);
+        }
+      } else {
+        setPaymentHistory([]);
       }
 
       const { data: recsData } = await supabase
@@ -1144,6 +1184,99 @@ const PatientProfile = () => {
                 </Button>
                 {!canOpenInterview && (
                   <p className="text-xs text-muted-foreground">Brak wysłanego wywiadu dla tego profilu.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Historia płatności */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                  Historia płatności
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {paymentHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Brak historii płatności dla tego klienta.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {paymentHistory.map((record) => {
+                      const isActive = record.status === "active";
+                      const isStripe = record.source === "stripe";
+                      const packages = record.selected_packages
+                        ? record.selected_packages.split(",").map((p) => p.trim()).filter(Boolean)
+                        : [];
+                      const dateDisplay = record.activated_at
+                        ? format(new Date(record.activated_at), "dd.MM.yyyy HH:mm", { locale: pl })
+                        : format(new Date(record.created_at), "dd.MM.yyyy HH:mm", { locale: pl });
+
+                      return (
+                        <div
+                          key={record.id}
+                          className="rounded-lg border p-4 space-y-2"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              {isActive ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                              )}
+                              <div>
+                                <span className="text-sm font-semibold">
+                                  {dateDisplay}
+                                </span>
+                                {record.profile_name && personProfiles.length > 1 && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    profil: {record.profile_name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <Badge
+                              variant={isActive ? "default" : "secondary"}
+                              className={isActive ? "bg-green-100 text-green-800 border-green-200" : ""}
+                            >
+                              {isActive ? "Aktywna" : record.status}
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm pl-6">
+                            <span className="text-muted-foreground">Źródło:</span>
+                            <span className="font-medium">
+                              {isStripe ? "Stripe (online)" : record.source === "cash" ? "Gotówka" : record.source}
+                            </span>
+
+                            {packages.length > 0 && (
+                              <>
+                                <span className="text-muted-foreground">Pakiety:</span>
+                                <span className="font-medium">{packages.join(", ")}</span>
+                              </>
+                            )}
+
+                            {record.stripe_session_id && (
+                              <>
+                                <span className="text-muted-foreground">Sesja Stripe:</span>
+                                <span className="font-mono text-xs text-muted-foreground truncate max-w-[180px]" title={record.stripe_session_id}>
+                                  {record.stripe_session_id.slice(0, 24)}…
+                                </span>
+                              </>
+                            )}
+
+                            {record.stripe_subscription_id && (
+                              <>
+                                <span className="text-muted-foreground">Subskrypcja:</span>
+                                <span className="font-mono text-xs text-muted-foreground truncate max-w-[180px]" title={record.stripe_subscription_id}>
+                                  {record.stripe_subscription_id.slice(0, 24)}…
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
