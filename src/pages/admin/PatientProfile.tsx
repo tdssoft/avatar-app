@@ -23,6 +23,7 @@ import { pl } from "date-fns/locale";
 import { toast } from "sonner";
 
 import AdminLayout from "@/components/admin/AdminLayout";
+import { allPackages } from "@/lib/paymentFlow";
 import AdminInterviewView from "@/components/admin/AdminInterviewView";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +54,8 @@ interface PatientData {
   last_communication_at: string | null;
   admin_notes: string | null;
   tags: string[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface ProfileData {
@@ -115,12 +118,16 @@ interface PaymentHistoryRecord {
   profile_name: string | null;
   status: string;
   source: string;
+  // resolved display fields
+  source_label: string;
+  product_name: string | null;
+  reason_label: string | null;
+  // raw fields
   selected_packages: string | null;
   stripe_session_id: string | null;
   stripe_subscription_id: string | null;
   activated_at: string | null;
   created_at: string;
-  updated_at: string;
 }
 
 interface PatientAiEntry {
@@ -324,26 +331,131 @@ const PatientProfile = () => {
         setSelectedProfileId(nextSelected);
       }
 
-      // Fetch payment history for all person profiles of this user
-      if (personProfilesData && personProfilesData.length > 0) {
-        const profileIds = personProfilesData.map((p) => p.id);
-        const { data: paymentData, error: paymentError } = await supabase
-          .from("profile_access")
-          .select("id, person_profile_id, status, source, selected_packages, stripe_session_id, stripe_subscription_id, activated_at, created_at, updated_at")
-          .in("person_profile_id", profileIds)
-          .order("created_at", { ascending: false });
+      // Fetch payment history — separate try/catch so errors never break the rest of the page
+      try {
+        const resolveSourceLabel = (source: string) => {
+          if (source === "stripe") return "Stripe (online)";
+          if (source === "cash" || source === "platnosc_gotowka") return "Gotówka";
+          if (source === "admin") return "Nadana przez admina";
+          if (source === "manual") return "Przypisana ręcznie";
+          if (source === "inny_przypadek") return "Inny przypadek";
+          return source || "—";
+        };
+        const resolveReasonLabel = (reason: string | null) => {
+          if (!reason) return null;
+          if (reason === "platnosc_gotowka") return "Płatność gotówką";
+          if (reason === "inny_przypadek") return "Inny przypadek";
+          return reason;
+        };
+        const resolveProductName = (pkgIds: string | null, fallbackName?: string) => {
+          if (fallbackName) return fallbackName;
+          if (!pkgIds) return null;
+          const ids = pkgIds.split(",").map((p) => p.trim()).filter(Boolean);
+          const names = ids.map((pkgId) => {
+            const found = allPackages.find((p) => p.id === pkgId);
+            return found ? `${found.name} (${found.price} zł${found.billing === "monthly" ? "/mies." : ""})` : pkgId;
+          });
+          return names.length > 0 ? names.join(", ") : null;
+        };
 
-        if (paymentError) {
-          console.error("[PatientProfile] profile_access read error", paymentError);
-        } else {
-          const enriched: PaymentHistoryRecord[] = (paymentData || []).map((pa) => ({
-            ...pa,
-            profile_name: personProfilesData.find((p) => p.id === pa.person_profile_id)?.name ?? null,
+        const profilesForLookup = personProfilesData || [];
+
+        const [paResult, agResult] = await Promise.all([
+          supabase
+            .from("profile_access")
+            .select("id, person_profile_id, status, source, selected_packages, stripe_session_id, stripe_subscription_id, activated_at, created_at")
+            .eq("account_user_id", patientData.user_id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("admin_access_grants" as "patients")  // cast to bypass missing type
+            .select("id, reason, product_id, product_name, granted_at")
+            .eq("patient_id", id)
+            .order("granted_at" as "id", { ascending: false }),
+        ]);
+
+        if (paResult.error) console.error("[PatientProfile] profile_access error", paResult.error);
+        if (agResult.error) console.error("[PatientProfile] admin_access_grants error", agResult.error);
+
+        const stripeRecords: PaymentHistoryRecord[] = ((paResult.data as typeof paResult.data) || [])
+          .filter((pa) => pa.source === "stripe")
+          .map((pa) => ({
+            id: pa.id,
+            person_profile_id: pa.person_profile_id,
+            profile_name: profilesForLookup.find((p) => p.id === pa.person_profile_id)?.name ?? null,
+            status: pa.status,
+            source: pa.source,
+            source_label: resolveSourceLabel(pa.source),
+            product_name: resolveProductName(pa.selected_packages ?? null),
+            reason_label: null,
+            selected_packages: pa.selected_packages ?? null,
+            stripe_session_id: pa.stripe_session_id ?? null,
+            stripe_subscription_id: pa.stripe_subscription_id ?? null,
+            activated_at: pa.activated_at ?? null,
+            created_at: pa.activated_at || pa.created_at || new Date().toISOString(),
           }));
-          setPaymentHistory(enriched);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawGrants: any[] = (agResult.data as any[]) || [];
+        const adminGrantRecords: PaymentHistoryRecord[] = rawGrants.map((g) => ({
+          id: String(g.id ?? "grant-" + Math.random()),
+          person_profile_id: "",
+          profile_name: null,
+          status: "active",
+          source: "admin",
+          source_label: resolveSourceLabel("admin"),
+          product_name: resolveProductName(String(g.product_id ?? ""), String(g.product_name ?? "")),
+          reason_label: resolveReasonLabel(String(g.reason ?? "")),
+          selected_packages: g.product_id ? String(g.product_id) : null,
+          stripe_session_id: null,
+          stripe_subscription_id: null,
+          activated_at: g.granted_at ? String(g.granted_at) : null,
+          created_at: g.granted_at ? String(g.granted_at) : new Date().toISOString(),
+        }));
+
+        let combined = [...adminGrantRecords, ...stripeRecords].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        // Fallback: subscription active but no records found
+        if (combined.length === 0 && patientData.subscription_status === "Aktywna") {
+          combined = [{
+            id: "manual-fallback",
+            person_profile_id: "",
+            profile_name: null,
+            status: "active",
+            source: "manual",
+            source_label: "Przypisana ręcznie",
+            product_name: null,
+            reason_label: null,
+            selected_packages: null,
+            stripe_session_id: null,
+            stripe_subscription_id: null,
+            activated_at: patientData.updated_at ?? null,
+            created_at: patientData.updated_at || patientData.created_at || new Date().toISOString(),
+          }];
         }
-      } else {
-        setPaymentHistory([]);
+
+        setPaymentHistory(combined);
+      } catch (paymentErr) {
+        console.error("[PatientProfile] payment history error:", paymentErr);
+        // Don't throw — just leave paymentHistory as empty (will show "Brak historii")
+        if (patientData.subscription_status === "Aktywna") {
+          setPaymentHistory([{
+            id: "fallback-error",
+            person_profile_id: "",
+            profile_name: null,
+            status: "active",
+            source: "manual",
+            source_label: "Przypisana ręcznie",
+            product_name: null,
+            reason_label: null,
+            selected_packages: null,
+            stripe_session_id: null,
+            stripe_subscription_id: null,
+            activated_at: null,
+            created_at: new Date().toISOString(),
+          }]);
+        }
       }
 
       const { data: recsData } = await supabase
@@ -1203,19 +1315,12 @@ const PatientProfile = () => {
                   <div className="space-y-3">
                     {paymentHistory.map((record) => {
                       const isActive = record.status === "active";
-                      const isStripe = record.source === "stripe";
-                      const packages = record.selected_packages
-                        ? record.selected_packages.split(",").map((p) => p.trim()).filter(Boolean)
-                        : [];
                       const dateDisplay = record.activated_at
                         ? format(new Date(record.activated_at), "dd.MM.yyyy HH:mm", { locale: pl })
                         : format(new Date(record.created_at), "dd.MM.yyyy HH:mm", { locale: pl });
 
                       return (
-                        <div
-                          key={record.id}
-                          className="rounded-lg border p-4 space-y-2"
-                        >
+                        <div key={record.id} className="rounded-lg border p-4 space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2">
                               {isActive ? (
@@ -1224,9 +1329,7 @@ const PatientProfile = () => {
                                 <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                               )}
                               <div>
-                                <span className="text-sm font-semibold">
-                                  {dateDisplay}
-                                </span>
+                                <span className="text-sm font-semibold">{dateDisplay}</span>
                                 {record.profile_name && personProfiles.length > 1 && (
                                   <span className="ml-2 text-xs text-muted-foreground">
                                     profil: {record.profile_name}
@@ -1242,33 +1345,36 @@ const PatientProfile = () => {
                             </Badge>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm pl-6">
-                            <span className="text-muted-foreground">Źródło:</span>
-                            <span className="font-medium">
-                              {isStripe ? "Stripe (online)" : record.source === "cash" ? "Gotówka" : record.source}
+                          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm pl-6">
+                            <span className="text-muted-foreground whitespace-nowrap">Źródło płatności:</span>
+                            <span className="font-medium">{record.source_label}</span>
+
+                            <span className="text-muted-foreground whitespace-nowrap">Usługa / pakiet:</span>
+                            <span className={record.product_name ? "font-medium" : "text-muted-foreground italic"}>
+                              {record.product_name ?? "brak szczegółów"}
                             </span>
 
-                            {packages.length > 0 && (
+                            {record.reason_label && (
                               <>
-                                <span className="text-muted-foreground">Pakiety:</span>
-                                <span className="font-medium">{packages.join(", ")}</span>
+                                <span className="text-muted-foreground whitespace-nowrap">Powód nadania:</span>
+                                <span className="font-medium">{record.reason_label}</span>
                               </>
                             )}
 
                             {record.stripe_session_id && (
                               <>
-                                <span className="text-muted-foreground">Sesja Stripe:</span>
-                                <span className="font-mono text-xs text-muted-foreground truncate max-w-[180px]" title={record.stripe_session_id}>
-                                  {record.stripe_session_id.slice(0, 24)}…
+                                <span className="text-muted-foreground whitespace-nowrap">Sesja Stripe:</span>
+                                <span className="font-mono text-xs text-muted-foreground truncate" title={record.stripe_session_id}>
+                                  {record.stripe_session_id.slice(0, 28)}…
                                 </span>
                               </>
                             )}
 
                             {record.stripe_subscription_id && (
                               <>
-                                <span className="text-muted-foreground">Subskrypcja:</span>
-                                <span className="font-mono text-xs text-muted-foreground truncate max-w-[180px]" title={record.stripe_subscription_id}>
-                                  {record.stripe_subscription_id.slice(0, 24)}…
+                                <span className="text-muted-foreground whitespace-nowrap">Subskrypcja Stripe:</span>
+                                <span className="font-mono text-xs text-muted-foreground truncate" title={record.stripe_subscription_id}>
+                                  {record.stripe_subscription_id.slice(0, 28)}…
                                 </span>
                               </>
                             )}
