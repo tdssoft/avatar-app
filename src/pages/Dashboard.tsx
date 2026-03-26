@@ -20,7 +20,7 @@ import {
   downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  openRecommendationFileInNewTab,
+  resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
 import {
   createPatientResultFileSignedUrl,
@@ -29,6 +29,7 @@ import {
   validatePatientResultFile,
   type PatientResultFileRecord,
 } from "@/lib/patientResultFiles";
+import FileViewerModal from "@/components/ui/FileViewerModal";
 
 interface Recommendation {
   id: string;
@@ -58,6 +59,13 @@ const Dashboard = () => {
   const [isSendingQuestion, setIsSendingQuestion] = useState(false);
   const [patientResultFiles, setPatientResultFiles] = useState<PatientResultFileRecord[]>([]);
   const [isUploadingResultFile, setIsUploadingResultFile] = useState(false);
+
+  // File viewer modal state
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [fileViewerUrl, setFileViewerUrl] = useState<string | null>(null);
+  const [fileViewerName, setFileViewerName] = useState("");
+  const [fileViewerLoading, setFileViewerLoading] = useState(false);
+  const [fileViewerDownloadFn, setFileViewerDownloadFn] = useState<(() => void) | undefined>(undefined);
 
   const fetchRecommendations = useCallback(async () => {
     if (!user?.id) {
@@ -148,12 +156,29 @@ const Dashboard = () => {
     return () => window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
   }, [fetchPatientResultFiles]);
 
-  const openResultFile = async (filePath: string) => {
+  const openResultFile = async (file: PatientResultFileRecord) => {
+    setFileViewerName(file.file_name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
+    setFileViewerDownloadFn(undefined);
     try {
-      const signedUrl = await createPatientResultFileSignedUrl(filePath);
-      window.open(signedUrl, "_blank", "noopener,noreferrer");
+      const signedUrl = await createPatientResultFileSignedUrl(file.file_path);
+      setFileViewerUrl(signedUrl);
+      setFileViewerDownloadFn(() => () => {
+        const link = document.createElement("a");
+        link.href = signedUrl;
+        link.download = file.file_name;
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      });
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku." });
+      setFileViewerOpen(false);
+    } finally {
+      setFileViewerLoading(false);
     }
   };
 
@@ -180,16 +205,30 @@ const Dashboard = () => {
     }
   };
 
-  const openRecommendationFile = async (fileReference: string, download = false) => {
+  const openRecommendationFile = async (fileReference: string) => {
+    const name = getRecommendationFileName(fileReference) || "Plik zalecenia";
+    setFileViewerName(name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
+    setFileViewerDownloadFn(undefined);
     try {
-      if (download) {
-        await downloadRecommendationFileByLink(fileReference);
-        return;
-      }
-
-      await openRecommendationFileInNewTab(fileReference);
+      const url = await resolveRecommendationFileUrl(fileReference);
+      setFileViewerUrl(url);
+      setFileViewerDownloadFn(() => () => void downloadRecommendationFileByLink(fileReference));
     } catch {
       toast({ variant: "destructive", title: "Błąd", description: "Nie udało się otworzyć pliku zalecenia." });
+      setFileViewerOpen(false);
+    } finally {
+      setFileViewerLoading(false);
+    }
+  };
+
+  const downloadRecommendationFile = async (fileReference: string) => {
+    try {
+      await downloadRecommendationFileByLink(fileReference);
+    } catch {
+      toast({ variant: "destructive", title: "Błąd", description: "Nie udało się pobrać pliku zalecenia." });
     }
   };
 
@@ -281,6 +320,14 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
+      <FileViewerModal
+        open={fileViewerOpen}
+        onOpenChange={setFileViewerOpen}
+        fileUrl={fileViewerUrl}
+        fileName={fileViewerName}
+        isLoading={fileViewerLoading}
+        onDownload={fileViewerDownloadFn}
+      />
       <div className="-mx-6 md:-mx-8 lg:-mx-12 -my-6 lg:-my-8 min-h-[calc(100vh-64px)] bg-[#e9edf1] p-6 md:p-8 lg:p-12">
       <div className="mx-auto max-w-[1120px] rounded-2xl border border-[#d9dee4] bg-[#f3f5f7] p-5 md:p-8 lg:p-10 space-y-7">
         {!hasPaidPlan && (
@@ -424,7 +471,7 @@ const Dashboard = () => {
                                     type="button"
                                     size="sm"
                                     className="h-8 px-3 gap-1.5 bg-black hover:bg-black/90"
-                                    onClick={() => void openRecommendationFile(selectedRecommendation.pdf_url!, true)}
+                                    onClick={() => void downloadRecommendationFile(selectedRecommendation.pdf_url!)}
                                   >
                                     <Download className="h-3.5 w-3.5" />
                                     Pobierz
@@ -472,20 +519,53 @@ const Dashboard = () => {
                 {patientResultFiles.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {patientResultFiles.map((file) => (
-                      <button
+                      <div
                         key={file.id}
-                        type="button"
-                        onClick={() => void openResultFile(file.file_path)}
-                        className="rounded-md border border-[#d9dee4] bg-white px-4 py-3 text-left hover:bg-muted/40"
+                        className="rounded-md border border-[#d9dee4] bg-white px-4 py-3"
                       >
-                        <div className="flex items-start gap-3">
-                          <FileText className="h-5 w-5 mt-0.5 text-muted-foreground" />
+                        <div className="flex items-start gap-3 mb-2">
+                          <FileText className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{file.file_name}</p>
                             <p className="text-xs text-muted-foreground">{new Date(file.created_at).toLocaleDateString("pl-PL")}</p>
                           </div>
                         </div>
-                      </button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs gap-1"
+                            onClick={() => void openResultFile(file)}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Otwórz
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2.5 text-xs gap-1"
+                            onClick={async () => {
+                              try {
+                                const url = await createPatientResultFileSignedUrl(file.file_path);
+                                const link = document.createElement("a");
+                                link.href = url;
+                                link.download = file.file_name;
+                                link.rel = "noopener noreferrer";
+                                document.body.appendChild(link);
+                                link.click();
+                                link.remove();
+                              } catch {
+                                toast({ variant: "destructive", title: "Błąd", description: "Nie udało się pobrać pliku." });
+                              }
+                            }}
+                          >
+                            <Download className="h-3 w-3" />
+                            Pobierz
+                          </Button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (

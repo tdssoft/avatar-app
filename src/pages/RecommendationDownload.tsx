@@ -11,8 +11,9 @@ import {
   downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  openRecommendationFileInNewTab,
+  resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
+import FileViewerModal from "@/components/ui/FileViewerModal";
 
 interface RecommendationData {
   id: string;
@@ -38,6 +39,12 @@ const RecommendationDownload = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isExpired, setIsExpired] = useState(false);
+
+  // File viewer modal state
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [fileViewerUrl, setFileViewerUrl] = useState<string | null>(null);
+  const [fileViewerName, setFileViewerName] = useState("");
+  const [fileViewerLoading, setFileViewerLoading] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -81,31 +88,46 @@ const RecommendationDownload = () => {
     }
   };
 
-  const handleDownloadFile = async (download = true) => {
-    if (!recommendation?.pdf_url) return;
-    
-    // Log download
+  const logAccess = async (accessType: string) => {
     try {
       await supabase.functions.invoke("verify-download-token", {
         body: {
           token,
-          access_type: "download",
+          access_type: accessType,
           user_agent: navigator.userAgent,
         },
       });
     } catch (error) {
-      console.error("Error logging download:", error);
+      console.error("Error logging access:", error);
     }
+  };
 
+  const handleOpenFile = async () => {
+    if (!recommendation?.pdf_url) return;
+    await logAccess("view");
+    const name = getRecommendationFileName(recommendation.pdf_url) || "Plik zalecenia";
+    setFileViewerName(name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
     try {
-      if (download) {
-        await downloadRecommendationFileByLink(recommendation.pdf_url);
-        return;
-      }
-
-      await openRecommendationFileInNewTab(recommendation.pdf_url);
+      const url = await resolveRecommendationFileUrl(recommendation.pdf_url);
+      setFileViewerUrl(url);
     } catch (error) {
       console.error("Error opening recommendation file:", error);
+      setFileViewerOpen(false);
+    } finally {
+      setFileViewerLoading(false);
+    }
+  };
+
+  const handleDownloadFile = async () => {
+    if (!recommendation?.pdf_url) return;
+    await logAccess("download");
+    try {
+      await downloadRecommendationFileByLink(recommendation.pdf_url);
+    } catch (error) {
+      console.error("Error downloading recommendation file:", error);
     }
   };
 
@@ -168,6 +190,14 @@ const RecommendationDownload = () => {
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
+      <FileViewerModal
+        open={fileViewerOpen}
+        onOpenChange={setFileViewerOpen}
+        fileUrl={fileViewerUrl}
+        fileName={fileViewerName}
+        isLoading={fileViewerLoading}
+        onDownload={handleDownloadFile}
+      />
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -202,11 +232,11 @@ const RecommendationDownload = () => {
                     Plik zalecenia: {getRecommendationFileName(recommendation.pdf_url)} ({getRecommendationFileTypeLabel(recommendation.pdf_url)})
                   </p>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => void handleDownloadFile(false)} className="gap-2 shrink-0">
+                    <Button variant="outline" onClick={() => void handleOpenFile()} className="gap-2 shrink-0">
                       <FileText className="h-4 w-4" />
                       Otwórz plik
                     </Button>
-                    <Button onClick={() => void handleDownloadFile(true)} className="gap-2 shrink-0">
+                    <Button onClick={() => void handleDownloadFile()} className="gap-2 shrink-0">
                       <Download className="h-4 w-4" />
                       Pobierz plik
                     </Button>

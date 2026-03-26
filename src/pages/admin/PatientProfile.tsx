@@ -45,6 +45,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import FileViewerModal from "@/components/ui/FileViewerModal";
 
 interface PatientData {
   id: string;
@@ -190,6 +191,13 @@ const PatientProfile = () => {
   const [isRecommendationPreviewLoading, setIsRecommendationPreviewLoading] = useState(false);
   const [recommendationPreviewUrl, setRecommendationPreviewUrl] = useState<string | null>(null);
   const [recommendationPreviewName, setRecommendationPreviewName] = useState("Podgląd pliku");
+
+  // General file viewer modal state (for patient result/device files)
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [fileViewerUrl, setFileViewerUrl] = useState<string | null>(null);
+  const [fileViewerName, setFileViewerName] = useState("");
+  const [fileViewerLoading, setFileViewerLoading] = useState(false);
+  const [fileViewerDownloadFn, setFileViewerDownloadFn] = useState<(() => void) | undefined>(undefined);
 
   const resultFileInputRef = useRef<HTMLInputElement | null>(null);
   const deviceFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -554,13 +562,48 @@ const PatientProfile = () => {
     }
   };
 
-  const openFileWithSignedUrl = async (bucket: string, filePath: string) => {
+  const openFileWithSignedUrl = async (bucket: string, filePath: string, displayName?: string) => {
+    const name = displayName || filePath.split("/").pop() || "Plik";
+    setFileViewerName(name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
+    setFileViewerDownloadFn(undefined);
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(filePath, 60);
     if (error || !data?.signedUrl) {
       toast.error("Nie udało się otworzyć pliku");
+      setFileViewerOpen(false);
+      setFileViewerLoading(false);
       return;
     }
-    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    const signedUrl = data.signedUrl;
+    setFileViewerUrl(signedUrl);
+    setFileViewerDownloadFn(() => () => {
+      const link = document.createElement("a");
+      link.href = signedUrl;
+      link.download = name;
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    });
+    setFileViewerLoading(false);
+  };
+
+  const downloadFileWithSignedUrl = async (bucket: string, filePath: string, displayName?: string) => {
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(filePath, 60);
+    if (error || !data?.signedUrl) {
+      toast.error("Nie udało się pobrać pliku");
+      return;
+    }
+    const name = displayName || filePath.split("/").pop() || "plik";
+    const link = document.createElement("a");
+    link.href = data.signedUrl;
+    link.download = name;
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   const openRecommendationFile = async (fileRef: string) => {
@@ -980,6 +1023,14 @@ const PatientProfile = () => {
 
   return (
     <AdminLayout>
+      <FileViewerModal
+        open={fileViewerOpen}
+        onOpenChange={setFileViewerOpen}
+        fileUrl={fileViewerUrl}
+        fileName={fileViewerName}
+        isLoading={fileViewerLoading}
+        onDownload={fileViewerDownloadFn}
+      />
       <Dialog
         open={isRecommendationPreviewOpen}
         onOpenChange={(open) => {
@@ -1140,8 +1191,11 @@ const PatientProfile = () => {
                         <p className="font-medium truncate">{file.file_name}</p>
                         <p className="text-muted-foreground text-xs">{format(new Date(file.created_at), "dd.MM.yyyy HH:mm", { locale: pl })} {file.file_size ? `• ${formatFileSize(file.file_size)}` : ""}</p>
                         <div className="mt-2 flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-result-files", file.file_path)}>
-                            Podgląd
+                          <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-result-files", file.file_path, file.file_name)}>
+                            Otwórz
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void downloadFileWithSignedUrl("patient-result-files", file.file_path, file.file_name)}>
+                            Pobierz
                           </Button>
                           <Button
                             size="sm"
@@ -1192,8 +1246,11 @@ const PatientProfile = () => {
                           <p className="font-medium truncate">{file.file_name}</p>
                           <p className="text-muted-foreground text-xs">{format(new Date(file.created_at), "dd.MM.yyyy HH:mm", { locale: pl })} {file.file_size ? `• ${formatFileSize(file.file_size)}` : ""}</p>
                           <div className="mt-2 flex items-center gap-2">
-                            <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-device-files", file.file_path)}>
-                              Podgląd
+                            <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-device-files", file.file_path, file.file_name)}>
+                              Otwórz
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => void downloadFileWithSignedUrl("patient-device-files", file.file_path, file.file_name)}>
+                              Pobierz
                             </Button>
                             <Button
                               size="sm"
@@ -1276,9 +1333,14 @@ const PatientProfile = () => {
                           </p>
                           <p className="whitespace-pre-wrap">{entry.content}</p>
                           {entry.attachment_file_path && (
-                            <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!)}>
-                              Pobierz załącznik
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
+                                Otwórz załącznik
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => void downloadFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
+                                Pobierz załącznik
+                              </Button>
+                            </div>
                           )}
                         </div>
                       ))

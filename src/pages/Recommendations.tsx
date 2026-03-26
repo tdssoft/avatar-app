@@ -15,8 +15,9 @@ import {
   downloadRecommendationFile as downloadRecommendationFileByLink,
   getRecommendationFileName,
   getRecommendationFileTypeLabel,
-  openRecommendationFileInNewTab,
+  resolveRecommendationFileUrl,
 } from "@/lib/recommendationFile";
+import FileViewerModal from "@/components/ui/FileViewerModal";
 import {
   ACTIVE_PROFILE_CHANGED_EVENT,
   ACTIVE_PROFILE_STORAGE_KEY,
@@ -52,7 +53,14 @@ const Recommendations = () => {
     () => localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY),
   );
   const [isLoading, setIsLoading] = useState(true);
-  
+
+  // File viewer modal state
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [fileViewerUrl, setFileViewerUrl] = useState<string | null>(null);
+  const [fileViewerName, setFileViewerName] = useState("");
+  const [fileViewerLoading, setFileViewerLoading] = useState(false);
+  const [fileViewerDownloadFn, setFileViewerDownloadFn] = useState<(() => void) | undefined>(undefined);
+
   // Filters
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState<string>("");
@@ -193,11 +201,22 @@ const Recommendations = () => {
   };
 
   const openRecommendationFile = async (fileReference: string) => {
+    const name = getRecommendationFileName(fileReference) || "Plik zalecenia";
+    setFileViewerName(name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
+    setFileViewerDownloadFn(undefined);
     try {
-      await openRecommendationFileInNewTab(fileReference);
+      const url = await resolveRecommendationFileUrl(fileReference);
+      setFileViewerUrl(url);
+      setFileViewerDownloadFn(() => () => void downloadRecommendationFileByLink(fileReference));
     } catch (error) {
       console.error("[Recommendations] open recommendation file error:", error);
       toast.error("Nie udało się otworzyć pliku zalecenia");
+      setFileViewerOpen(false);
+    } finally {
+      setFileViewerLoading(false);
     }
   };
 
@@ -262,6 +281,14 @@ const Recommendations = () => {
 
   return (
     <DashboardLayout>
+      <FileViewerModal
+        open={fileViewerOpen}
+        onOpenChange={setFileViewerOpen}
+        fileUrl={fileViewerUrl}
+        fileName={fileViewerName}
+        isLoading={fileViewerLoading}
+        onDownload={fileViewerDownloadFn}
+      />
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
@@ -422,17 +449,28 @@ const Recommendations = () => {
                           disabled={isTokenExpired(recommendation.token_expires_at)}
                         >
                           <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline">Podgląd</span>
+                          <span className="hidden sm:inline">Szczegóły</span>
                         </Button>
                         {recommendation.pdf_url && (
-                          <Button
-                            size="sm"
-                            onClick={() => void openRecommendationFile(recommendation.pdf_url!)}
-                            className="gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            <span className="hidden sm:inline">Pobierz plik</span>
-                          </Button>
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void openRecommendationFile(recommendation.pdf_url!)}
+                              className="gap-2"
+                            >
+                              <FileText className="h-4 w-4" />
+                              <span className="hidden sm:inline">Otwórz</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => void downloadRecommendationFile(recommendation.pdf_url!)}
+                              className="gap-2"
+                            >
+                              <Download className="h-4 w-4" />
+                              <span className="hidden sm:inline">Pobierz</span>
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -447,11 +485,13 @@ const Recommendations = () => {
                           Typ: {getRecommendationFileTypeLabel(recommendation.pdf_url)}
                         </p>
                         <div className="mt-2 flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => void openRecommendationFile(recommendation.pdf_url!)}>
-                            Otwórz plik
+                          <Button size="sm" variant="outline" onClick={() => void openRecommendationFile(recommendation.pdf_url!)} className="gap-1.5">
+                            <FileText className="h-3.5 w-3.5" />
+                            Otwórz
                           </Button>
-                          <Button size="sm" onClick={() => void downloadRecommendationFile(recommendation.pdf_url!)}>
-                            Pobierz plik
+                          <Button size="sm" onClick={() => void downloadRecommendationFile(recommendation.pdf_url!)} className="gap-1.5">
+                            <Download className="h-3.5 w-3.5" />
+                            Pobierz
                           </Button>
                         </div>
                       </div>
