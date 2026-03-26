@@ -304,6 +304,31 @@ const Dashboard = () => {
                 onSelect={() => navigate("/payment?group=regen")}
               />
             </div>
+
+            <div className="mt-6">
+              <PhotoUpload
+                className="rounded-lg border-[#d9dee4] shadow-none max-w-[280px]"
+                title="Twoje zdjęcie"
+                actionLabel="Wgraj zdjęcie"
+              />
+            </div>
+
+            <section className="pt-1">
+              <h2 className="text-[24px] leading-tight font-bold mb-3">Zadaj pytanie</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Jeśli masz wątpliwości i chcesz poznać szczegóły naszych usług zadaj nam pytanie, a my odpowiemy mailowo.
+              </p>
+              <Textarea
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Wpisz swoje pytanie..."
+                className="min-h-[82px] rounded-md bg-white border-[#d9dee4]"
+              />
+              <Button onClick={handleSendQuestion} disabled={isSendingQuestion || !question.trim()} className="mt-4 h-10 px-7 font-semibold bg-black hover:bg-black/90">
+                {isSendingQuestion ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                Wyślij
+              </Button>
+            </section>
           </>
         )}
 
@@ -344,7 +369,7 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
