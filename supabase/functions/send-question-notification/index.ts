@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
   getAdminEmail,
   getEmailFrom,
@@ -68,16 +67,15 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("[send-question-notification] Sending notification:", { type, user_email, user_name });
 
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
-      console.error("[send-question-notification] RESEND_API_KEY not configured");
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      console.error("[send-question-notification] BREVO_API_KEY not configured");
       return new Response(
         JSON.stringify({ error: "Email service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const resend = new Resend(resendApiKey);
     const adminEmail = getAdminEmail();
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
@@ -175,16 +173,34 @@ serve(async (req: Request): Promise<Response> => {
       `;
     }
 
-    // Send email to admin
-    const emailResult = await resend.emails.send({
-      from: fromEmail,
-      to: [adminEmail],
-      ...(replyTo ? { reply_to: replyTo } : {}),
+    // Send email to admin via Brevo
+    const brevoPayload: Record<string, unknown> = {
+      sender: { name: "AVATAR", email: fromEmail },
+      to: [{ email: adminEmail }],
       subject: emailSubject,
-      html: emailHtml,
+      htmlContent: emailHtml,
+    };
+    if (replyTo) {
+      brevoPayload.replyTo = { email: replyTo };
+    }
+
+    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(brevoPayload),
     });
 
-    console.log("[send-question-notification] Email sent successfully:", emailResult);
+    if (!brevoResponse.ok) {
+      const errText = await brevoResponse.text();
+      console.error("[send-question-notification] Brevo error:", brevoResponse.status, errText);
+      throw new Error(`Brevo API error: ${brevoResponse.status} ${errText}`);
+    }
+
+    const emailResult = await brevoResponse.json();
+    console.log("[send-question-notification] Email sent successfully via Brevo:", emailResult);
 
     return new Response(
       JSON.stringify({
