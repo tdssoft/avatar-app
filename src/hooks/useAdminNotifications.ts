@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -206,37 +206,43 @@ export const useAdminNotifications = () => {
     [collectUnreadEventIds, markEventsRead],
   );
 
-  // Single effect that performs the initial fetch and then sets up periodic polling
-  // plus focus/visibility-change listeners.  Merging what used to be two separate
-  // effects eliminates the duplicate initial `fetchAll` call that occurred because
-  // both effects shared the same `fetchAll` dependency and ran back-to-back on mount.
+  // Always keep a stable ref to the latest fetchAll so the polling effect below
+  // doesn't need fetchAll in its dependency array. fetchAll only becomes stale
+  // when adminUserId changes — and adminUserId IS in the polling effect's deps —
+  // so the ref is always correct when the effect runs. This is the standard
+  // "useEvent" / stable-handler pattern that prevents the polling loop from
+  // restarting on every render where fetchAll gets a new reference.
+  const fetchAllRef = useRef(fetchAll);
   useEffect(() => {
-    // Track when data was last fetched so focus/visibility events don't fire
-    // immediately after the initial load or a recent poll.
+    fetchAllRef.current = fetchAll;
+  }); // no deps — runs on every render but only updates the ref
+
+  // Single effect that performs the initial fetch and then sets up periodic polling
+  // plus focus/visibility-change listeners. Depends only on adminUserId so the
+  // polling interval is never restarted due to incidental fetchAll ref changes.
+  useEffect(() => {
     let lastFetchedAt = 0;
-    const trackedFetchAll = async (initialLoad: boolean) => {
+    const call = (initialLoad: boolean) => {
       lastFetchedAt = Date.now();
-      return fetchAll(initialLoad);
+      return fetchAllRef.current(initialLoad);
     };
 
     // Always run the initial load (handles the case where adminUserId is null too).
-    void trackedFetchAll(true);
+    void call(true);
 
     if (!adminUserId) return;
 
-    const MIN_REFRESH_INTERVAL_MS = 5_000;
+    const MIN_REFRESH_MS = 5_000;
 
-    const intervalId = window.setInterval(() => {
-      void trackedFetchAll(false);
-    }, POLL_INTERVAL_MS);
+    const intervalId = window.setInterval(() => void call(false), POLL_INTERVAL_MS);
 
     const onFocus = () => {
-      if (Date.now() - lastFetchedAt >= MIN_REFRESH_INTERVAL_MS) void trackedFetchAll(false);
+      if (Date.now() - lastFetchedAt >= MIN_REFRESH_MS) void call(false);
     };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && Date.now() - lastFetchedAt >= MIN_REFRESH_INTERVAL_MS) {
-        void trackedFetchAll(false);
+      if (document.visibilityState === "visible" && Date.now() - lastFetchedAt >= MIN_REFRESH_MS) {
+        void call(false);
       }
     };
 
@@ -248,7 +254,7 @@ export const useAdminNotifications = () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [adminUserId, fetchAll]);
+  }, [adminUserId]); // fetchAll intentionally omitted — ref above keeps it current
 
   const byPatientMap = useMemo(() => {
     return state.byPatient.reduce<Record<string, { unread_messages: number; unread_interviews: number }>>(
