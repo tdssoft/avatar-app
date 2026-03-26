@@ -98,14 +98,9 @@ export const useAdminNotifications = () => {
       }));
 
       try {
-        const [allFeedResp, messagesFeedResp, countersResp] = await Promise.all([
+        const [allFeedResp, countersResp] = await Promise.all([
           supabase.rpc("get_admin_event_feed", {
             p_scope: "all",
-            p_limit: PAGE_SIZE,
-            p_offset: 0,
-          }),
-          supabase.rpc("get_admin_event_feed", {
-            p_scope: "messages",
             p_limit: PAGE_SIZE,
             p_offset: 0,
           }),
@@ -113,16 +108,16 @@ export const useAdminNotifications = () => {
         ]);
 
         if (allFeedResp.error) throw allFeedResp.error;
-        if (messagesFeedResp.error) throw messagesFeedResp.error;
         if (countersResp.error) throw countersResp.error;
 
+        const allEvents = (allFeedResp.data ?? []) as AdminEventItem[];
         const countersRow = Array.isArray(countersResp.data) ? countersResp.data[0] : null;
 
         setState({
           isLoading: false,
           isUpdating: false,
-          allEvents: (allFeedResp.data ?? []) as AdminEventItem[],
-          messageEvents: (messagesFeedResp.data ?? []) as AdminEventItem[],
+          allEvents,
+          messageEvents: allEvents.filter((e) => MESSAGES_EVENT_TYPES.includes(e.event_type)),
           unreadAll: Number(countersRow?.unread_all ?? 0),
           unreadMessages: Number(countersRow?.unread_messages ?? 0),
           byPatient: normalizeByPatient(countersRow?.by_patient),
