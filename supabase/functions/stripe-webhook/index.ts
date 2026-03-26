@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
 import {
-  getAdminEmail,
+  getAdminEmails,
   getEmailFrom,
   getEmailReplyTo,
 } from "../_shared/email-config.ts";
@@ -24,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
-    const adminEmail = getAdminEmail();
+    const adminEmails = getAdminEmails();
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -189,10 +188,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle invoice.paid event
     if (event.type === "invoice.paid") {
-      const resendApiKey = Deno.env.get("RESEND_API_KEY");
-      if (!resendApiKey) {
-        console.error("RESEND_API_KEY not configured");
-        throw new Error("Resend is not configured");
+      const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+      if (!brevoApiKey) {
+        console.error("BREVO_API_KEY not configured");
+        throw new Error("Brevo is not configured");
       }
 
       const invoice = event.data.object;
@@ -250,15 +249,19 @@ const handler = async (req: Request): Promise<Response> => {
           .join("");
       }
 
-      // Send email with PDF attachment
-      const resend = new Resend(resendApiKey);
-      
-      const emailResponse = await resend.emails.send({
-        from: fromEmail,
-        to: [adminEmail],
-        ...(replyTo ? { reply_to: replyTo } : {}),
+      // Send email with PDF attachment via Brevo to all admins
+      const brevoPayload: Record<string, unknown> = {
+        sender: { name: "AVATAR", email: fromEmail.replace(/^.*<(.+)>$/, "$1").trim() || fromEmail },
+        to: adminEmails.map((e) => ({ email: e })),
         subject: `📄 Faktura ${invoice.number || invoice.id} - Nowa płatność AVATAR`,
-        html: `
+        ...(replyTo ? { replyTo: { email: replyTo } } : {}),
+        attachment: [
+          {
+            content: pdfBase64,
+            name: `faktura-${invoice.number || invoice.id}.pdf`,
+          },
+        ],
+        htmlContent: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
               <h1 style="margin: 0; font-size: 24px;">💰 Nowa płatność</h1>
@@ -322,15 +325,25 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
           </div>
         `,
-        attachments: [
-          {
-            filename: `faktura-${invoice.number || invoice.id}.pdf`,
-            content: pdfBase64,
-          },
-        ],
+      };
+
+      const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(brevoPayload),
       });
 
-      console.log("stripe-webhook: email sent to admin", emailResponse);
+      if (!brevoRes.ok) {
+        const errText = await brevoRes.text();
+        console.error("stripe-webhook: Brevo error:", brevoRes.status, errText);
+        throw new Error(`Brevo API error: ${brevoRes.status}`);
+      }
+
+      const emailResponse = await brevoRes.json();
+      console.log("stripe-webhook: invoice email sent via Brevo to", adminEmails, emailResponse);
     }
 
     return new Response(JSON.stringify({ received: true }), {
