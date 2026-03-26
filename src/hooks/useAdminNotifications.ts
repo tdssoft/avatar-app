@@ -211,30 +211,32 @@ export const useAdminNotifications = () => {
   // effects eliminates the duplicate initial `fetchAll` call that occurred because
   // both effects shared the same `fetchAll` dependency and ran back-to-back on mount.
   useEffect(() => {
+    // Track when data was last fetched so focus/visibility events don't fire
+    // immediately after the initial load or a recent poll.
+    let lastFetchedAt = 0;
+    const trackedFetchAll = async (initialLoad: boolean) => {
+      lastFetchedAt = Date.now();
+      return fetchAll(initialLoad);
+    };
+
     // Always run the initial load (handles the case where adminUserId is null too).
-    void fetchAll(true);
+    void trackedFetchAll(true);
 
     if (!adminUserId) return;
 
+    const MIN_REFRESH_INTERVAL_MS = 5_000;
+
     const intervalId = window.setInterval(() => {
-      void fetchAll(false);
+      void trackedFetchAll(false);
     }, POLL_INTERVAL_MS);
 
-    // Use a short guard so that focus / visibilitychange events that fire during or
-    // immediately after mount (common in some browsers / React strict-mode) do not
-    // trigger an extra fetch right after the one above.
-    let readyForEventRefresh = false;
-    const readyTimer = window.setTimeout(() => {
-      readyForEventRefresh = true;
-    }, 1000);
-
     const onFocus = () => {
-      if (readyForEventRefresh) void fetchAll(false);
+      if (Date.now() - lastFetchedAt >= MIN_REFRESH_INTERVAL_MS) void trackedFetchAll(false);
     };
 
     const onVisibilityChange = () => {
-      if (readyForEventRefresh && document.visibilityState === "visible") {
-        void fetchAll(false);
+      if (document.visibilityState === "visible" && Date.now() - lastFetchedAt >= MIN_REFRESH_INTERVAL_MS) {
+        void trackedFetchAll(false);
       }
     };
 
@@ -243,7 +245,6 @@ export const useAdminNotifications = () => {
 
     return () => {
       window.clearInterval(intervalId);
-      window.clearTimeout(readyTimer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
