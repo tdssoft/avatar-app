@@ -211,23 +211,34 @@ export const useAdminNotifications = () => {
     [collectUnreadEventIds, markEventsRead],
   );
 
+  // Single effect that performs the initial fetch and then sets up periodic polling
+  // plus focus/visibility-change listeners.  Merging what used to be two separate
+  // effects eliminates the duplicate initial `fetchAll` call that occurred because
+  // both effects shared the same `fetchAll` dependency and ran back-to-back on mount.
   useEffect(() => {
+    // Always run the initial load (handles the case where adminUserId is null too).
     void fetchAll(true);
-  }, [fetchAll]);
 
-  useEffect(() => {
     if (!adminUserId) return;
 
     const intervalId = window.setInterval(() => {
       void fetchAll(false);
     }, POLL_INTERVAL_MS);
 
+    // Use a short guard so that focus / visibilitychange events that fire during or
+    // immediately after mount (common in some browsers / React strict-mode) do not
+    // trigger an extra fetch right after the one above.
+    let readyForEventRefresh = false;
+    const readyTimer = window.setTimeout(() => {
+      readyForEventRefresh = true;
+    }, 1000);
+
     const onFocus = () => {
-      void fetchAll(false);
+      if (readyForEventRefresh) void fetchAll(false);
     };
 
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (readyForEventRefresh && document.visibilityState === "visible") {
         void fetchAll(false);
       }
     };
@@ -237,6 +248,7 @@ export const useAdminNotifications = () => {
 
     return () => {
       window.clearInterval(intervalId);
+      window.clearTimeout(readyTimer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

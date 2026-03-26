@@ -195,6 +195,11 @@ const PatientProfile = () => {
   const deviceFileInputRef = useRef<HTMLInputElement | null>(null);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Tracks when selectedProfileId is set internally by fetchPatientData (not by the user
+  // choosing a different profile) so the [selectedProfileId] effect doesn't issue a redundant
+  // second fetch on initial page load.
+  const internalProfileIdSetRef = useRef(false);
+
   const [activeTab, setActiveTab] = useState<AdminPatientTab>(() => normalizeAdminTab(searchParams.get("tab")));
 
   const isDeletingSelf = !!patient?.user_id && !!currentUser?.id && patient.user_id === currentUser.id;
@@ -274,6 +279,13 @@ const PatientProfile = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    // Skip the fetch if this change was triggered internally by fetchPatientData itself
+    // (e.g. auto-selecting the primary profile on initial load). Only re-fetch when the
+    // user explicitly picks a different profile from the selector.
+    if (internalProfileIdSetRef.current) {
+      internalProfileIdSetRef.current = false;
+      return;
+    }
     if (!id || !selectedProfileId) return;
     void fetchPatientData();
   }, [selectedProfileId]);
@@ -328,6 +340,9 @@ const PatientProfile = () => {
           ? selectedProfileId
           : primaryProfile.id;
         effectiveProfileId = nextSelected;
+        // Mark this as an internal update so the [selectedProfileId] effect does not
+        // trigger a redundant second fetchPatientData call.
+        internalProfileIdSetRef.current = true;
         setSelectedProfileId(nextSelected);
       }
 
