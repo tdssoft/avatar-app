@@ -6,7 +6,7 @@ import { Bell, CheckCheck, ClipboardList, Loader2, Mail, MessageSquare, UserPlus
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { type AdminEventItem, type AdminEventType, type AdminFeedScope } from "@/hooks/useAdminNotifications";
-import { AdminNotificationsProvider, useAdminNotificationsContext } from "@/contexts/AdminNotificationsContext";
+import { useAdminNotificationsContext } from "@/contexts/AdminNotificationsContext";
 import AdminSidebar from "./AdminSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -170,7 +170,7 @@ const AdminEventsPopover = ({
   );
 };
 
-const AdminLayoutInner = ({ children }: AdminLayoutProps) => {
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { session, user, isLoading: authLoading } = useAuth();
   const { isAdmin, isLoading: roleLoading } = useAdminRole();
   const {
@@ -260,11 +260,5 @@ const AdminLayoutInner = ({ children }: AdminLayoutProps) => {
     </div>
   );
 };
-
-const AdminLayout = ({ children }: AdminLayoutProps) => (
-  <AdminNotificationsProvider>
-    <AdminLayoutInner>{children}</AdminLayoutInner>
-  </AdminNotificationsProvider>
-);
 
 export default AdminLayout;

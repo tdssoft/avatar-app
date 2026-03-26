@@ -28,6 +28,7 @@ import RecommendationCreator from "./pages/admin/RecommendationCreator";
 import Partners from "./pages/admin/Partners";
 import ImportPatients from "./pages/admin/ImportPatients";
 import ExportData from "./pages/admin/ExportData";
+import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext";
 
 const queryClient = new QueryClient();
 
@@ -61,13 +62,19 @@ const App = () => (
             {/* Public recommendation download page */}
             <Route path="/recommendation/download" element={<RecommendationDownload />} />
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/patient/:id" element={<PatientProfile />} />
-            <Route path="/admin/patient/:id/recommendation/new" element={<RecommendationCreator />} />
-            <Route path="/admin/patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
-            <Route path="/admin/partners" element={<Partners />} />
-            <Route path="/admin/import" element={<ImportPatients />} />
-            <Route path="/admin/export" element={<ExportData />} />
+            <Route path="/admin/*" element={
+              <AdminNotificationsProvider>
+                <Routes>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="patient/:id" element={<PatientProfile />} />
+                  <Route path="patient/:id/recommendation/new" element={<RecommendationCreator />} />
+                  <Route path="patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
+                  <Route path="partners" element={<Partners />} />
+                  <Route path="import" element={<ImportPatients />} />
+                  <Route path="export" element={<ExportData />} />
+                </Routes>
+              </AdminNotificationsProvider>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
