@@ -185,6 +185,92 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         console.warn("stripe-webhook: missing user_id in checkout metadata");
       }
+
+      // Send admin notification for every completed/async-succeeded checkout
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      if (resendApiKey) {
+        try {
+          const resend = new Resend(resendApiKey);
+          const amount = ((session?.amount_total || 0) / 100).toFixed(2);
+          const currency = (session?.currency || "pln").toUpperCase();
+          const customerEmail =
+            session?.customer_details?.email ||
+            session?.customer_email ||
+            "Brak";
+          const packagesDisplay = selectedPackages
+            ? selectedPackages.replace(/,/g, ", ")
+            : "Brak danych";
+          const paymentMethod =
+            session?.metadata?.payment_method || "Brak danych";
+          const sessionDate = new Date().toLocaleDateString("pl-PL", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const isAsync =
+            event.type === "checkout.session.async_payment_succeeded";
+
+          await resend.emails.send({
+            from: fromEmail,
+            to: [adminEmail],
+            ...(replyTo ? { reply_to: replyTo } : {}),
+            subject: `💰 Nowa płatność ${amount} ${currency} - AVATAR`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                  <h1 style="margin: 0; font-size: 24px;">💰 Nowa płatność${isAsync ? " (BLIK/async)" : ""}</h1>
+                </div>
+
+                <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Kwota:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 18px; color: #10b981; font-weight: bold;">
+                        ${amount} ${currency}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Email klienta:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${customerEmail}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Pakiety:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${packagesDisplay}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>Metoda płatności:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">${paymentMethod}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0;"><strong>Data:</strong></td>
+                      <td style="padding: 10px 0; text-align: right;">${sessionDate}</td>
+                    </tr>
+                  </table>
+
+                  <div style="margin-top: 20px; padding: 12px; background: #ecfdf5; border-radius: 8px; text-align: center;">
+                    <p style="margin: 0; color: #059669; font-size: 13px;">
+                      📎 Faktura PDF zostanie przesłana osobnym mailem gdy Stripe ją wygeneruje
+                    </p>
+                  </div>
+                </div>
+
+                <div style="background: #1f2937; color: #9ca3af; padding: 20px; border-radius: 0 0 10px 10px; text-align: center; font-size: 12px;">
+                  <p style="margin: 0;">AVATAR - System Zarządzania Zdrowiem</p>
+                  <p style="margin: 5px 0 0 0;">ID sesji: ${session?.id || "Brak"}</p>
+                </div>
+              </div>
+            `,
+          });
+
+          console.log("stripe-webhook: admin notification sent for session", session?.id);
+        } catch (emailError: any) {
+          console.error("stripe-webhook: failed to send admin notification", emailError?.message);
+        }
+      } else {
+        console.warn("stripe-webhook: RESEND_API_KEY not set, skipping admin notification");
+      }
     }
 
     // Handle invoice.paid event
