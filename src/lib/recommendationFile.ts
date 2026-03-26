@@ -139,7 +139,7 @@ export const getRecommendationFileTypeLabel = (fileRef: string | null | undefine
 export const resolveRecommendationFileUrl = async (fileRef: string): Promise<string> => {
   if (isAbsoluteFileUrl(fileRef)) return fileRef;
 
-  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(fileRef, 120);
+  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(fileRef, 3600);
   if (error || !data?.signedUrl) {
     throw error ?? new Error("Nie udało się wygenerować linku do pliku");
   }
