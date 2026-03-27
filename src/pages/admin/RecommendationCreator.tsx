@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -321,14 +321,19 @@ const RecommendationCreator = () => {
 
       const persistedProfileId = selectedProfileId;
 
+      const stripEmptyHtml = (html: string | null | undefined): string | null => {
+        if (!html || html.trim() === "" || html === "<p></p>") return null;
+        return html;
+      };
+
       const recommendationPayload = {
         body_systems: selectedSystems,
         title: formData.title || null,
-        diagnosis_summary: formData.diagnosisSummary || null,
-        dietary_recommendations: formData.dietaryRecommendations || null,
-        supplementation_program: formData.supplementationProgram || null,
-        shop_links: formData.shopLinks || null,
-        supporting_therapies: formData.supportingTherapies || null,
+        diagnosis_summary: stripEmptyHtml(formData.diagnosisSummary),
+        dietary_recommendations: stripEmptyHtml(formData.dietaryRecommendations),
+        supplementation_program: stripEmptyHtml(formData.supplementationProgram),
+        shop_links: stripEmptyHtml(formData.shopLinks),
+        supporting_therapies: stripEmptyHtml(formData.supportingTherapies),
         tags: formData.tags.length > 0 ? formData.tags : null,
         person_profile_id: persistedProfileId,
         pdf_url: existingRecommendationFilePath,
@@ -629,73 +634,73 @@ const RecommendationCreator = () => {
 
                   <TabsContent value="diagnosis" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="diagnosisSummary">Podsumowanie funkcjonowania organizmu</Label>
-                      <Textarea
-                        id="diagnosisSummary"
-                        placeholder="Wprowadź podsumowanie funkcjonowania organizmu..."
+                      <Label>Podsumowanie funkcjonowania organizmu</Label>
+                      <RichTextEditor
                         value={formData.diagnosisSummary}
-                        onChange={(e) =>
-                          setFormData({ ...formData, diagnosisSummary: e.target.value })
+                        onChange={(html) =>
+                          setFormData({ ...formData, diagnosisSummary: html })
                         }
-                        className="flex-1 min-h-[200px] resize-none"
+                        placeholder="Wprowadź podsumowanie funkcjonowania organizmu..."
+                        className="flex-1"
+                        minHeight="200px"
                       />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="diet" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="dietaryRecommendations">Zalecenia dietetyczne</Label>
-                      <Textarea
-                        id="dietaryRecommendations"
-                        placeholder="Wprowadź zalecenia dietetyczne..."
+                      <Label>Zalecenia dietetyczne</Label>
+                      <RichTextEditor
                         value={formData.dietaryRecommendations}
-                        onChange={(e) =>
-                          setFormData({ ...formData, dietaryRecommendations: e.target.value })
+                        onChange={(html) =>
+                          setFormData({ ...formData, dietaryRecommendations: html })
                         }
-                        className="flex-1 min-h-[200px] resize-none"
+                        placeholder="Wprowadź zalecenia dietetyczne..."
+                        className="flex-1"
+                        minHeight="200px"
                       />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="supp" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="supplementationProgram">Kuracja - Program suplementacji</Label>
-                      <Textarea
-                        id="supplementationProgram"
-                        placeholder="Wprowadź program suplementacji..."
+                      <Label>Kuracja - Program suplementacji</Label>
+                      <RichTextEditor
                         value={formData.supplementationProgram}
-                        onChange={(e) =>
-                          setFormData({ ...formData, supplementationProgram: e.target.value })
+                        onChange={(html) =>
+                          setFormData({ ...formData, supplementationProgram: html })
                         }
-                        className="flex-1 min-h-[200px] resize-none"
+                        placeholder="Wprowadź program suplementacji..."
+                        className="flex-1"
+                        minHeight="200px"
                       />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="therapies" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="supportingTherapies">Terapie wspierające</Label>
-                      <Textarea
-                        id="supportingTherapies"
-                        placeholder="Wprowadź zalecane terapie wspierające..."
+                      <Label>Terapie wspierające</Label>
+                      <RichTextEditor
                         value={formData.supportingTherapies}
-                        onChange={(e) =>
-                          setFormData({ ...formData, supportingTherapies: e.target.value })
+                        onChange={(html) =>
+                          setFormData({ ...formData, supportingTherapies: html })
                         }
-                        className="flex-1 min-h-[200px] resize-none"
+                        placeholder="Wprowadź zalecane terapie wspierające..."
+                        className="flex-1"
+                        minHeight="200px"
                       />
                     </div>
                   </TabsContent>
 
                   <TabsContent value="shop" className="flex-1 min-h-0 mt-4">
                     <div className="h-full flex flex-col gap-2">
-                      <Label htmlFor="shopLinks">Linki do sklepu</Label>
-                      <Textarea
-                        id="shopLinks"
-                        placeholder="Wprowadź linki do produktów..."
+                      <Label>Linki do sklepu</Label>
+                      <RichTextEditor
                         value={formData.shopLinks}
-                        onChange={(e) => setFormData({ ...formData, shopLinks: e.target.value })}
-                        className="flex-1 min-h-[200px] resize-none"
+                        onChange={(html) => setFormData({ ...formData, shopLinks: html })}
+                        placeholder="Wprowadź linki do produktów..."
+                        className="flex-1"
+                        minHeight="200px"
                       />
                     </div>
                   </TabsContent>

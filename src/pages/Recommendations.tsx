@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -497,9 +498,16 @@ const Recommendations = () => {
                       </div>
                     )}
                     {recommendation.diagnosis_summary && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                        {recommendation.diagnosis_summary}
-                      </p>
+                      <div
+                        className="text-sm text-muted-foreground line-clamp-2 mb-3 [&_p]:inline [&_p+p]:before:content-['_']"
+                        dangerouslySetInnerHTML={{
+                          __html: DOMPurify.sanitize(recommendation.diagnosis_summary, {
+                            ALLOWED_TAGS: ["p", "strong", "em", "u", "s", "span", "h1", "h2", "h3", "ul", "ol", "li", "br"],
+                            ALLOWED_ATTR: ["style", "class"],
+                            FORBID_ATTR: ["href", "src", "onclick", "onerror"],
+                          }),
+                        }}
+                      />
                     )}
                     <div className="flex flex-wrap gap-2">
                       {recommendation.body_systems?.map((system) => (
