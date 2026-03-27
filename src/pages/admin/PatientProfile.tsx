@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -178,7 +179,6 @@ const PatientProfile = () => {
   const [aiData, setAiData] = useState("");
   const [aiAttachment, setAiAttachment] = useState<File | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [isSendingSms, setIsSendingSms] = useState(false);
   const [isSendingQuestionReply, setIsSendingQuestionReply] = useState(false);
@@ -203,14 +203,241 @@ const PatientProfile = () => {
   const deviceFileInputRef = useRef<HTMLInputElement | null>(null);
   const aiFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Tracks when selectedProfileId is set internally by fetchPatientData (not by the user
-  // choosing a different profile) so the [selectedProfileId] effect doesn't issue a redundant
-  // second fetch on initial page load.
-  const internalProfileIdSetRef = useRef(false);
-
   const [activeTab, setActiveTab] = useState<AdminPatientTab>(() => normalizeAdminTab(searchParams.get("tab")));
 
   const isDeletingSelf = !!patient?.user_id && !!currentUser?.id && patient.user_id === currentUser.id;
+
+  // ---------------------------------------------------------------------------
+  // TanStack Query — consolidated RPC fetches (13 HTTP requests → 2)
+  // ---------------------------------------------------------------------------
+  const queryClient = useQueryClient();
+
+  // RPC #1: core patient data (patient + profile + email + person_profiles +
+  //         profile_access + admin_access_grants + recommendations + notes + messages)
+  const { data: _coreRaw, isLoading: isCoreLoading, isError: isCoreError, error: coreError } = useQuery({
+    queryKey: ["admin-patient-core", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase.rpc("get_admin_patient_core", { p_patient_id: id });
+      if (error) throw error;
+      if (data === null) throw new Error("NOT_FOUND");
+      return data;
+    },
+    staleTime: 2 * 60 * 1000,  // data stays fresh for 2 minutes
+    gcTime:   10 * 60 * 1000,  // kept in memory for 10 minutes after unmount
+    enabled: !!id,
+    retry: false,
+  });
+
+  // RPC #2: profile-specific data (result_files + device_files + ai_entries + can_open_interview)
+  const { data: _profileRaw, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["admin-patient-profile", id, selectedProfileId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_admin_patient_profile_data", {
+        p_patient_id: id!,
+        p_person_profile_id: selectedProfileId,
+      });
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 2 * 60 * 1000,
+    gcTime:   10 * 60 * 1000,
+    enabled: !!id && !!selectedProfileId,
+  });
+
+  // Derived loading state: show spinner while core data is loading for the first time
+  const isLoading = isCoreLoading;
+
+  // ---------------------------------------------------------------------------
+  // Navigate away if patient not found or access error
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!id) {
+      toast.error("Nieprawidłowy identyfikator pacjenta");
+      navigate("/admin", { replace: true });
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (!isCoreError) return;
+    const isNotFound = (coreError as Error)?.message === "NOT_FOUND";
+    toast.error(isNotFound ? "Nie znaleziono pacjenta" : "Nie udało się załadować danych pacjenta");
+    navigate("/admin", { replace: true });
+  }, [isCoreError]);
+
+  // ---------------------------------------------------------------------------
+  // Sync URL ?tab= param to activeTab state
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const tabFromQuery = normalizeAdminTab(searchParams.get("tab"));
+    setActiveTab(tabFromQuery);
+  }, [searchParams]);
+
+  // ---------------------------------------------------------------------------
+  // Process core RPC data into existing state variables
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!_coreRaw) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = _coreRaw as any;
+
+    setPatient(d.patient ?? null);
+    setProfile(d.profile ?? null);
+    setEmail((d.email as string | null)?.trim() ?? "");
+
+    const profilesData: PersonProfile[] = (d.person_profiles as PersonProfile[]) ?? [];
+    setPersonProfiles(profilesData);
+
+    const recList: Recommendation[] = (d.recommendations as Recommendation[]) ?? [];
+    setRecommendations(recList);
+    setSelectedRecommendationId((prev) => prev || (recList.length > 0 ? recList[0].id : ""));
+
+    setNotes((d.notes as Note[]) ?? []);
+    setMessages((d.messages as Message[]) ?? []);
+
+    // Process payment history (identical logic to the old fetchPatientData)
+    try {
+      const resolveSourceLabel = (source: string) => {
+        if (source === "stripe") return "Stripe (online)";
+        if (source === "cash" || source === "platnosc_gotowka") return "Gotówka";
+        if (source === "admin") return "Nadana przez admina";
+        if (source === "manual") return "Przypisana ręcznie";
+        if (source === "inny_przypadek") return "Inny przypadek";
+        return source || "—";
+      };
+      const resolveReasonLabel = (reason: string | null) => {
+        if (!reason) return null;
+        if (reason === "platnosc_gotowka") return "Płatność gotówką";
+        if (reason === "inny_przypadek") return "Inny przypadek";
+        return reason;
+      };
+      const resolveProductName = (pkgIds: string | null, fallbackName?: string) => {
+        if (fallbackName) return fallbackName;
+        if (!pkgIds) return null;
+        const ids = pkgIds.split(",").map((p) => p.trim()).filter(Boolean);
+        const names = ids.map((pkgId) => {
+          const found = allPackages.find((p) => p.id === pkgId);
+          return found ? `${found.name} (${found.price} zł${found.billing === "monthly" ? "/mies." : ""})` : pkgId;
+        });
+        return names.length > 0 ? names.join(", ") : null;
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paRows: any[] = (d.profile_access as any[]) ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const agRows: any[] = (d.admin_access_grants as any[]) ?? [];
+      const patientData: PatientData | null = d.patient ?? null;
+
+      const stripeRecords: PaymentHistoryRecord[] = paRows
+        .filter((pa) => pa.source === "stripe")
+        .map((pa) => ({
+          id: pa.id,
+          person_profile_id: pa.person_profile_id,
+          profile_name: profilesData.find((p) => p.id === pa.person_profile_id)?.name ?? null,
+          status: pa.status,
+          source: pa.source,
+          source_label: resolveSourceLabel(pa.source),
+          product_name: resolveProductName(pa.selected_packages ?? null),
+          reason_label: null,
+          selected_packages: pa.selected_packages ?? null,
+          stripe_session_id: pa.stripe_session_id ?? null,
+          stripe_subscription_id: pa.stripe_subscription_id ?? null,
+          activated_at: pa.activated_at ?? null,
+          created_at: pa.activated_at || pa.created_at || new Date().toISOString(),
+        }));
+
+      const adminGrantRecords: PaymentHistoryRecord[] = agRows.map((g) => ({
+        id: String(g.id ?? "grant-" + Math.random()),
+        person_profile_id: "",
+        profile_name: null,
+        status: "active",
+        source: "admin",
+        source_label: resolveSourceLabel("admin"),
+        product_name: resolveProductName(String(g.product_id ?? ""), String(g.product_name ?? "")),
+        reason_label: resolveReasonLabel(String(g.reason ?? "")),
+        selected_packages: g.product_id ? String(g.product_id) : null,
+        stripe_session_id: null,
+        stripe_subscription_id: null,
+        activated_at: g.granted_at ? String(g.granted_at) : null,
+        created_at: g.granted_at ? String(g.granted_at) : new Date().toISOString(),
+      }));
+
+      let combined = [...adminGrantRecords, ...stripeRecords].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      if (combined.length === 0 && patientData?.subscription_status === "Aktywna") {
+        combined = [{
+          id: "manual-fallback",
+          person_profile_id: "",
+          profile_name: null,
+          status: "active",
+          source: "manual",
+          source_label: "Przypisana ręcznie",
+          product_name: null,
+          reason_label: null,
+          selected_packages: null,
+          stripe_session_id: null,
+          stripe_subscription_id: null,
+          activated_at: patientData.updated_at ?? null,
+          created_at: patientData.updated_at || patientData.created_at || new Date().toISOString(),
+        }];
+      }
+
+      setPaymentHistory(combined);
+    } catch (paymentErr) {
+      console.error("[PatientProfile] payment history processing error:", paymentErr);
+      const patientData: PatientData | null = d.patient ?? null;
+      if (patientData?.subscription_status === "Aktywna") {
+        setPaymentHistory([{
+          id: "fallback-error",
+          person_profile_id: "",
+          profile_name: null,
+          status: "active",
+          source: "manual",
+          source_label: "Przypisana ręcznie",
+          product_name: null,
+          reason_label: null,
+          selected_packages: null,
+          stripe_session_id: null,
+          stripe_subscription_id: null,
+          activated_at: null,
+          created_at: new Date().toISOString(),
+        }]);
+      }
+    }
+
+    // Auto-select primary profile (stable: won't change if user already selected one)
+    if (profilesData.length > 0) {
+      const primary = profilesData.find((p) => p.is_primary) ?? profilesData[0];
+      setSelectedProfileId((prev) => {
+        if (prev && profilesData.some((p) => p.id === prev)) return prev;
+        return primary.id;
+      });
+    }
+  }, [_coreRaw]);
+
+  // ---------------------------------------------------------------------------
+  // Sync profile-specific RPC data into state
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!_profileRaw) {
+      // Only clear if not currently loading (avoid clearing while first fetch is in-flight)
+      if (!isProfileLoading) {
+        setResultFiles([]);
+        setDeviceFiles([]);
+        setAiEntries([]);
+        setCanOpenInterview(false);
+      }
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = _profileRaw as any;
+    setResultFiles((d.result_files as PatientFileRecord[]) ?? []);
+    setDeviceFiles((d.device_files as PatientFileRecord[]) ?? []);
+    setAiEntries((d.ai_entries as PatientAiEntry[]) ?? []);
+    setCanOpenInterview(Boolean(d.can_open_interview));
+  }, [_profileRaw, isProfileLoading]);
 
   const getFunctionInvokeErrorMessage = (fnError: unknown): string | null => {
     const err = fnError as any;
@@ -269,297 +496,6 @@ const PatientProfile = () => {
       return false;
     }
     return true;
-  };
-
-  useEffect(() => {
-    if (!id) {
-      toast.error("Nieprawidłowy identyfikator pacjenta");
-      navigate("/admin", { replace: true });
-      return;
-    }
-
-    void fetchPatientData();
-  }, [id]);
-
-  useEffect(() => {
-    const tabFromQuery = normalizeAdminTab(searchParams.get("tab"));
-    setActiveTab(tabFromQuery);
-  }, [searchParams]);
-
-  useEffect(() => {
-    // Skip the fetch if this change was triggered internally by fetchPatientData itself
-    // (e.g. auto-selecting the primary profile on initial load). Only re-fetch when the
-    // user explicitly picks a different profile from the selector.
-    if (internalProfileIdSetRef.current) {
-      internalProfileIdSetRef.current = false;
-      return;
-    }
-    if (!id || !selectedProfileId) return;
-    void fetchPatientData();
-  }, [selectedProfileId]);
-
-  const fetchPatientData = async () => {
-    if (!id) return;
-
-    setIsLoading(true);
-    try {
-      const { data: patientData, error: patientError } = await supabase
-        .from("patients")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
-
-      if (patientError) throw patientError;
-      if (!patientData) {
-        toast.error("Nie znaleziono pacjenta");
-        navigate("/admin", { replace: true });
-        return;
-      }
-      setPatient(patientData);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("first_name, last_name, phone")
-        .eq("user_id", patientData.user_id)
-        .maybeSingle();
-      if (profileData) setProfile(profileData);
-      const { data: contactData, error: contactError } = await supabase.functions.invoke("admin-get-patient-contact", {
-        body: { patientId: patientData.id },
-      });
-      if (contactError) {
-        console.error("[PatientProfile] admin-get-patient-contact error", contactError);
-        setEmail("");
-      } else {
-        const contactPayload = contactData as AdminPatientContactResponse | null;
-        setEmail(contactPayload?.email?.trim() || "");
-      }
-
-      const { data: personProfilesData } = await supabase
-        .from("person_profiles")
-        .select("id, name, is_primary, avatar_url")
-        .eq("account_user_id", patientData.user_id)
-        .order("is_primary", { ascending: false });
-
-      let effectiveProfileId = selectedProfileId;
-      if (personProfilesData && personProfilesData.length > 0) {
-        setPersonProfiles(personProfilesData);
-        const primaryProfile = personProfilesData.find((p) => p.is_primary) ?? personProfilesData[0];
-        const nextSelected = selectedProfileId && personProfilesData.some((p) => p.id === selectedProfileId)
-          ? selectedProfileId
-          : primaryProfile.id;
-        effectiveProfileId = nextSelected;
-        // Mark this as an internal update so the [selectedProfileId] effect does not
-        // trigger a redundant second fetchPatientData call.
-        internalProfileIdSetRef.current = true;
-        setSelectedProfileId(nextSelected);
-      }
-
-      // Fetch payment history — separate try/catch so errors never break the rest of the page
-      try {
-        const resolveSourceLabel = (source: string) => {
-          if (source === "stripe") return "Stripe (online)";
-          if (source === "cash" || source === "platnosc_gotowka") return "Gotówka";
-          if (source === "admin") return "Nadana przez admina";
-          if (source === "manual") return "Przypisana ręcznie";
-          if (source === "inny_przypadek") return "Inny przypadek";
-          return source || "—";
-        };
-        const resolveReasonLabel = (reason: string | null) => {
-          if (!reason) return null;
-          if (reason === "platnosc_gotowka") return "Płatność gotówką";
-          if (reason === "inny_przypadek") return "Inny przypadek";
-          return reason;
-        };
-        const resolveProductName = (pkgIds: string | null, fallbackName?: string) => {
-          if (fallbackName) return fallbackName;
-          if (!pkgIds) return null;
-          const ids = pkgIds.split(",").map((p) => p.trim()).filter(Boolean);
-          const names = ids.map((pkgId) => {
-            const found = allPackages.find((p) => p.id === pkgId);
-            return found ? `${found.name} (${found.price} zł${found.billing === "monthly" ? "/mies." : ""})` : pkgId;
-          });
-          return names.length > 0 ? names.join(", ") : null;
-        };
-
-        const profilesForLookup = personProfilesData || [];
-
-        const [paResult, agResult] = await Promise.all([
-          supabase
-            .from("profile_access")
-            .select("id, person_profile_id, status, source, selected_packages, stripe_session_id, stripe_subscription_id, activated_at, created_at")
-            .eq("account_user_id", patientData.user_id)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("admin_access_grants" as "patients")  // cast to bypass missing type
-            .select("id, reason, product_id, product_name, granted_at")
-            .eq("patient_id", id)
-            .order("granted_at" as "id", { ascending: false }),
-        ]);
-
-        if (paResult.error) console.error("[PatientProfile] profile_access error", paResult.error);
-        if (agResult.error) console.error("[PatientProfile] admin_access_grants error", agResult.error);
-
-        const stripeRecords: PaymentHistoryRecord[] = ((paResult.data as typeof paResult.data) || [])
-          .filter((pa) => pa.source === "stripe")
-          .map((pa) => ({
-            id: pa.id,
-            person_profile_id: pa.person_profile_id,
-            profile_name: profilesForLookup.find((p) => p.id === pa.person_profile_id)?.name ?? null,
-            status: pa.status,
-            source: pa.source,
-            source_label: resolveSourceLabel(pa.source),
-            product_name: resolveProductName(pa.selected_packages ?? null),
-            reason_label: null,
-            selected_packages: pa.selected_packages ?? null,
-            stripe_session_id: pa.stripe_session_id ?? null,
-            stripe_subscription_id: pa.stripe_subscription_id ?? null,
-            activated_at: pa.activated_at ?? null,
-            created_at: pa.activated_at || pa.created_at || new Date().toISOString(),
-          }));
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const rawGrants: any[] = (agResult.data as any[]) || [];
-        const adminGrantRecords: PaymentHistoryRecord[] = rawGrants.map((g) => ({
-          id: String(g.id ?? "grant-" + Math.random()),
-          person_profile_id: "",
-          profile_name: null,
-          status: "active",
-          source: "admin",
-          source_label: resolveSourceLabel("admin"),
-          product_name: resolveProductName(String(g.product_id ?? ""), String(g.product_name ?? "")),
-          reason_label: resolveReasonLabel(String(g.reason ?? "")),
-          selected_packages: g.product_id ? String(g.product_id) : null,
-          stripe_session_id: null,
-          stripe_subscription_id: null,
-          activated_at: g.granted_at ? String(g.granted_at) : null,
-          created_at: g.granted_at ? String(g.granted_at) : new Date().toISOString(),
-        }));
-
-        let combined = [...adminGrantRecords, ...stripeRecords].sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-
-        // Fallback: subscription active but no records found
-        if (combined.length === 0 && patientData.subscription_status === "Aktywna") {
-          combined = [{
-            id: "manual-fallback",
-            person_profile_id: "",
-            profile_name: null,
-            status: "active",
-            source: "manual",
-            source_label: "Przypisana ręcznie",
-            product_name: null,
-            reason_label: null,
-            selected_packages: null,
-            stripe_session_id: null,
-            stripe_subscription_id: null,
-            activated_at: patientData.updated_at ?? null,
-            created_at: patientData.updated_at || patientData.created_at || new Date().toISOString(),
-          }];
-        }
-
-        setPaymentHistory(combined);
-      } catch (paymentErr) {
-        console.error("[PatientProfile] payment history error:", paymentErr);
-        // Don't throw — just leave paymentHistory as empty (will show "Brak historii")
-        if (patientData.subscription_status === "Aktywna") {
-          setPaymentHistory([{
-            id: "fallback-error",
-            person_profile_id: "",
-            profile_name: null,
-            status: "active",
-            source: "manual",
-            source_label: "Przypisana ręcznie",
-            product_name: null,
-            reason_label: null,
-            selected_packages: null,
-            stripe_session_id: null,
-            stripe_subscription_id: null,
-            activated_at: null,
-            created_at: new Date().toISOString(),
-          }]);
-        }
-      }
-
-      const { data: recsData } = await supabase
-        .from("recommendations")
-        .select("id, recommendation_date, body_systems, diagnosis_summary, pdf_url, created_at, title, person_profile_id, download_token, token_expires_at")
-        .eq("patient_id", id)
-        .order("recommendation_date", { ascending: false });
-
-      const recList = recsData || [];
-      setRecommendations(recList);
-      if (recList.length > 0 && !selectedRecommendationId) {
-        setSelectedRecommendationId(recList[0].id);
-      }
-
-      const { data: notesData } = await supabase
-        .from("patient_notes")
-        .select("*")
-        .eq("patient_id", id)
-        .order("created_at", { ascending: false });
-      setNotes(notesData || []);
-
-      const { data: messagesData } = await supabase
-        .from("patient_messages")
-        .select("*")
-        .eq("patient_id", id)
-        .order("sent_at", { ascending: false });
-      setMessages(messagesData || []);
-
-      if (effectiveProfileId) {
-        const [
-          { data: resultFilesData, error: resultFilesError },
-          { data: deviceFilesData, error: deviceFilesError },
-          { data: aiEntriesData, error: aiEntriesError },
-          { data: sentInterview },
-        ] = await Promise.all([
-          supabase
-            .from("patient_result_files")
-            .select("*")
-            .eq("patient_id", id)
-            .eq("person_profile_id", effectiveProfileId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("patient_device_files")
-            .select("*")
-            .eq("patient_id", id)
-            .eq("person_profile_id", effectiveProfileId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("patient_ai_entries")
-            .select("*")
-            .eq("patient_id", id)
-            .eq("person_profile_id", effectiveProfileId)
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("nutrition_interviews")
-            .select("id")
-            .eq("person_profile_id", effectiveProfileId)
-            .eq("status", "sent")
-            .limit(1)
-            .maybeSingle(),
-        ]);
-
-        if (resultFilesError) console.error("[PatientProfile] patient_result_files read error", resultFilesError);
-        if (deviceFilesError) console.error("[PatientProfile] patient_device_files read error", deviceFilesError);
-        if (aiEntriesError) console.error("[PatientProfile] patient_ai_entries read error", aiEntriesError);
-        setResultFiles((resultFilesData as PatientFileRecord[]) || []);
-        setDeviceFiles((deviceFilesData as PatientFileRecord[]) || []);
-        setAiEntries((aiEntriesData as PatientAiEntry[]) || []);
-        setCanOpenInterview(Boolean(sentInterview?.id));
-      } else {
-        setResultFiles([]);
-        setDeviceFiles([]);
-        setAiEntries([]);
-        setCanOpenInterview(false);
-      }
-    } catch (error) {
-      console.error("[PatientProfile] Error:", error);
-      toast.error("Nie udało się załadować danych pacjenta");
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const openFileWithSignedUrl = async (bucket: string, filePath: string, displayName?: string) => {
@@ -670,7 +606,7 @@ const PatientProfile = () => {
 
       if (error) throw error;
       toast.success("Plik wynikowy został zapisany");
-      await fetchPatientData();
+      await queryClient.invalidateQueries({ queryKey: ["admin-patient-profile", id, selectedProfileId] });
     } catch (error) {
       console.error("[PatientProfile] Save result file error", error);
       toast.error(getSupabaseErrorMessage(error, "Nie udało się zapisać pliku wynikowego"));
@@ -699,7 +635,7 @@ const PatientProfile = () => {
 
       if (error) throw error;
       toast.success("Plik karty urządzenia został zapisany");
-      await fetchPatientData();
+      await queryClient.invalidateQueries({ queryKey: ["admin-patient-profile", id, selectedProfileId] });
     } catch (error) {
       console.error("[PatientProfile] Save device file error", error);
       toast.error(getSupabaseErrorMessage(error, "Nie udało się zapisać pliku karty urządzenia"));
@@ -719,7 +655,7 @@ const PatientProfile = () => {
       const { error } = await supabase.from(table).delete().eq("id", fileId);
       if (error) throw error;
       toast.success("Plik został usunięty");
-      await fetchPatientData();
+      await queryClient.invalidateQueries({ queryKey: ["admin-patient-profile", id, selectedProfileId] });
     } catch (error) {
       console.error("[PatientProfile] Delete file error", error);
       toast.error(getSupabaseErrorMessage(error, "Nie udało się usunąć pliku"));
@@ -756,7 +692,7 @@ const PatientProfile = () => {
       setAiData("");
       setAiAttachment(null);
       if (aiFileInputRef.current) aiFileInputRef.current.value = "";
-      await fetchPatientData();
+      await queryClient.invalidateQueries({ queryKey: ["admin-patient-profile", id, selectedProfileId] });
     } catch (error) {
       console.error("[PatientProfile] Save AI entry error", error);
       toast.error(getSupabaseErrorMessage(error, "Nie udało się zapisać danych AI"));
@@ -816,7 +752,7 @@ const PatientProfile = () => {
 
       toast.success("Notatka została dodana");
       setNewNote("");
-      void fetchPatientData();
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch {
       toast.error("Nie udało się dodać notatki");
     } finally {
@@ -849,7 +785,7 @@ const PatientProfile = () => {
 
       toast.success("SMS został wysłany");
       setNewSms("");
-      void fetchPatientData();
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch (error) {
       toast.error(getFunctionInvokeErrorMessage(error) || "Nie udało się wysłać SMS");
     } finally {
@@ -877,7 +813,7 @@ const PatientProfile = () => {
 
       toast.success("Odpowiedź została wysłana");
       setNewQuestionReply("");
-      void fetchPatientData();
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch {
       toast.error("Nie udało się wysłać odpowiedzi");
     } finally {
@@ -905,6 +841,7 @@ const PatientProfile = () => {
       setPatient({ ...patient, tags: [...currentTags, newTag.trim()] });
       setNewTag("");
       toast.success("Tag został dodany");
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch {
       toast.error("Nie udało się dodać tagu");
     }
@@ -926,6 +863,7 @@ const PatientProfile = () => {
 
       setPatient({ ...patient, tags: newTags });
       toast.success("Tag został usunięty");
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch {
       toast.error("Nie udało się usunąć tagu");
     }
@@ -948,7 +886,7 @@ const PatientProfile = () => {
       if (error) throw error;
 
       toast.success("Token został odnowiony na 7 dni");
-      void fetchPatientData();
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
     } catch {
       toast.error("Nie udało się odnowić tokenu");
     } finally {

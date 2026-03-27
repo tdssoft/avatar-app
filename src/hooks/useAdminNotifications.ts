@@ -3,6 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 const POLL_INTERVAL_MS = 10_000;
+
+// ---------------------------------------------------------------------------
+// Module-level singletons — survive component remounts AND Vite HMR hot-swaps.
+// Without these, each HMR update creates a new setInterval without clearing the
+// previous one, so N saves → N concurrent intervals all firing at the same time.
+// ---------------------------------------------------------------------------
+let _intervalId: ReturnType<typeof window.setInterval> | null = null;
+let _focusHandler: (() => void) | null = null;
+let _visibilityHandler: (() => void) | null = null;
+let _lastFetchTs = 0; // timestamp of the most recent fetchAll call
+
+function _teardownListeners() {
+  if (_intervalId !== null) { window.clearInterval(_intervalId); _intervalId = null; }
+  if (_focusHandler !== null) { window.removeEventListener("focus", _focusHandler); _focusHandler = null; }
+  if (_visibilityHandler !== null) { document.removeEventListener("visibilitychange", _visibilityHandler); _visibilityHandler = null; }
+}
 const PAGE_SIZE = 50;
 const MARK_SCOPE_PAGE_SIZE = 200;
 
@@ -79,14 +95,18 @@ const normalizeByPatient = (raw: unknown): PatientUnreadCounter[] => {
 };
 
 export const useAdminNotifications = () => {
-  const { session } = useAuth();
-  const adminUserId = session?.user?.id ?? null;
+  const { session, isLoading: isAuthLoading } = useAuth();
+  // Use undefined while auth is still loading so the polling effect doesn't fire
+  // prematurely (which would produce a spurious round with adminUserId=null).
+  // Once auth settles: either a string (logged in) or null (logged out).
+  const adminUserId = isAuthLoading ? undefined : (session?.user?.id ?? null);
 
   const [state, setState] = useState<AdminNotificationState>(DEFAULT_STATE);
 
   const fetchAll = useCallback(
     async (initialLoad = false) => {
       if (!adminUserId) {
+        // null = logged out; undefined = auth still loading — either way nothing to fetch
         setState({ ...DEFAULT_STATE, isLoading: false });
         return;
       }
@@ -206,54 +226,53 @@ export const useAdminNotifications = () => {
     [collectUnreadEventIds, markEventsRead],
   );
 
-  // Always keep a stable ref to the latest fetchAll so the polling effect below
-  // doesn't need fetchAll in its dependency array. fetchAll only becomes stale
-  // when adminUserId changes — and adminUserId IS in the polling effect's deps —
-  // so the ref is always correct when the effect runs. This is the standard
-  // "useEvent" / stable-handler pattern that prevents the polling loop from
-  // restarting on every render where fetchAll gets a new reference.
+  // Stable ref so the polling effect never needs fetchAll in its dep array.
   const fetchAllRef = useRef(fetchAll);
   useEffect(() => {
     fetchAllRef.current = fetchAll;
-  }); // no deps — runs on every render but only updates the ref
+  }); // no deps — runs on every render, only updates the ref
 
-  // Single effect that performs the initial fetch and then sets up periodic polling
-  // plus focus/visibility-change listeners. Depends only on adminUserId so the
-  // polling interval is never restarted due to incidental fetchAll ref changes.
+  // Single effect: initial fetch + periodic polling + focus/visibility listeners.
+  // Uses module-level singletons (_intervalId, _focusHandler, _visibilityHandler,
+  // _lastFetchTs) so that Vite HMR hot-swaps and any unexpected remounts never
+  // accumulate duplicate intervals or duplicate event listeners.
   useEffect(() => {
-    let lastFetchedAt = 0;
+    // undefined = auth still loading — skip entirely.
+    if (adminUserId === undefined) return;
+
+    const DEDUP_MS = 5_000;
+
+    // Always tear down whatever is currently running before we set up fresh
+    // listeners.  This is the key to preventing interval accumulation on HMR.
+    _teardownListeners();
+
     const call = (initialLoad: boolean) => {
-      lastFetchedAt = Date.now();
+      _lastFetchTs = Date.now();
       return fetchAllRef.current(initialLoad);
     };
 
-    // Always run the initial load (handles the case where adminUserId is null too).
-    void call(true);
+    // Only fire the initial fetch if we haven't fetched recently.
+    if (Date.now() - _lastFetchTs >= DEDUP_MS) {
+      void call(true);
+    }
 
+    // null = logged out → don't start polling; just leave listeners torn down.
     if (!adminUserId) return;
 
-    const MIN_REFRESH_MS = 5_000;
-
-    const intervalId = window.setInterval(() => void call(false), POLL_INTERVAL_MS);
-
-    const onFocus = () => {
-      if (Date.now() - lastFetchedAt >= MIN_REFRESH_MS) void call(false);
+    _focusHandler = () => {
+      if (Date.now() - _lastFetchTs >= DEDUP_MS) void call(false);
     };
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && Date.now() - lastFetchedAt >= MIN_REFRESH_MS) {
+    _visibilityHandler = () => {
+      if (document.visibilityState === "visible" && Date.now() - _lastFetchTs >= DEDUP_MS) {
         void call(false);
       }
     };
 
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    _intervalId = window.setInterval(() => void call(false), POLL_INTERVAL_MS);
+    window.addEventListener("focus", _focusHandler);
+    document.addEventListener("visibilitychange", _visibilityHandler);
 
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+    return _teardownListeners;
   }, [adminUserId]); // fetchAll intentionally omitted — ref above keeps it current
 
   const byPatientMap = useMemo(() => {

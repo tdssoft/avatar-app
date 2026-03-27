@@ -928,6 +928,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_admin_patient_core: {
+        Args: { p_patient_id: string }
+        Returns: Json
+      }
+      get_admin_patient_profile_data: {
+        Args: { p_patient_id: string; p_person_profile_id: string }
+        Returns: Json
+      }
       get_admin_event_feed: {
         Args: {
           p_event_types?: string[] | null
