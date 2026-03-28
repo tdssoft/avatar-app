@@ -29,6 +29,7 @@ import {
 } from "@/hooks/usePersonProfiles";
 import InterviewSplitLayout from "@/components/interview/InterviewSplitLayout";
 import { INTERVIEW_STEPS, InterviewQuestionConfig } from "@/components/interview/interviewFlowConfig";
+import VoiceRecorder from "@/components/interview/VoiceRecorder";
 import avatarLogo from "@/assets/avatar-logo.svg";
 import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
 
@@ -439,6 +440,14 @@ const NutritionInterview = () => {
             placeholder={question.placeholder}
             className="min-h-[88px] bg-transparent border-[#cfcfcf]"
           />
+          {key === 'mainSymptoms' && (
+            <VoiceRecorder
+              onTranscription={(text) => {
+                const current = (formData.mainSymptoms || '').trim();
+                updateStringField('mainSymptoms', current ? `${current}\n\n${text}` : text);
+              }}
+            />
+          )}
           {question.helper ? <p className="text-xs text-[#8a8a8a] italic">{question.helper}</p> : null}
         </div>
       );
