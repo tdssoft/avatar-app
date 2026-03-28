@@ -309,7 +309,7 @@ serve(async (req: Request): Promise<Response> => {
                     ⚠️ Zalecamy zmianę hasła po pierwszym logowaniu ze względów bezpieczeństwa.
                   </p>
                   <div style="text-align: center; margin-top: 32px;">
-                    <a href="https://avatar-app.lovable.app/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    <a href="https://app.eavatar.diet/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                       Zaloguj się
                     </a>
                   </div>

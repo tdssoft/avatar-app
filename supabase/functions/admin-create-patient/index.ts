@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendBrevoEmail } from "../_shared/brevo-email.ts";
 import { getEmailFrom, getEmailReplyTo } from "../_shared/email-config.ts";
 
 const corsHeaders = {
@@ -263,20 +263,19 @@ serve(async (req: Request): Promise<Response> => {
       console.log("[admin-create-patient] Patient created successfully");
     }
 
-    // Send email with login credentials using Resend
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    // Send email with login credentials using Brevo
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
     let emailSent = false;
-    
-    if (resendApiKey) {
+
+    if (brevoApiKey) {
       try {
-        const resend = new Resend(resendApiKey);
-        
-        const emailResult = await resend.emails.send({
+        await sendBrevoEmail({
+          apiKey: brevoApiKey,
           from: fromEmail,
-          to: [email],
-          ...(replyTo ? { reply_to: replyTo } : {}),
+          to: email,
+          ...(replyTo ? { replyTo } : {}),
           subject: "Twoje konto w AVATAR zostało utworzone",
           html: `
             <!DOCTYPE html>
@@ -309,7 +308,7 @@ serve(async (req: Request): Promise<Response> => {
                     ⚠️ Zalecamy zmianę hasła po pierwszym logowaniu ze względów bezpieczeństwa.
                   </p>
                   <div style="text-align: center; margin-top: 32px;">
-                    <a href="https://avatar-app.lovable.app/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    <a href="https://app.eavatar.diet/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                       Zaloguj się
                     </a>
                   </div>
@@ -325,14 +324,14 @@ serve(async (req: Request): Promise<Response> => {
           `,
         });
         
-        console.log("[admin-create-patient] Email sent successfully:", emailResult);
+        console.log("[admin-create-patient] Email sent successfully via Brevo");
         emailSent = true;
       } catch (emailError) {
         console.error("[admin-create-patient] Email sending failed:", emailError);
         // Don't fail the whole request if email fails
       }
     } else {
-      console.warn("[admin-create-patient] RESEND_API_KEY not configured, skipping email");
+      console.warn("[admin-create-patient] BREVO_API_KEY not configured, skipping email");
     }
 
     return jsonResponse({

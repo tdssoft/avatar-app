@@ -374,7 +374,7 @@ Deno.serve(async (req) => {
                   </div>
                   
                   <div style="text-align: center;">
-                    <a href="https://avatar-app.lovable.app/dashboard" class="cta-button">Przejdź do panelu →</a>
+                    <a href="https://app.eavatar.diet/dashboard" class="cta-button">Przejdź do panelu →</a>
                   </div>
                   
                   <div class="footer">
