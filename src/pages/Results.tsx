@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -185,9 +186,15 @@ const Results = () => {
                 ) : selectedRecommendation ? (
                   <div className="space-y-4">
                     <p className="font-semibold text-foreground">{selectedRecommendation.title || "Zalecenie"}</p>
-                    <p className="text-muted-foreground whitespace-pre-wrap">
-                      {selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla wybranego wyniku."}
-                    </p>
+                    <div
+                      className="text-muted-foreground prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla wybranego wyniku.",
+                          { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
+                        ),
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-4">

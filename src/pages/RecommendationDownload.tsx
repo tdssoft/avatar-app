@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { useSearchParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -279,9 +280,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Podsumowanie funkcjonowania organizmu:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.diagnosis_summary}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.diagnosis_summary, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -291,9 +295,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Zalecenia dietetyczne:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.dietary_recommendations}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.dietary_recommendations, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -303,9 +310,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Program suplementacji:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.supplementation_program}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.supplementation_program, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -315,9 +325,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Terapie wspierające:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.supporting_therapies}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.supporting_therapies, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -327,9 +340,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Linki do sklepu:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.shop_links}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.shop_links, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -339,9 +355,12 @@ const RecommendationDownload = () => {
               <div className="mb-6">
                 <h3 className="font-medium text-foreground mb-2">Dodatkowe informacje:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
-                  <p className="text-foreground whitespace-pre-wrap">
-                    {recommendation.content}
-                  </p>
+                  <div
+                    className="text-foreground prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(recommendation.content, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                    }}
+                  />
                 </div>
               </div>
             )}
