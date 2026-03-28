@@ -113,7 +113,7 @@ serve(async (req: Request): Promise<Response> => {
                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
               </div>
               <div style="text-align: center; margin-top: 32px;">
-                <a href="https://avatar-app.lovable.app/admin" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                <a href="https://app.eavatar.diet/admin" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   Odpowiedz w panelu admina
                 </a>
               </div>
@@ -159,7 +159,7 @@ serve(async (req: Request): Promise<Response> => {
                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
               </div>
               <div style="text-align: center; margin-top: 32px;">
-                <a href="https://avatar-app.lovable.app/admin" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                <a href="https://app.eavatar.diet/admin" style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   Obsłuż zgłoszenie
                 </a>
               </div>
