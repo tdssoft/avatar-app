@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { sendBrevoEmail } from "../_shared/brevo-email.ts";
 import {
   getAdminEmail,
   getEmailFrom,
@@ -60,8 +60,7 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const resend = resendApiKey ? new Resend(resendApiKey) : null;
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const adminEmail = getAdminEmail();
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
@@ -247,7 +246,7 @@ Deno.serve(async (req) => {
     }
 
     // Send email notifications
-    if (resend) {
+    if (brevoApiKey) {
       const fullName = `${normalizedFirstName} ${normalizedLastName}`.trim() || "Nowy użytkownik";
       const registrationDate = new Date().toLocaleString("pl-PL", {
         timeZone: "Europe/Warsaw",
@@ -257,11 +256,12 @@ Deno.serve(async (req) => {
 
       // 1. Send notification to admin about new registration
       try {
-        const adminEmailResult = await resend.emails.send({
+        await sendBrevoEmail({
+          apiKey: brevoApiKey,
           from: fromEmail,
-          to: [adminEmail],
-          ...(replyTo ? { reply_to: replyTo } : {}),
-          subject: `🎉 Nowa rejestracja: ${fullName}`,
+          to: adminEmail,
+          ...(replyTo ? { replyTo } : {}),
+          subject: `Nowa rejestracja: ${fullName}`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -312,7 +312,7 @@ Deno.serve(async (req) => {
             </html>
           `,
         });
-        console.log("[post-signup] Admin notification email sent:", adminEmailResult);
+        console.log("[post-signup] Admin notification email sent via Brevo");
       } catch (emailError) {
         console.error("[post-signup] Error sending admin notification email:", emailError);
         // Don't fail the whole request if email fails
@@ -320,11 +320,12 @@ Deno.serve(async (req) => {
 
       // 2. Send welcome email to new user
       try {
-        const welcomeEmailResult = await resend.emails.send({
+        await sendBrevoEmail({
+          apiKey: brevoApiKey,
           from: fromEmail,
-          to: [email],
-          ...(replyTo ? { reply_to: replyTo } : {}),
-          subject: `Witamy w AVATAR, ${firstName}! 🌟`,
+          to: email,
+          ...(replyTo ? { replyTo } : {}),
+          subject: `Witamy w AVATAR, ${firstName}!`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -381,7 +382,7 @@ Deno.serve(async (req) => {
                   </div>
                   
                   <div style="text-align: center;">
-                    <a href="https://avatar-app.lovable.app/dashboard" class="cta-button">Przejdź do panelu →</a>
+                    <a href="https://app.eavatar.diet/dashboard" class="cta-button">Przejdź do panelu →</a>
                   </div>
                   
                   <div class="footer">
@@ -394,13 +395,13 @@ Deno.serve(async (req) => {
             </html>
           `,
         });
-        console.log("[post-signup] Welcome email sent to user:", welcomeEmailResult);
+        console.log("[post-signup] Welcome email sent to user via Brevo");
       } catch (emailError) {
         console.error("[post-signup] Error sending welcome email:", emailError);
         // Don't fail the whole request if email fails
       }
     } else {
-      console.log("[post-signup] Resend API key not configured, skipping email notifications");
+      console.log("[post-signup] BREVO_API_KEY not configured, skipping email notifications");
     }
 
     return new Response(
