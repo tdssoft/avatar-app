@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import DOMPurify from "dompurify";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -1089,9 +1090,15 @@ const PatientProfile = () => {
                 {selectedRecommendation ? (
                   <div className="space-y-3">
                     <p className="font-semibold">{selectedRecommendation.title || "Zalecenie"}</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla tego zalecenia."}
-                    </p>
+                    <div
+                      className="text-sm text-muted-foreground prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: DOMPurify.sanitize(
+                          selectedRecommendation.diagnosis_summary || "Brak podsumowania funkcjonowania organizmu dla tego zalecenia.",
+                          { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
+                        ),
+                      }}
+                    />
                     {selectedRecommendation.pdf_url && (
                       <div className="rounded-md border bg-muted/20 p-3">
                         <p className="text-sm font-medium">
