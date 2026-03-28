@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Save, Mail, X, Mic, Upload } from "lucide-react";
+import { ArrowLeft, Save, Mail, X, Mic, Upload, Sparkles, Loader2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
@@ -65,6 +66,8 @@ const RecommendationCreator = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [rawNotes, setRawNotes] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isEnsuringProfile, setIsEnsuringProfile] = useState(false);
   const [selectedSystems, setSelectedSystems] = useState<string[]>([]);
   const [sendEmail, setSendEmail] = useState(true);
@@ -297,6 +300,35 @@ const RecommendationCreator = () => {
     }
   };
 
+  const handleGenerateAI = async () => {
+    if (!rawNotes.trim()) return;
+    setIsGenerating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-recommendation-ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ notes: rawNotes, isFollowUp: false }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      if (result.diagnosis_summary) setFormData((prev) => ({ ...prev, diagnosisSummary: result.diagnosis_summary }));
+      if (result.dietary_recommendations) setFormData((prev) => ({ ...prev, dietaryRecommendations: result.dietary_recommendations }));
+      if (result.supplementation_program) setFormData((prev) => ({ ...prev, supplementationProgram: result.supplementation_program }));
+      if (result.supporting_therapies) setFormData((prev) => ({ ...prev, supportingTherapies: result.supporting_therapies }));
+      toast.success('Zalecenia wygenerowane! Sprawdź i edytuj pola poniżej przed zapisem.');
+    } catch (err) {
+      console.error('AI generation error:', err);
+      toast.error(`Błąd generowania AI: ${String(err)}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (selectedSystems.length === 0) {
       toast.error("Wybierz przynajmniej jeden układ ciała");
@@ -510,7 +542,28 @@ const RecommendationCreator = () => {
           </Card>
 
           {/* Right Column - PDF Creator Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            {/* AI Notes Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Notatki z konsultacji (opcjonalne)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea
+                  placeholder="Wklej tutaj surowe notatki z konsultacji — AI wygeneruje zalecenia automatycznie..."
+                  value={rawNotes}
+                  onChange={(e) => setRawNotes(e.target.value)}
+                  rows={6}
+                />
+                <Button type="button" onClick={() => void handleGenerateAI()} disabled={isGenerating || !rawNotes.trim()} className="w-full">
+                  {isGenerating
+                    ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Generuję zalecenia z AI...</>
+                    : <><Sparkles className="w-4 h-4 mr-2"/>Generuj zalecenia z AI</>
+                  }
+                </Button>
+              </CardContent>
+            </Card>
+
             <Card className="min-h-0 flex flex-col">
               <CardHeader>
                 <CardTitle className="text-lg">Kreator PDF</CardTitle>
