@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -429,15 +430,27 @@ const Dashboard = () => {
                     </div>
                   ) : recommendations.length > 0 && selectedRecommendation ? (
                     <>
-                      <p className="text-[16px] leading-7 text-foreground">
-                        {selectedRecommendation.diagnosis_summary || "Szczegóły funkcjonowania organizmu i zalecenia dietetyczne zostały przygotowane dla Twojego profilu."}
-                      </p>
+                      <div
+                        className="text-[16px] leading-7 text-foreground prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{
+                          __html: DOMPurify.sanitize(
+                            selectedRecommendation.diagnosis_summary || "Szczegóły funkcjonowania organizmu i zalecenia dietetyczne zostały przygotowane dla Twojego profilu.",
+                            { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
+                          ),
+                        }}
+                      />
                       <div>
                         <p className="text-[30px] leading-none font-bold mb-2">Kuracja</p>
-                        <p className="text-[16px] leading-7 text-foreground">
-                          {selectedRecommendation.dietary_recommendations ||
-                            "Zapoznaj się z zaleceniami i realizuj je regularnie. W każdej chwili możesz wrócić do szczegółów i dopytać o kolejne kroki."}
-                        </p>
+                        <div
+                          className="text-[16px] leading-7 text-foreground prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{
+                            __html: DOMPurify.sanitize(
+                              selectedRecommendation.dietary_recommendations ||
+                                "Zapoznaj się z zaleceniami i realizuj je regularnie. W każdej chwili możesz wrócić do szczegółów i dopytać o kolejne kroki.",
+                              { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
+                            ),
+                          }}
+                        />
                       </div>
                       <div className="flex justify-end">
                         <div className="flex items-center gap-4">
