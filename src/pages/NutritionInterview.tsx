@@ -380,11 +380,46 @@ const NutritionInterview = () => {
 
     setIsSubmitting(true);
     const success = await saveInterview("sent", false);
+
+    if (success && profileId) {
+      // Wyślij powiadomienie email do admina (fire-and-forget)
+      try {
+        // Pobierz patient_id przez patients.user_id
+        const { data: patientRow } = await supabase
+          .from("patients")
+          .select("id")
+          .eq("user_id", user!.id)
+          .maybeSingle();
+
+        // Pobierz nazwę profilu
+        const { data: profileRow } = await supabase
+          .from("person_profiles")
+          .select("name")
+          .eq("id", profileId)
+          .maybeSingle();
+
+        await supabase.functions.invoke("send-question-notification", {
+          body: {
+            type: "interview_sent",
+            user_email: user!.email ?? "",
+            user_name: profileRow?.name ?? user!.email ?? "",
+            profile_name: profileRow?.name ?? undefined,
+            patient_id: patientRow?.id ?? undefined,
+            message: "",
+          },
+        });
+      } catch (err) {
+        // Nie blokuj nawigacji jeśli email się nie uda
+        console.warn("[NutritionInterview] Email notification failed:", err);
+      }
+
+      localStorage.removeItem(getDraftKey(profileId));
+      localStorage.removeItem(getStepKey(profileId));
+    }
+
     setIsSubmitting(false);
 
     if (success && profileId) {
-      localStorage.removeItem(getDraftKey(profileId));
-      localStorage.removeItem(getStepKey(profileId));
       navigate("/dashboard");
     }
   };
