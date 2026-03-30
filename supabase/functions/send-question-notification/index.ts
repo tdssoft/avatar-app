@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 interface QuestionNotificationRequest {
-  type: "patient_question" | "support_ticket" | "interview_sent";
+  type: "patient_question" | "support_ticket" | "interview_sent" | "interview_draft";
   user_email: string;
   user_name: string;
   subject?: string;
@@ -119,6 +119,51 @@ serve(async (req: Request): Promise<Response> => {
               </div>
               <div style="text-align: center; margin-top: 32px;">
                 <a href="${adminPanelUrl}" style="display: inline-block; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                  Zobacz wywiad w panelu →
+                </a>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 24px;">
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Wiadomość wysłana automatycznie przez system AVATAR
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+    } else if (type === "interview_draft") {
+      const adminPanelUrl = patient_id
+        ? `https://app.eavatar.diet/admin/patient/${patient_id}?tab=interview`
+        : "https://app.eavatar.diet/admin";
+      emailSubject = `✏️ Pacjent edytował wywiad – ${profile_name || user_name || user_email}`;
+      emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+            <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 30px; border-radius: 16px 16px 0 0; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">✏️ Pacjent edytował wywiad dietetyczny</h1>
+            </div>
+            <div style="background-color: #ffffff; padding: 40px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              <div style="border-left: 4px solid #f59e0b; padding-left: 16px; margin-bottom: 24px;">
+                <p style="color: #666666; font-size: 14px; margin: 0 0 4px 0;">Pacjent:</p>
+                <p style="color: #333333; font-size: 18px; font-weight: 700; margin: 0;">
+                  ${profile_name || user_name || "Nieznany"}
+                </p>
+                <p style="color: #888888; font-size: 14px; margin: 4px 0 0 0;">${user_email || ""}</p>
+              </div>
+              <div style="background-color: #fffbeb; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                <p style="color: #b45309; font-size: 14px; font-weight: 600; margin: 0;">
+                  💾 Wywiad został zapisany jako wersja robocza. Pacjent nie ukończył jeszcze wywiadu.
+                </p>
+              </div>
+              <div style="text-align: center; margin-top: 32px;">
+                <a href="${adminPanelUrl}" style="display: inline-block; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                   Zobacz wywiad w panelu →
                 </a>
               </div>

@@ -250,6 +250,35 @@ const NutritionInterview = () => {
                 </ToastAction>
               ),
             });
+            // Powiadomienie email do admina o edycji wywiadu (fire-and-forget)
+            if (targetStatus === "draft") {
+              (async () => {
+                try {
+                  const { data: patientRow } = await supabase
+                    .from("patients")
+                    .select("id")
+                    .eq("user_id", user!.id)
+                    .maybeSingle();
+                  const { data: profileRow } = await supabase
+                    .from("person_profiles")
+                    .select("name")
+                    .eq("id", profileId!)
+                    .maybeSingle();
+                  await supabase.functions.invoke("send-question-notification", {
+                    body: {
+                      type: "interview_draft",
+                      user_email: user!.email ?? "",
+                      user_name: profileRow?.name ?? user!.email ?? "",
+                      profile_name: profileRow?.name ?? undefined,
+                      patient_id: patientRow?.id ?? undefined,
+                      message: "",
+                    },
+                  });
+                } catch (err) {
+                  console.warn("[NutritionInterview] Draft email notification failed:", err);
+                }
+              })();
+            }
           }
         }
 
