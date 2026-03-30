@@ -5,6 +5,7 @@ import {
   getEmailFrom,
   getEmailReplyTo,
 } from "../_shared/email-config.ts";
+import { sendBrevoEmail } from "../_shared/brevo-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -220,34 +221,16 @@ serve(async (req: Request): Promise<Response> => {
       `;
     }
 
-    // Send email to admin via Brevo
-    const brevoPayload: Record<string, unknown> = {
-      sender: { name: "AVATAR", email: fromEmail },
-      to: [{ email: adminEmail }],
+    // Send email to admin via Brevo (shared helper — handles "Name <email>" format)
+    await sendBrevoEmail({
+      apiKey: brevoApiKey,
+      from: fromEmail,
+      to: adminEmail,
+      ...(replyTo ? { replyTo } : {}),
       subject: emailSubject,
-      htmlContent: emailHtml,
-    };
-    if (replyTo) {
-      brevoPayload.replyTo = { email: replyTo };
-    }
-
-    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": brevoApiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(brevoPayload),
+      html: emailHtml,
     });
-
-    if (!brevoResponse.ok) {
-      const errText = await brevoResponse.text();
-      console.error("[send-question-notification] Brevo error:", brevoResponse.status, errText);
-      throw new Error(`Brevo API error: ${brevoResponse.status} ${errText}`);
-    }
-
-    const emailResult = await brevoResponse.json();
-    console.log("[send-question-notification] Email sent successfully via Brevo:", emailResult);
+    console.log("[send-question-notification] Email sent successfully via Brevo to:", adminEmail);
 
     return new Response(
       JSON.stringify({
