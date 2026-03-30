@@ -11,7 +11,6 @@ import AdminSidebar from "./AdminSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface AdminLayoutProps {
@@ -86,8 +85,8 @@ const AdminEventsPopover = ({
           <UnreadDot visible={unreadCount > 0} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[420px] p-0">
-        <div className="flex items-center justify-between border-b px-4 py-3">
+      <PopoverContent align="end" className="w-[420px] p-0 flex flex-col max-h-[520px]">
+        <div className="flex items-center justify-between border-b px-4 py-3 shrink-0">
           <div>
             <p className="text-sm font-semibold text-foreground">{title}</p>
             <p className="text-xs text-muted-foreground">Nieprzeczytane: {unreadCount}</p>
@@ -104,7 +103,7 @@ const AdminEventsPopover = ({
           </Button>
         </div>
 
-        <ScrollArea className="max-h-[420px]">
+        <div className="overflow-y-auto max-h-[420px]">
           <div className="p-2">
             {isLoading ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground text-sm gap-2">
@@ -164,7 +163,7 @@ const AdminEventsPopover = ({
               })
             )}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
