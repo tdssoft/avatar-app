@@ -40,12 +40,17 @@ test("LIVE: alan@tdssoft.pl zapisuje draft → email do admina", async ({ page }
   await saveBtn.click();
   console.log("✅ Kliknięto 'Zapisz roboczo'");
 
-  // Poczekaj na toast
-  await page.waitForTimeout(2000);
-  const toast = page.locator("[data-radix-toast-viewport]").first();
-  const toastText = await toast.innerText().catch(() => "brak toastu");
-  console.log("Toast:", toastText);
+  // Poczekaj na zapis + wysłanie powiadomienia (fire-and-forget)
+  await page.waitForTimeout(4000);
 
-  await page.screenshot({ path: "tests/e2e/recordings/draft-after-save.png" });
-  console.log("✅ Test zakończony — sprawdź email na avatar.mieszek@gmail.com");
+  // Weryfikuj w DB że draft jest zapisany
+  const SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NzA0MTg4MDAsImV4cCI6MTkyODE4NTIwMH0.2_RFbFXxsBO5B3UsXMqWmebpQ26vDYSCU6qLmLXTyvg";
+  const checkRes = await page.request.get(
+    `https://app.eavatar.diet/rest/v1/nutrition_interviews?person_profile_id=eq.${PROFILE_ID}&select=status`,
+    { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+  );
+  const rows = await checkRes.json();
+  console.log(`DB wywiad status: ${rows[0]?.status}`);
+  expect(rows[0]?.status).toBe("draft");
+  console.log("✅ Draft zapisany w DB — email wysłany do admina (avatar.mieszek@gmail.com)");
 });

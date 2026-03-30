@@ -21,6 +21,7 @@ const EVENT_META: Record<AdminEventType, { label: string; icon: typeof Bell }> =
   patient_question: { label: "Pytanie pacjenta", icon: MessageSquare },
   support_ticket: { label: "Zgłoszenie Help", icon: Mail },
   interview_sent: { label: "Nowy wywiad", icon: ClipboardList },
+  interview_draft_updated: { label: "Wywiad edytowany", icon: ClipboardList },
   new_registration: { label: "Nowa rejestracja", icon: UserPlus },
 };
 
@@ -65,7 +66,7 @@ const AdminEventsPopover = ({
       return;
     }
 
-    if (event.event_type === "interview_sent") {
+    if (event.event_type === "interview_sent" || event.event_type === "interview_draft_updated") {
       navigate(`/admin/patient/${event.patient_id}?tab=interview`);
       return;
     }

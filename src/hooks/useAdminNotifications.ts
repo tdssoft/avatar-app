@@ -26,6 +26,7 @@ export type AdminEventType =
   | "patient_question"
   | "support_ticket"
   | "interview_sent"
+  | "interview_draft_updated"
   | "new_registration";
 
 export type AdminFeedScope = "all" | "messages";
@@ -220,7 +221,7 @@ export const useAdminNotifications = () => {
 
   const markPatientInterviewRead = useCallback(
     async (patientId: string) => {
-      const ids = await collectUnreadEventIds(patientId, ["interview_sent"]);
+      const ids = await collectUnreadEventIds(patientId, ["interview_sent", "interview_draft_updated"]);
       return markEventsRead(ids);
     },
     [collectUnreadEventIds, markEventsRead],

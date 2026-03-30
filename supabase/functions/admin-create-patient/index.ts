@@ -263,7 +263,26 @@ serve(async (req: Request): Promise<Response> => {
       console.log("[admin-create-patient] Patient created successfully");
     }
 
-    // Send email with login credentials using Brevo
+    // Wygeneruj Supabase recovery link → pacjent ustawia własne hasło przy pierwszym logowaniu
+    const appUrl = Deno.env.get("APP_URL") ?? "https://app.eavatar.diet";
+    let setPasswordLink = `${appUrl}/reset-password`;
+    try {
+      const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: `${appUrl}/reset-password` },
+      });
+      if (!linkError && linkData?.properties?.action_link) {
+        setPasswordLink = linkData.properties.action_link;
+        console.log("[admin-create-patient] Recovery link generated");
+      } else {
+        console.warn("[admin-create-patient] Could not generate recovery link, using fallback:", linkError);
+      }
+    } catch (linkGenError) {
+      console.warn("[admin-create-patient] Recovery link generation failed:", linkGenError);
+    }
+
+    // Send welcome email with set-password link (no temp password exposed)
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     const fromEmail = getEmailFrom();
     const replyTo = getEmailReplyTo();
@@ -294,24 +313,24 @@ serve(async (req: Request): Promise<Response> => {
                     Cześć <strong>${firstName}</strong>!
                   </p>
                   <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
-                    Administrator utworzył dla Ciebie konto w systemie AVATAR. Poniżej znajdziesz dane do logowania:
+                    Administrator utworzył dla Ciebie konto w systemie AVATAR – centrum zdrowia i wsparcia dietetycznego.
                   </p>
-                  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                    <p style="margin: 0 0 12px 0; color: #333333;">
-                      <strong>Email:</strong> ${email}
-                    </p>
-                    <p style="margin: 0; color: #333333;">
-                      <strong>Hasło tymczasowe:</strong> <code style="background-color: #e9ecef; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${tempPassword}</code>
+                  <p style="color: #333333; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+                    Kliknij poniższy przycisk, aby ustawić swoje hasło i aktywować konto:
+                  </p>
+                  <div style="background-color: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                    <p style="margin: 0; color: #666666; font-size: 13px;">
+                      <strong>Twój adres e-mail:</strong> ${email}
                     </p>
                   </div>
-                  <p style="color: #666666; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
-                    ⚠️ Zalecamy zmianę hasła po pierwszym logowaniu ze względów bezpieczeństwa.
-                  </p>
-                  <div style="text-align: center; margin-top: 32px;">
-                    <a href="https://app.eavatar.diet/login" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                      Zaloguj się
+                  <div style="text-align: center; margin: 32px 0;">
+                    <a href="${setPasswordLink}" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                      Ustaw hasło i zaloguj się →
                     </a>
                   </div>
+                  <p style="color: #999999; font-size: 12px; line-height: 1.6; margin-top: 24px; text-align: center;">
+                    Link jest ważny przez 24 godziny. Jeśli nie oczekiwałeś/aś tego emaila, zignoruj go.
+                  </p>
                 </div>
                 <div style="text-align: center; margin-top: 24px;">
                   <p style="color: #999999; font-size: 12px; margin: 0;">
@@ -323,12 +342,11 @@ serve(async (req: Request): Promise<Response> => {
             </html>
           `,
         });
-        
-        console.log("[admin-create-patient] Email sent successfully via Brevo");
+
+        console.log("[admin-create-patient] Welcome email sent successfully via Brevo");
         emailSent = true;
       } catch (emailError) {
         console.error("[admin-create-patient] Email sending failed:", emailError);
-        // Don't fail the whole request if email fails
       }
     } else {
       console.warn("[admin-create-patient] BREVO_API_KEY not configured, skipping email");
