@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import BodySystemsOverlay from "@/components/admin/BodySystemsOverlay";
 import AudioRecorder from "@/components/audio/AudioRecorder";
 import AudioRecordingsList from "@/components/audio/AudioRecordingsList";
+import VoiceRecorder from "@/components/interview/VoiceRecorder";
 import { resolveRecommendationProfileId } from "@/lib/recommendationProfile";
 import { getRecommendationUploadValidationError } from "@/lib/recommendationUpload";
 
@@ -554,6 +555,11 @@ const RecommendationCreator = () => {
                   value={rawNotes}
                   onChange={(e) => setRawNotes(e.target.value)}
                   rows={6}
+                />
+                <VoiceRecorder
+                  onTranscription={(text) =>
+                    setRawNotes((prev) => prev ? `${prev}\n${text}` : text)
+                  }
                 />
                 <Button type="button" onClick={() => void handleGenerateAI()} disabled={isGenerating || !rawNotes.trim()} className="w-full">
                   {isGenerating
