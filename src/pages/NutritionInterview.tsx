@@ -302,15 +302,8 @@ const NutritionInterview = () => {
     [existingInterviewId, existingInterviewStatus, formData, navigate, persistLocal, profileId, toast, user?.id],
   );
 
-  useEffect(() => {
-    if (!profileId || isLoading) return;
-
-    const id = window.setInterval(() => {
-      void saveInterview("draft", true);
-    }, 20000);
-
-    return () => window.clearInterval(id);
-  }, [isLoading, profileId, saveInterview]);
+  // Auto-save removed: form data is persisted locally (localStorage) on every change.
+  // DB save happens only when the patient explicitly clicks "Zapisz roboczo" or "Zapisz".
 
   const updateStringField = (key: keyof InterviewV2Content, value: string) => {
     const next = {
