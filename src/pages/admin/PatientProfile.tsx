@@ -48,6 +48,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import FileViewerModal from "@/components/ui/FileViewerModal";
+import VoiceRecorder from "@/components/interview/VoiceRecorder";
 
 interface PatientData {
   id: string;
@@ -1240,6 +1241,11 @@ const PatientProfile = () => {
                     onChange={(e) => setAiData(e.target.value)}
                     placeholder="Wpisz dane pomocnicze dla AI..."
                     className="min-h-[130px]"
+                  />
+                  <VoiceRecorder
+                    onTranscription={(text) =>
+                      setAiData((prev) => prev ? `${prev}\n${text}` : text)
+                    }
                   />
                   <input
                     ref={aiFileInputRef}
