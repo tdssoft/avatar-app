@@ -14,9 +14,9 @@ import { ContactFormDialog } from "@/components/support/ContactFormDialog";
 
 const faqs = [
   {
-    question: "Jak działa analiza organizmu w AVATAR?",
+    question: "Jak to działa?",
     answer:
-      "Analiza organizmu w AVATAR opiera się na przesłanym zdjęciu, wywiadzie dietetycznym i materiałach uzupełniających. Na tej podstawie przygotowujemy podsumowanie funkcjonowania organizmu oraz indywidualne zalecenia.",
+      "Jak każdy biorezonans tylko tym razem dane do analizy pobierane są z kopii kwantów, czyli malutkich cząsteczek, których kopie są wykonywane w czasie wykonania zdjęcia skóry. Stąd zdjęcie pełni funkcję nośnika informacji \u2013 podobnie jak w rezonansie: system \u201Eodczytuje\u201D informację pola organizmu, a nie strukturę fizyczną ciała. To nie jest diagnostyka medyczna i nie zastępuje lekarza. To narzędzie, które pomaga zrozumieć, co w organizmie przestaje działać harmonijnie przez określenie tego co obciąża ciało/AVATAR w danym momencie.",
   },
   {
     question: "Jak długo trzeba czekać na wyniki?",
@@ -24,9 +24,9 @@ const faqs = [
       "Standardowy czas oczekiwania na wyniki to 3-5 dni roboczych od momentu przesłania wszystkich wymaganych dokumentów i zdjęć. W przypadku pilnych potrzeb oferujemy również opcję ekspresowego opracowania.",
   },
   {
-    question: "Co zawiera pakiet analizy organizmu?",
+    question: "Co zawiera pakiet?",
     answer:
-      "Pakiet analizy organizmu zawiera podsumowanie funkcjonowania organizmu, indywidualne zalecenia oraz wskazówki dietetyczne. W zależności od wybranego pakietu możesz otrzymać dodatkowe elementy, takie jak jadłospis lub plan wspierający.",
+      "Pakiet zawiera podsumowanie funkcjonowania organizmu, indywidualne zalecenia oraz wskazówki dietetyczne. W zależności od wybranego pakietu możesz otrzymać dodatkowe elementy, takie jak jadłospis lub plan wspierający.",
   },
   {
     question: "Jak mogę zmienić swoje dane osobowe?",

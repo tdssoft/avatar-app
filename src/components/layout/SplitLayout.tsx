@@ -11,10 +11,9 @@ const DefaultRight = () => (
   <div className="h-full min-h-[520px] rounded-2xl bg-muted flex flex-col items-center justify-center text-center p-10">
     <img src={avatarLogo} alt="Avatar centrum zdrowia" className="h-24 w-auto mb-10" />
     <p className="text-3xl font-semibold text-foreground leading-snug">
-      Wszystko jest możliwe ale
-      <br />
-      decyzja należy do Ciebie
+      Zadbaj o swojego AVATARA
     </p>
+    <p className="text-base text-muted-foreground mt-2">Zadbaj o swoje ciało.</p>
   </div>
 );
 

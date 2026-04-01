@@ -346,7 +346,7 @@ const Dashboard = () => {
                 onSelect={() => navigate("/payment?group=avatar")}
               />
               <PlanCard
-                title="Regeneracyjny program organizmu"
+                title="Abonamentowy Program Profilaktyczny"
                 description="Program wspierający regenerację organizmu i codzienne nawyki."
                 price="27 zł"
                 onSelect={() => navigate("/payment?group=regen")}
@@ -420,7 +420,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
+                  <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie funkcjonowania Twojego organizmu</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {isLoadingRecommendations ? (
@@ -526,7 +526,7 @@ const Dashboard = () => {
 
             <Card className="rounded-lg border-[#d9dee4] shadow-none">
               <CardHeader className="pb-3">
-                <CardTitle className="text-[24px] leading-tight font-bold">Twoje wyniki badań laboratoryjne (z krwi, moczu i inne)</CardTitle>
+                <CardTitle className="text-[24px] leading-tight font-bold">Twoje wyniki badań laboratoryjnych (z krwi, moczu i inne)</CardTitle>
               </CardHeader>
               <CardContent>
                 {patientResultFiles.length > 0 ? (
@@ -582,7 +582,7 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Brak wgranych plików wynikowych dla aktywnego profilu.</p>
+                  <p className="text-sm text-muted-foreground">Brak wgranych wyników badań dla aktywnego profilu.</p>
                 )}
                 <div className="mt-4">
                   <input
