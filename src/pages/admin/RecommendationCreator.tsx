@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ArrowLeft, Save, Mail, X, Mic, Upload, Sparkles, Loader2 } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ const RecommendationCreator = () => {
   const { id, recommendationId } = useParams<{ id: string; recommendationId?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const isEditMode = !!recommendationId;
   const requestedProfileId = searchParams.get("profileId");
   
@@ -88,6 +89,7 @@ const RecommendationCreator = () => {
     supportingTherapies: "",
     tags: [] as string[],
   });
+  const prefillData = (location.state as { prefillData?: Partial<typeof formData> } | null)?.prefillData;
 
   useEffect(() => {
     fetchPatientProfiles();
@@ -104,6 +106,13 @@ const RecommendationCreator = () => {
       fetchExistingRecommendation(recommendationId);
     }
   }, [recommendationId, isEditMode]);
+
+  useEffect(() => {
+    if (prefillData) {
+      setFormData((prev) => ({ ...prev, ...prefillData }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchPatientProfiles = async () => {
     // Get patient's user_id first
