@@ -19,6 +19,7 @@ import {
   CreditCard,
   CheckCircle2,
   XCircle,
+  Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -180,6 +181,7 @@ const PatientProfile = () => {
   const [newTag, setNewTag] = useState("");
   const [aiData, setAiData] = useState("");
   const [aiAttachment, setAiAttachment] = useState<File | null>(null);
+  const [deviceCardText, setDeviceCardText] = useState("");
 
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [isSendingSms, setIsSendingSms] = useState(false);
@@ -189,6 +191,7 @@ const PatientProfile = () => {
   const [isUploadingResultFile, setIsUploadingResultFile] = useState(false);
   const [isUploadingDeviceFile, setIsUploadingDeviceFile] = useState(false);
   const [isSavingAiData, setIsSavingAiData] = useState(false);
+  const [isGeneratingRecommendation, setIsGeneratingRecommendation] = useState(false);
   const [isRecommendationPreviewOpen, setIsRecommendationPreviewOpen] = useState(false);
   const [isRecommendationPreviewLoading, setIsRecommendationPreviewLoading] = useState(false);
   const [recommendationPreviewUrl, setRecommendationPreviewUrl] = useState<string | null>(null);
@@ -637,6 +640,12 @@ const PatientProfile = () => {
 
       if (error) throw error;
       toast.success("Plik karty urządzenia został zapisany");
+      try {
+        const text = await file.text();
+        if (text.trim()) setDeviceCardText(text.trim());
+      } catch {
+        // binary file — admin types manually
+      }
       await queryClient.invalidateQueries({ queryKey: ["admin-patient-profile", id, selectedProfileId] });
     } catch (error) {
       console.error("[PatientProfile] Save device file error", error);
@@ -700,6 +709,42 @@ const PatientProfile = () => {
       toast.error(getSupabaseErrorMessage(error, "Nie udało się zapisać danych AI"));
     } finally {
       setIsSavingAiData(false);
+    }
+  };
+
+  const handleGenerateFromAiData = async () => {
+    if (!aiData.trim()) return;
+    setIsGeneratingRecommendation(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-recommendation-ai`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string,
+        },
+        body: JSON.stringify({ notes: aiData, isFollowUp: false }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+      navigate(
+        `/admin/patient/${id}/recommendation/new${selectedProfileId ? `?profileId=${selectedProfileId}` : ""}`,
+        {
+          state: {
+            prefillData: {
+              diagnosisSummary: result.diagnosis_summary || "",
+              dietaryRecommendations: result.dietary_recommendations || "",
+              supplementationProgram: result.supplementation_program || "",
+              supportingTherapies: result.supporting_therapies || "",
+            }
+          }
+        }
+      );
+    } catch (err) {
+      toast.error(`Błąd generowania AI: ${String(err)}`);
+    } finally {
+      setIsGeneratingRecommendation(false);
     }
   };
 
@@ -1212,6 +1257,12 @@ const PatientProfile = () => {
                   ) : (
                     <div className="rounded-md border p-4 text-sm text-muted-foreground">Brak plików</div>
                   )}
+                  <Textarea
+                    value={deviceCardText}
+                    onChange={(e) => setDeviceCardText(e.target.value)}
+                    placeholder="Wklej tutaj dane z urządzenia (Quantec) lub wgraj plik — tekst pojawi się automatycznie..."
+                    className="min-h-[130px]"
+                  />
                   <input
                     ref={deviceFileInputRef}
                     data-testid="device-file-input"
@@ -1247,6 +1298,16 @@ const PatientProfile = () => {
                       setAiData((prev) => prev ? `${prev}\n${text}` : text)
                     }
                   />
+                  <Button
+                    onClick={() => void handleGenerateFromAiData()}
+                    disabled={isGeneratingRecommendation || !aiData.trim()}
+                    className="w-full"
+                  >
+                    {isGeneratingRecommendation
+                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Generuję zalecenia z AI...</>
+                      : <><Sparkles className="w-4 h-4 mr-2"/>Generuj zalecenia z AI</>
+                    }
+                  </Button>
                   <input
                     ref={aiFileInputRef}
                     data-testid="ai-file-input"
