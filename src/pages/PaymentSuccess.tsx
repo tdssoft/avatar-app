@@ -39,7 +39,7 @@ const PaymentSuccess = () => {
 
     const intervalId = window.setInterval(() => {
       void poll();
-    }, 2500);
+    }, 5000);
 
     void poll();
 
@@ -59,7 +59,7 @@ const PaymentSuccess = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 transition-opacity duration-300">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-8 text-center">
           <img
@@ -93,8 +93,11 @@ const PaymentSuccess = () => {
               {(isRefreshing || isLoading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Odśwież status
             </Button>
-            {!hasPaidPlanForActiveProfile && !isLoading && !pollingFinished && (
-              <p className="text-xs text-muted-foreground">Sprawdzam status płatności automatycznie...</p>
+            {!hasPaidPlanForActiveProfile && !pollingFinished && (
+              <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Weryfikacja płatności w toku…
+              </p>
             )}
             {!hasPaidPlanForActiveProfile && pollingFinished && (
               <p className="text-xs text-muted-foreground">

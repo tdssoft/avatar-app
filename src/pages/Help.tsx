@@ -8,7 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Mail, Phone, MessageCircle } from "lucide-react";
+import { Mail, Phone, MessageCircle, MapPin } from "lucide-react";
 import { CONTACT_CONFIG } from "@/config/contact";
 import { ContactFormDialog } from "@/components/support/ContactFormDialog";
 
@@ -17,6 +17,10 @@ const faqs = [
     question: "Jak to działa?",
     answer:
       "Jak każdy biorezonans tylko tym razem dane do analizy pobierane są z kopii kwantów, czyli malutkich cząsteczek, których kopie są wykonywane w czasie wykonania zdjęcia skóry. Stąd zdjęcie pełni funkcję nośnika informacji \u2013 podobnie jak w rezonansie: system \u201Eodczytuje\u201D informację pola organizmu, a nie strukturę fizyczną ciała. To nie jest diagnostyka medyczna i nie zastępuje lekarza. To narzędzie, które pomaga zrozumieć, co w organizmie przestaje działać harmonijnie przez określenie tego co obciąża ciało/AVATAR w danym momencie.",
+  },
+  {
+    question: "Jak mogę umówić się na wizytę w klinice?",
+    answer: "Wizyty w klinice Sanomedz można umówić telefonicznie lub przez formularz na stronie. Skontaktuj się z nami pod numerem 608 243 601 lub napisz na avatar.mieszek@gmail.com.",
   },
   {
     question: "Jak długo trzeba czekać na wyniki?",
@@ -122,6 +126,15 @@ const Help = () => {
                   >
                     Zadzwoń
                   </Button>
+                </div>
+
+                <div className="p-4 rounded-lg border border-border text-center space-y-2">
+                  <div className="flex justify-center">
+                    <MapPin className="h-8 w-8 text-primary" />
+                  </div>
+                  <h4 className="font-medium">Klinika Sanomedz</h4>
+                  <p className="text-sm text-muted-foreground">Umów się na wizytę</p>
+                  <p className="text-sm font-semibold">{CONTACT_CONFIG.phoneDisplay}</p>
                 </div>
 
                 <div className="p-4 rounded-lg border border-border text-center">

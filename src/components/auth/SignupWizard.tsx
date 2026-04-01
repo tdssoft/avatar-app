@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,6 +33,7 @@ type Step1Data = z.infer<typeof step1Schema>;
 type Step3Data = z.infer<typeof step3Schema>;
 
 const SignupWizard = () => {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -49,6 +50,14 @@ const SignupWizard = () => {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Przechwytywanie ?ref=CODE z URL i zapis do localStorage
+  useEffect(() => {
+    const refCode = searchParams.get("ref");
+    if (refCode) {
+      localStorage.setItem("avatar_referral_code", refCode);
+    }
+  }, [searchParams]);
 
   const step1Form = useForm<Step1Data>({
     resolver: zodResolver(step1Schema),
@@ -184,6 +193,8 @@ const SignupWizard = () => {
   const handleStep3Submit = async (data: Step3Data) => {
     setIsLoading(true);
     try {
+      const storedReferralCode = localStorage.getItem("avatar_referral_code") || undefined;
+
       const result = await signup({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -192,6 +203,7 @@ const SignupWizard = () => {
         password: data.password,
         photoOption,
         photoFile: photoOption === "upload" ? selectedPhoto ?? undefined : undefined,
+        referralCode: storedReferralCode,
       });
 
       if (!result.success) {
@@ -202,6 +214,9 @@ const SignupWizard = () => {
         toast({ variant: "destructive", title: "Błąd rejestracji", description: errorMessage });
         return;
       }
+
+      // Wyczyść zapisany kod po pomyślnej rejestracji
+      localStorage.removeItem("avatar_referral_code");
 
       if (result.nextRoute === "/signup/verify-email") {
         navigate("/signup/verify-email", { state: { email: data.email } });

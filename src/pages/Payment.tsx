@@ -16,17 +16,20 @@ const Payment = () => {
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
+  const { isLoading: isFlowLoading, redirectTo, hasPaidPlan } = useFlowRouteGuard(location.pathname);
   const [searchParams] = useSearchParams();
 
   const groupParam = searchParams.get("group");
   const activeGroup: PaymentGroupKey = groupParam === "regen" ? "regen" : "avatar";
   const groupConfig = paymentGroups[activeGroup];
 
-  const packages = useMemo(
-    () => allPackages.filter((pkg) => groupConfig.packageIds.includes(pkg.id)),
-    [groupConfig.packageIds],
-  );
+  const packages = useMemo(() => {
+    // Users with an active plan (hasPaidPlan) can only purchase the upgrade package "optimal" (370 zł).
+    if (hasPaidPlan) {
+      return allPackages.filter((pkg) => pkg.id === "optimal");
+    }
+    return allPackages.filter((pkg) => groupConfig.packageIds.includes(pkg.id));
+  }, [groupConfig.packageIds, hasPaidPlan]);
 
   const { totalCostLabel } = calcTotals(selectedPackages);
 
@@ -64,9 +67,13 @@ const Payment = () => {
         <PaymentStepper step={1} />
 
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{groupConfig.title}</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {hasPaidPlan ? "Upgrade — Pełny Program Startowy" : groupConfig.title}
+          </h1>
           <p className="text-muted-foreground italic mt-2">
-            {groupConfig.description}
+            {hasPaidPlan
+              ? "Masz już aktywny plan. Możesz dokupić Pełny Program Startowy (370 zł) jako upgrade lub kontynuację programu."
+              : groupConfig.description}
           </p>
         </div>
 

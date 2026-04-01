@@ -11,6 +11,7 @@ type FlowStatus = {
   isLoading: boolean;
   isFlowResolved: boolean;
   hasPaidPlanForActiveProfile: boolean;
+  hasPaidPlanForAccount: boolean;
   hasPaidPlan: boolean;
   hasInterview: boolean;
   hasInterviewDraft: boolean;
@@ -32,6 +33,7 @@ export const useUserFlowStatus = () => {
     isLoading: true,
     isFlowResolved: false,
     hasPaidPlanForActiveProfile: false,
+    hasPaidPlanForAccount: false,
     hasPaidPlan: false,
     hasInterview: false,
     hasInterviewDraft: false,
@@ -58,6 +60,7 @@ export const useUserFlowStatus = () => {
         isLoading: false,
         isFlowResolved: false,
         hasPaidPlanForActiveProfile: false,
+        hasPaidPlanForAccount: false,
         hasPaidPlan: false,
         hasInterview: false,
         hasInterviewDraft: false,
@@ -126,11 +129,13 @@ export const useUserFlowStatus = () => {
         }
 
         let hasPaidPlanForActiveProfile = prevStatus.hasPaidPlanForActiveProfile;
+        let hasPaidPlanForAccount = prevStatus.hasPaidPlanForAccount;
         let profileAccessError: unknown = null;
         let interviewStatus: "none" | "draft" | "sent" = prevStatus.interviewStatus;
 
         if (!profilesError && activeProfileId) {
-          const [{ data: activeAccess, error: accessError }, { data: latestInterview, error: interviewError }] =
+          const allProfileIds = profileRows.map((p) => p.id);
+          const [{ data: activeAccess, error: accessError }, { data: latestInterview, error: interviewError }, { data: accountAccessRows, error: accountAccessError }] =
             await Promise.all([
               supabase
                 .from("profile_access")
@@ -147,6 +152,14 @@ export const useUserFlowStatus = () => {
                 .order("last_updated_at", { ascending: false })
                 .limit(1)
                 .maybeSingle(),
+              supabase
+                .from("profile_access")
+                .select("id")
+                .in("person_profile_id", allProfileIds)
+                .eq("account_user_id", user.id)
+                .eq("status", "active")
+                .limit(1)
+                .maybeSingle(),
             ]);
 
           if (accessError) {
@@ -155,6 +168,10 @@ export const useUserFlowStatus = () => {
             hasPaidPlanForActiveProfile = prevStatus.hasPaidPlanForActiveProfile;
           } else {
             hasPaidPlanForActiveProfile = Boolean(activeAccess?.id);
+          }
+
+          if (!accountAccessError) {
+            hasPaidPlanForAccount = Boolean(accountAccessRows?.id);
           }
 
           if (interviewError) {
@@ -167,14 +184,21 @@ export const useUserFlowStatus = () => {
           }
         } else if (!profilesError && !activeProfileId) {
           hasPaidPlanForActiveProfile = false;
+          hasPaidPlanForAccount = false;
           interviewStatus = "none";
         }
+
+        // A profile has effective paid access if it has its own access record OR
+        // if any profile on this account has an active access record (e.g. child profile
+        // added to a family account where the primary profile holds the paid plan).
+        const effectiveHasPaidPlan = hasPaidPlanForActiveProfile || hasPaidPlanForAccount;
 
         const nextStatus: FlowStatus = {
           isLoading: false,
           isFlowResolved: !patientError && !profilesError && !profileAccessError,
           hasPaidPlanForActiveProfile,
-          hasPaidPlan: hasPaidPlanForActiveProfile,
+          hasPaidPlanForAccount,
+          hasPaidPlan: effectiveHasPaidPlan,
           hasInterview: interviewStatus === "sent",
           hasInterviewDraft: interviewStatus === "draft",
           interviewStatus,

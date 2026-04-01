@@ -28,6 +28,11 @@ import { toast } from "sonner";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { allPackages } from "@/lib/paymentFlow";
 import AdminInterviewView from "@/components/admin/AdminInterviewView";
+import {
+  invokeAdminGrantAccess,
+  resolveGrantAccessErrorMessage,
+  formatGrantAccessSuccessMessage,
+} from "@/lib/adminGrantAccess";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { normalizeDisplayName, resolvePatientDisplayName } from "@/lib/patientDisplayName";
@@ -174,6 +179,12 @@ const PatientProfile = () => {
   const [aiEntries, setAiEntries] = useState<PatientAiEntry[]>([]);
   const [canOpenInterview, setCanOpenInterview] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryRecord[]>([]);
+
+  const [activateProfileId, setActivateProfileId] = useState("");
+  const [activateReason, setActivateReason] = useState("");
+  const [activateProductId, setActivateProductId] = useState("");
+  const [isActivatingProfile, setIsActivatingProfile] = useState(false);
+  const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
 
   const [newNote, setNewNote] = useState("");
   const [newSms, setNewSms] = useState("");
@@ -941,6 +952,35 @@ const PatientProfile = () => {
     }
   };
 
+  const handleActivateProfile = async () => {
+    if (!id || !activateProfileId || !activateReason || !activateProductId) {
+      toast.error("Wybierz profil, powód i abonament");
+      return;
+    }
+    setIsActivatingProfile(true);
+    try {
+      const { data, error } = await invokeAdminGrantAccess({
+        patientId: id,
+        personProfileId: activateProfileId,
+        reason: activateReason,
+        productId: activateProductId,
+      });
+      if (error) throw error;
+      const profileName = personProfiles.find((p) => p.id === activateProfileId)?.name ?? null;
+      toast.success(formatGrantAccessSuccessMessage(data?.grantedProfilesCount ?? 1, profileName));
+      setIsActivateDialogOpen(false);
+      setActivateProfileId("");
+      setActivateReason("");
+      setActivateProductId("");
+      void queryClient.invalidateQueries({ queryKey: ["admin-patient-core", id] });
+    } catch (error: unknown) {
+      const message = await resolveGrantAccessErrorMessage(error);
+      toast.error(message);
+    } finally {
+      setIsActivatingProfile(false);
+    }
+  };
+
   const isTokenExpired = (expiresAt: string | null): boolean => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
@@ -1049,6 +1089,65 @@ const PatientProfile = () => {
                 Nie udało się załadować podglądu pliku.
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog aktywacji profilu */}
+      <Dialog open={isActivateDialogOpen} onOpenChange={(open) => {
+        setIsActivateDialogOpen(open);
+        if (!open) { setActivateReason(""); setActivateProductId(""); }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aktywuj dostęp dla profilu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Profil</p>
+              <p className="text-sm text-muted-foreground">
+                {personProfiles.find((p) => p.id === activateProfileId)?.name || activateProfileId}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Powód nadania dostępu</p>
+              <Select value={activateReason} onValueChange={setActivateReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz powód" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="platnosc_gotowka">Płatność gotówką</SelectItem>
+                  <SelectItem value="inny_przypadek">Inny przypadek</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Abonament</p>
+              <Select value={activateProductId} onValueChange={setActivateProductId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz abonament" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allPackages.map((pkg) => (
+                    <SelectItem key={pkg.id} value={pkg.id}>
+                      {pkg.name} ({pkg.price} zł{pkg.billing === "monthly" ? "/mies." : ""})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                className="flex-1"
+                onClick={() => void handleActivateProfile()}
+                disabled={isActivatingProfile || !activateReason || !activateProductId}
+              >
+                {isActivatingProfile ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Aktywuję...</> : "Aktywuj dostęp"}
+              </Button>
+              <Button variant="outline" onClick={() => setIsActivateDialogOpen(false)}>
+                Anuluj
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1631,12 +1730,43 @@ const PatientProfile = () => {
 
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Profile osób</p>
-                  <div className="flex flex-wrap gap-2">
-                    {personProfiles.map((pp) => (
-                      <Badge key={pp.id} variant={pp.id === selectedProfileId ? "default" : "secondary"} className="cursor-pointer" onClick={() => setSelectedProfileId(pp.id)}>
-                        {(normalizeDisplayName(pp.name) || "—")}{pp.is_primary ? " ★" : ""}
-                      </Badge>
-                    ))}
+                  <div className="space-y-2">
+                    {personProfiles.map((pp) => {
+                      const hasActivePayment = paymentHistory.some(
+                        (ph) => ph.person_profile_id === pp.id && ph.status === "active",
+                      );
+                      return (
+                        <div key={pp.id} className="flex items-center justify-between gap-2 rounded-md border p-2">
+                          <Badge
+                            variant={pp.id === selectedProfileId ? "default" : "secondary"}
+                            className="cursor-pointer"
+                            onClick={() => setSelectedProfileId(pp.id)}
+                          >
+                            {(normalizeDisplayName(pp.name) || "—")}{pp.is_primary ? " ★" : ""}
+                          </Badge>
+                          {!hasActivePayment && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setActivateProfileId(pp.id);
+                                setActivateReason("");
+                                setActivateProductId("");
+                                setIsActivateDialogOpen(true);
+                              }}
+                            >
+                              Aktywuj dostęp
+                            </Button>
+                          )}
+                          {hasActivePayment && (
+                            <span className="text-xs text-green-600 flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Aktywny
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

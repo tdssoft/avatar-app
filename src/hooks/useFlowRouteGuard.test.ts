@@ -20,10 +20,12 @@ describe("useFlowRouteGuard helpers", () => {
     expect(resolveFlowRedirectTarget("/dashboard/interview", state)).toBeNull();
   });
 
-  it("redirects READY away from payment and allows app routes", () => {
+  it("allows READY on payment (upgrade) and other app routes", () => {
     const state = deriveFlowState(true, true);
 
-    expect(resolveFlowRedirectTarget("/payment", state)).toBe("/dashboard");
+    // READY users can access /payment to purchase an upgrade package (e.g. "optimal" 370 zł)
+    expect(resolveFlowRedirectTarget("/payment", state)).toBeNull();
+    expect(resolveFlowRedirectTarget("/payment/method", state)).toBeNull();
     expect(resolveFlowRedirectTarget("/dashboard", state)).toBeNull();
     expect(resolveFlowRedirectTarget("/interview", state)).toBeNull();
   });

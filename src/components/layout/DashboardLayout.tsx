@@ -79,7 +79,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="h-16 bg-background border-b border-border flex items-center justify-end px-6 lg:px-8">
+        <header className="h-16 bg-background border-b border-border flex items-center justify-end pl-16 pr-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-muted text-foreground text-xs font-medium">

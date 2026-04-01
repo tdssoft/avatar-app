@@ -313,6 +313,16 @@ const Dashboard = () => {
     );
   }
 
+  const decodeHtmlEntities = (str: string): string => {
+    if (!str || (!str.includes("&lt;") && !str.includes("&amp;"))) return str;
+    try {
+      const doc = new DOMParser().parseFromString(str, "text/html");
+      return doc.documentElement.textContent ?? str;
+    } catch {
+      return str;
+    }
+  };
+
   const selectedRecommendation =
     recommendations.find((rec) => rec.id === selectedRecommendationId) ?? recommendations[0] ?? null;
   const selectedRecommendationDate = selectedRecommendation
@@ -417,7 +427,14 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
+            <div className="flex justify-end mb-4">
+              <PhotoUpload
+                className="rounded-lg border-[#d9dee4] shadow-none"
+                title="Twoje zdjęcie"
+                actionLabel="Zmień zdjęcie"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-[26px] leading-[1.05] font-bold">Podsumowanie funkcjonowania Twojego organizmu</CardTitle>
@@ -434,7 +451,7 @@ const Dashboard = () => {
                         className="text-[16px] leading-7 text-foreground prose prose-sm max-w-none"
                         dangerouslySetInnerHTML={{
                           __html: DOMPurify.sanitize(
-                            selectedRecommendation.diagnosis_summary || "Szczegóły funkcjonowania organizmu i zalecenia dietetyczne zostały przygotowane dla Twojego profilu.",
+                            decodeHtmlEntities(selectedRecommendation.diagnosis_summary || "Szczegóły funkcjonowania organizmu i zalecenia dietetyczne zostały przygotowane dla Twojego profilu."),
                             { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
                           ),
                         }}
@@ -445,8 +462,8 @@ const Dashboard = () => {
                           className="text-[16px] leading-7 text-foreground prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{
                             __html: DOMPurify.sanitize(
-                              selectedRecommendation.dietary_recommendations ||
-                                "Zapoznaj się z zaleceniami i realizuj je regularnie. W każdej chwili możesz wrócić do szczegółów i dopytać o kolejne kroki.",
+                              decodeHtmlEntities(selectedRecommendation.dietary_recommendations ||
+                                "Zapoznaj się z zaleceniami i realizuj je regularnie. W każdej chwili możesz wrócić do szczegółów i dopytać o kolejne kroki."),
                               { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }
                             ),
                           }}
@@ -517,11 +534,6 @@ const Dashboard = () => {
                   )}
                 </CardContent>
               </Card>
-              <PhotoUpload
-                className="rounded-lg border-[#d9dee4] shadow-none"
-                title="Twoje zdjęcie"
-                actionLabel="Zmień zdjęcie"
-              />
             </div>
 
             <Card className="rounded-lg border-[#d9dee4] shadow-none">
@@ -631,7 +643,7 @@ const Dashboard = () => {
               </Button>
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
+            <div className="grid grid-cols-1 gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
                 <CardHeader>
                   <CardTitle className="text-[24px] leading-tight font-bold">Zleć kolejną analizę organizmu</CardTitle>
@@ -660,7 +672,6 @@ const Dashboard = () => {
                   </Card>
                 </CardContent>
               </Card>
-              <PhotoUpload className="rounded-lg border-[#d9dee4] shadow-none" title="Twoje zdjęcie" actionLabel="Zmień zdjęcie" />
             </div>
           </>
         )}

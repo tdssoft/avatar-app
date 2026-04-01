@@ -7,12 +7,14 @@ import {
 } from "@/hooks/flowRouteGuard";
 
 export const useFlowRouteGuard = (pathname: string) => {
-  const { isLoading, isFlowResolved, hasPaidPlanForActiveProfile, hasInterview } = useUserFlowStatus();
+  const { isLoading, isFlowResolved, hasPaidPlanForActiveProfile, hasPaidPlanForAccount, hasPaidPlan, hasInterview } = useUserFlowStatus();
   const { isLoading: isAuthLoading, user } = useAuth();
 
   const flowState = useMemo(
-    () => deriveFlowState(hasPaidPlanForActiveProfile, hasInterview),
-    [hasInterview, hasPaidPlanForActiveProfile],
+    // Use hasPaidPlan (effective value: true if active profile OR any account profile has paid access)
+    // so that child profiles added to a family account are not blocked by NO_PLAN state.
+    () => deriveFlowState(hasPaidPlan, hasInterview),
+    [hasInterview, hasPaidPlan],
   );
 
   const redirectTo = useMemo(() => {
@@ -29,8 +31,9 @@ export const useFlowRouteGuard = (pathname: string) => {
     isFlowResolved,
     flowState,
     redirectTo,
-    hasPaidPlan: hasPaidPlanForActiveProfile,
+    hasPaidPlan,
     hasPaidPlanForActiveProfile,
+    hasPaidPlanForAccount,
     hasInterview,
   };
 };

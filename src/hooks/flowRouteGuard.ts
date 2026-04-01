@@ -26,6 +26,9 @@ const isInterviewPath = (pathname: string): boolean =>
 const isDashboardPath = (pathname: string): boolean =>
   pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 
+const isAlwaysAllowedPath = (pathname: string): boolean =>
+  pathname === "/dashboard/help";
+
 export const resolveFlowRedirectTarget = (
   pathname: string,
   flowState: FlowState,
@@ -35,6 +38,7 @@ export const resolveFlowRedirectTarget = (
   if (flowState === "NO_PLAN") {
     if (path === "/dashboard") return null;
     if (isPaymentPath(path)) return null;
+    if (isAlwaysAllowedPath(path)) return null;
     if (isDashboardPath(path) || isInterviewPath(path)) return "/dashboard";
     return null;
   }
@@ -43,10 +47,11 @@ export const resolveFlowRedirectTarget = (
     if (path === "/dashboard") return null;
     if (isInterviewPath(path)) return null;
     if (isPaymentPath(path)) return "/interview";
+    if (isAlwaysAllowedPath(path)) return null;
     if (isDashboardPath(path)) return "/interview";
     return null;
   }
 
-  if (isPaymentPath(path)) return "/dashboard";
+  // READY users may access /payment to purchase an upgrade (e.g. "optimal" 370 zł)
   return null;
 };

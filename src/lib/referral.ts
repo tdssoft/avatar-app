@@ -1,5 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export const generateReferralCode = (userId: string): string => {
+  return `AVATAR${userId.slice(0, 8).toUpperCase()}`;
+};
+
 export interface Referral {
   id: string;
   referrer_code: string;

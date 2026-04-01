@@ -31,6 +31,9 @@ const PhotoUpload = ({
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [captureMode, setCaptureMode] = useState<"idle" | "camera">("idle");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const fetchProfileAvatar = async (profileId: string) => {
     const { data, error } = await supabase
@@ -219,6 +222,44 @@ const PhotoUpload = ({
     }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setCaptureMode("camera");
+    } catch {
+      // Kamera niedostępna — nic nie rób
+    }
+  };
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCaptureMode("idle");
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
+      stopCamera();
+      const syntheticEvent = {
+        target: { files: [file] },
+      } as unknown as React.ChangeEvent<HTMLInputElement>;
+      void handleFileSelect(syntheticEvent);
+    }, "image/jpeg", 0.9);
+  };
+
+  useEffect(() => {
+    return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
+  }, []);
+
   const handleClick = () => {
     if (!editable) {
       onAction?.();
@@ -261,13 +302,46 @@ const PhotoUpload = ({
           className="hidden"
           onChange={handleFileSelect}
         />
-        <button
-          onClick={handleClick}
-          disabled={isUploading}
-          className="text-muted-foreground underline underline-offset-4 text-sm font-medium hover:text-foreground disabled:opacity-50"
-        >
-          {isUploading ? "Wgrywanie..." : actionLabel}
-        </button>
+        {captureMode === "idle" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => void startCamera()}
+              disabled={isUploading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground font-medium text-sm mb-2 disabled:opacity-50"
+            >
+              <Camera className="h-4 w-4" />
+              Zrób zdjęcie kamerką
+            </button>
+            <button
+              onClick={handleClick}
+              disabled={isUploading}
+              className="text-muted-foreground underline underline-offset-4 text-sm font-medium hover:text-foreground disabled:opacity-50"
+            >
+              {isUploading ? "Wgrywanie..." : actionLabel}
+            </button>
+          </>
+        ) : (
+          <div className="space-y-2 w-full">
+            <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+              >
+                Zrób zdjęcie
+              </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="px-3 py-2 bg-secondary rounded text-sm"
+              >
+                Anuluj
+              </button>
+            </div>
+          </div>
+        )}
         {statusMessage ? (
           <p
             className={`mt-2 text-xs ${
