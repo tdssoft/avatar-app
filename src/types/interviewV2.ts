@@ -33,6 +33,7 @@ export interface InterviewV2Content {
   afternoonSnackTime: string;
   dinner: string;
   dinnerTime: string;
+  extraMeals: string;
   darkBreadFrequency: FrequencyAnswer;
   whiteBreadFrequency: FrequencyAnswer;
   groatsFrequency: FrequencyAnswer;
@@ -144,6 +145,7 @@ export const EMPTY_INTERVIEW_V2: InterviewV2Content = {
   afternoonSnackTime: "",
   dinner: "",
   dinnerTime: "",
+  extraMeals: "",
   darkBreadFrequency: createEmptyFrequencyAnswer(),
   whiteBreadFrequency: createEmptyFrequencyAnswer(),
   groatsFrequency: createEmptyFrequencyAnswer(),
