@@ -26,6 +26,7 @@ export const allPackages: PackageDefinition[] = [
   {
     id: "mini",
     name: "Mini Program Startowy",
+    subtitle: "(wgraj nowe zdjęcie)",
     price: 220,
     billing: "one_time",
     description: [

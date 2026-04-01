@@ -1061,8 +1061,8 @@ const PatientProfile = () => {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-foreground">Pacjent: {fullName}</h1>
-                <p className="text-sm text-muted-foreground">Widok wynikowy i komunikacja pacjenta</p>
+                <h1 className="text-3xl font-bold text-foreground">Klient: {fullName}</h1>
+                <p className="text-sm text-muted-foreground">Widok wynikowy i komunikacja klienta</p>
               </div>
             </div>
 
@@ -1130,7 +1130,7 @@ const PatientProfile = () => {
           <div className="xl:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne</CardTitle>
+                <CardTitle>Podsumowanie funkcjonowania Twojego organizmu</CardTitle>
               </CardHeader>
               <CardContent>
                 {selectedRecommendation ? (
