@@ -1285,81 +1285,96 @@ const PatientProfile = () => {
                     {isUploadingDeviceFile ? "Wgrywanie..." : "+ wgraj plik"}
                   </Button>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <h3 className="font-semibold">Dane do AI</h3>
+
+                  {/* Input */}
                   <Textarea
                     value={aiData}
                     onChange={(e) => setAiData(e.target.value)}
-                    placeholder="Wpisz dane pomocnicze dla AI..."
-                    className="min-h-[130px]"
+                    placeholder="Wklej notatki z konsultacji lub nagraj głosowo..."
+                    className="min-h-[150px]"
                   />
-                  <VoiceRecorder
-                    onTranscription={(text) =>
-                      setAiData((prev) => prev ? `${prev}\n${text}` : text)
-                    }
-                  />
-                  <Button
-                    onClick={() => void handleGenerateFromAiData()}
-                    disabled={isGeneratingRecommendation || !aiData.trim()}
-                    className="w-full"
-                  >
-                    {isGeneratingRecommendation
-                      ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Generuję zalecenia z AI...</>
-                      : <><Sparkles className="w-4 h-4 mr-2"/>Generuj zalecenia z AI</>
-                    }
-                  </Button>
-                  <input
-                    ref={aiFileInputRef}
-                    data-testid="ai-file-input"
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setAiAttachment(file);
-                    }}
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => aiFileInputRef.current?.click()}>
-                      {aiAttachment ? `Plik: ${aiAttachment.name}` : "Dodaj plik AI"}
+
+                  {/* Pomocnicze: nagranie + plik */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <VoiceRecorder
+                      onTranscription={(text) =>
+                        setAiData((prev) => prev ? `${prev}\n${text}` : text)
+                      }
+                    />
+                    <input
+                      ref={aiFileInputRef}
+                      data-testid="ai-file-input"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setAiAttachment(file);
+                      }}
+                    />
+                    <Button size="sm" variant="outline" onClick={() => aiFileInputRef.current?.click()} className="gap-1.5">
+                      <Upload className="h-3.5 w-3.5" />
+                      {aiAttachment ? aiAttachment.name : "Dodaj plik"}
                     </Button>
                     {aiAttachment && (
-                      <Button variant="ghost" onClick={() => {
+                      <Button size="sm" variant="ghost" onClick={() => {
                         setAiAttachment(null);
                         if (aiFileInputRef.current) aiFileInputRef.current.value = "";
                       }}>
-                        Usuń plik
+                        <X className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
-                  <Button onClick={() => void handleSaveAiEntry()} disabled={isSavingAiData || !aiData.trim()}>
-                    {isSavingAiData ? "Zapisywanie..." : "Zapisz"}
-                  </Button>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Historia danych AI</p>
-                    {aiEntries.length > 0 ? (
-                      aiEntries.map((entry) => (
-                        <div key={entry.id} className="rounded-md border p-3 text-sm space-y-2">
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(entry.created_at), "dd.MM.yyyy HH:mm", { locale: pl })}
-                          </p>
-                          <p className="whitespace-pre-wrap">{entry.content}</p>
-                          {entry.attachment_file_path && (
-                            <div className="flex items-center gap-2">
-                              <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
-                                Otwórz załącznik
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => void downloadFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
-                                Pobierz załącznik
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Brak zapisanej historii danych AI.</p>
-                    )}
+
+                  {/* Akcje główne */}
+                  <div className="flex flex-col gap-2 pt-1 border-t border-border">
+                    <Button
+                      onClick={() => void handleGenerateFromAiData()}
+                      disabled={isGeneratingRecommendation || !aiData.trim()}
+                      className="w-full"
+                    >
+                      {isGeneratingRecommendation
+                        ? <><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Generuję zalecenia z AI...</>
+                        : <><Sparkles className="w-4 h-4 mr-2"/>Generuj zalecenia z AI</>
+                      }
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => void handleSaveAiEntry()} disabled={isSavingAiData || !aiData.trim()} className="w-full">
+                      {isSavingAiData ? "Zapisywanie..." : "Zapisz notatki bez generowania"}
+                    </Button>
                   </div>
+
+                  {/* Historia — zwijana */}
+                  {aiEntries.length > 0 && (
+                    <details className="group">
+                      <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 list-none select-none">
+                        <span>Historia danych AI ({aiEntries.length})</span>
+                        <span className="ml-auto text-xs group-open:hidden">▼</span>
+                        <span className="ml-auto text-xs hidden group-open:inline">▲</span>
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {aiEntries.map((entry) => (
+                          <div key={entry.id} className="rounded-md border p-3 text-sm space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(entry.created_at), "dd.MM.yyyy HH:mm", { locale: pl })}
+                            </p>
+                            <p className="whitespace-pre-wrap line-clamp-4">{entry.content}</p>
+                            {entry.attachment_file_path && (
+                              <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
+                                  Otwórz załącznik
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => void downloadFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
+                                  Pobierz
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
                 </div>
               </CardContent>
             </Card>
