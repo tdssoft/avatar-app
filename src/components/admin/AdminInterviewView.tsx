@@ -38,6 +38,10 @@ import {
   formatFrequencyAnswer,
   InterviewV2Content,
   normalizeInterviewContent,
+  EMPTY_INTERVIEW_V2,
+  FREQUENCY_OPTIONS,
+  FrequencyAnswer,
+  createEmptyFrequencyAnswer,
 } from "@/types/interviewV2";
 
 interface InterviewData {
@@ -202,8 +206,10 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingV2, setIsEditingV2] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState<InterviewData>(defaultInterviewData);
+  const [v2FormData, setV2FormData] = useState<InterviewV2Content>(EMPTY_INTERVIEW_V2);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -339,6 +345,172 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
     fetchHistory();
   };
 
+  const handleEditV2 = () => {
+    if (interview) {
+      const normalized = normalizeInterviewContent(interview.content);
+      setV2FormData(normalized);
+      setIsEditingV2(true);
+    }
+  };
+
+  const handleCancelV2 = () => {
+    setIsEditingV2(false);
+  };
+
+  const handleSaveV2 = async () => {
+    if (!interview) return;
+    setIsSaving(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const historyContent = JSON.parse(JSON.stringify(interview.content));
+      await supabase.from("nutrition_interview_history").insert([{
+        interview_id: interview.id,
+        content: historyContent,
+        changed_by: userData.user?.id,
+      }]);
+      const contentJson = JSON.parse(JSON.stringify(v2FormData));
+      const { error } = await supabase.from("nutrition_interviews").update({
+        content: contentJson,
+        last_updated_at: new Date().toISOString(),
+        last_updated_by: userData.user?.id,
+      }).eq("id", interview.id);
+      if (error) throw error;
+      toast.success("Wywiad został zaktualizowany");
+      setIsEditingV2(false);
+      fetchInterview();
+    } catch (error) {
+      console.error("Error saving V2 interview:", error);
+      toast.error("Nie udało się zapisać wywiadu");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const setV2Field = (key: keyof InterviewV2Content, value: unknown) => {
+    setV2FormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setV2FrequencyField = (
+    key: keyof InterviewV2Content,
+    field: keyof FrequencyAnswer,
+    value: string,
+  ) => {
+    setV2FormData((prev) => {
+      const current = (prev[key] as FrequencyAnswer) ?? createEmptyFrequencyAnswer();
+      return { ...prev, [key]: { ...current, [field]: value } };
+    });
+  };
+
+  const renderV2Question = (question: InterviewQuestionConfig) => {
+    const key = question.key;
+    const label = question.label;
+    const helper = "helper" in question ? question.helper : undefined;
+
+    if (question.type === "frequency") {
+      const val = (v2FormData[key] as FrequencyAnswer) ?? createEmptyFrequencyAnswer();
+      return (
+        <div key={String(key)} className="space-y-1.5">
+          <Label className="text-sm font-medium">{label}</Label>
+          {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+          <div className="flex gap-2">
+            <Select
+              value={val.frequency}
+              onValueChange={(v) => setV2FrequencyField(key, "frequency", v)}
+            >
+              <SelectTrigger className="w-44 shrink-0">
+                <SelectValue placeholder="Częstotliwość" />
+              </SelectTrigger>
+              <SelectContent>
+                {FREQUENCY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              placeholder="Uwagi..."
+              value={val.note}
+              onChange={(e) => setV2FrequencyField(key, "note", e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (question.type === "select") {
+      const val = (v2FormData[key] as string) ?? "";
+      return (
+        <div key={String(key)} className="space-y-1.5">
+          <Label className="text-sm font-medium">{label}</Label>
+          <Select value={val} onValueChange={(v) => setV2Field(key, v)}>
+            <SelectTrigger>
+              <SelectValue placeholder={question.placeholder ?? "Wybierz"} />
+            </SelectTrigger>
+            <SelectContent>
+              {question.options.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
+    if (question.type === "checkboxGroup") {
+      const val = (v2FormData[key] as string[]) ?? [];
+      return (
+        <div key={String(key)} className="space-y-2">
+          <Label className="text-sm font-medium">{label}</Label>
+          <div className="flex flex-wrap gap-4">
+            {question.options.map((opt) => (
+              <div key={opt.value} className="flex items-center gap-2">
+                <Checkbox
+                  id={`${String(key)}-${opt.value}`}
+                  checked={val.includes(opt.value)}
+                  onCheckedChange={(checked) => {
+                    const next = checked
+                      ? [...val, opt.value]
+                      : val.filter((v) => v !== opt.value);
+                    setV2Field(key, next);
+                  }}
+                />
+                <Label htmlFor={`${String(key)}-${opt.value}`} className="font-normal text-sm">
+                  {opt.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (question.type === "textarea") {
+      const val = (v2FormData[key] as string) ?? "";
+      return (
+        <div key={String(key)} className="space-y-1.5">
+          <Label className="text-sm font-medium">{label}</Label>
+          <Textarea
+            value={val}
+            onChange={(e) => setV2Field(key, e.target.value)}
+            className="min-h-[80px]"
+          />
+        </div>
+      );
+    }
+
+    // input / date
+    const val = (v2FormData[key] as string) ?? "";
+    return (
+      <div key={String(key)} className="space-y-1.5">
+        <Label className="text-sm font-medium">{label}</Label>
+        <Input
+          type={question.type === "date" ? "date" : "text"}
+          value={val}
+          onChange={(e) => setV2Field(key, e.target.value)}
+        />
+      </div>
+    );
+  };
+
   const InfoRow = ({ label, value }: { label: string; value?: string | null }) => {
     if (!value) return null;
     return (
@@ -388,6 +560,82 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
   const normalizedV2Content = isV2Interview
     ? normalizeInterviewContent(interview.content)
     : null;
+
+  // V2 edit mode — taśmociąg
+  if (isEditingV2) {
+    return (
+      <div className="relative">
+        {/* Sticky top bar: section nav + actions */}
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border py-2 mb-6 -mx-1 px-1">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Edycja wywiadu</p>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="outline" size="sm" onClick={handleCancelV2} disabled={isSaving}>
+                  <X className="h-4 w-4 mr-1" />
+                  Anuluj
+                </Button>
+                <Button size="sm" onClick={() => void handleSaveV2()} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                  {isSaving ? "Zapisuję..." : "Zapisz zmiany"}
+                </Button>
+              </div>
+            </div>
+            <nav className="flex flex-wrap gap-1.5">
+              {INTERVIEW_STEPS.map((step) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => {
+                    document.getElementById(`edit-section-${step.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
+                >
+                  {step.heading ?? step.id}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {/* All sections — taśmociąg */}
+        <div className="space-y-10">
+          {INTERVIEW_STEPS.map((step) => (
+            <section
+              key={step.id}
+              id={`edit-section-${step.id}`}
+              className="scroll-mt-28"
+            >
+              <h3 className="text-base font-semibold text-foreground mb-4 border-b border-border pb-2">
+                {step.heading ?? step.id}
+              </h3>
+              {step.layout === "two-column" ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {step.questions.map((q) => renderV2Question(q))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {step.questions.map((q) => renderV2Question(q))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+
+        {/* Bottom save */}
+        <div className="flex justify-end gap-2 pt-8 border-t border-border mt-8">
+          <Button variant="outline" onClick={handleCancelV2} disabled={isSaving}>
+            <X className="h-4 w-4 mr-2" />
+            Anuluj
+          </Button>
+          <Button onClick={() => void handleSaveV2()} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {isSaving ? "Zapisuję..." : "Zapisz zmiany"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Edit mode form
   if (isEditing) {
@@ -795,7 +1043,12 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             )}
           </DialogContent>
         </Dialog>
-        {!isV2Interview && (
+        {isV2Interview ? (
+          <Button onClick={handleEditV2}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edytuj wywiad
+          </Button>
+        ) : (
           <Button onClick={handleEdit}>
             <Edit className="h-4 w-4 mr-2" />
             Edytuj wywiad
