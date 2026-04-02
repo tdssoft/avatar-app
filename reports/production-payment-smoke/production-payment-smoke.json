@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "email": "prod-payment-1773927763398@example.com",
+  "stripeUrl": "https://checkout.stripe.com/c/pay/cs_live_a10gNgX1UXVRrWocj2lpU66jIZceNLuTTYwbBlR8SdF5Y1hweHailUkf1S#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdpamZkaWAnPyd1aScpJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRUaWtRN0J2RzdKTnU3NXZ2RE88VWA3fUkwY09JRFxuTmBfMTxPUFBGZnMwRmlVY2RoVjA1YzRyUmhsd1x3RmszVU5nfWJ1YkhOa0dTVndgZEtddnFNf2I1NTZ2XVI1bn9fJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl",
+  "stripeTitle": "AVATAR SP. Z O. O.",
+  "networkErrors": [],
+  "requestFailures": [],
+  "consoleErrors": [],
+  "videoPath": "/Users/alanurban/Documents/eavatar.app/avatar-app/reports/production-payment-smoke/production-payment-smoke-1773927794049.webm"
+}

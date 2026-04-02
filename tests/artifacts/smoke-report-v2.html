@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eavatar · Smoke Test Report · Backlog Phase 1</title>
+<style>
+  :root{--bg:#0f0f0f;--s:#1a1a1a;--s2:#242424;--b:#2e2e2e;--t:#e8e8e8;--m:#888;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;--yellow:#f59e0b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6}
+  code{background:var(--s2);padding:1px 5px;border-radius:3px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:#aaa}
+
+  /* HEADER */
+  .hd{background:var(--s);border-bottom:1px solid var(--b);padding:24px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .hd h1{font-size:18px;font-weight:700}
+  .hd h1 span{color:var(--m);font-weight:400}
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{background:var(--s2);border:1px solid var(--b);border-radius:20px;padding:3px 12px;font-size:11px;color:var(--m)}
+  .pill.g{border-color:var(--green);color:var(--green)}
+  .pill.b{border-color:var(--blue);color:var(--blue)}
+
+  /* LEGEND */
+  .legend{padding:12px 40px;background:var(--s);border-bottom:1px solid var(--b);display:flex;gap:20px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--m)}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+  /* PRIORITY HEADER */
+  .ph{padding:28px 40px 0}
+  .pl{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--m);margin-bottom:18px;padding-bottom:8px;border-bottom:1px solid var(--b)}
+  .pbadge{display:inline-block;padding:2px 8px;border-radius:4px;margin-right:6px;font-size:10px}
+  .p0 .pbadge{background:#ef444420;color:var(--red);border:1px solid var(--red)}
+  .p1 .pbadge{background:#f59e0b20;color:var(--yellow);border:1px solid var(--yellow)}
+  .p2 .pbadge{background:#3b82f620;color:var(--blue);border:1px solid var(--blue)}
+
+  /* TASK CARD */
+  .card{background:var(--s);border:1px solid var(--b);border-radius:12px;margin:0 40px 24px;overflow:hidden}
+  .card-hd{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 22px;border-bottom:1px solid var(--b);flex-wrap:wrap}
+  .tid{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--m);margin-bottom:3px}
+  .ttitle{font-size:15px;font-weight:600}
+  .tbranch{font-size:10px;color:var(--m);margin-top:3px;font-family:'SF Mono',monospace}
+  .sbadge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;background:#22c55e18;border:1px solid var(--green);color:var(--green)}
+  .sbadge::before{content:'✓'}
+
+  /* DESC */
+  .desc{display:grid;grid-template-columns:1fr 1fr}
+  @media(max-width:800px){.desc,.vg{grid-template-columns:1fr}}
+  .db{padding:16px 22px}
+  .db:first-child{border-right:1px solid var(--b)}
+  .dl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+  .dl::before{content:'';display:inline-block;width:3px;height:13px;border-radius:2px;background:currentColor}
+  .dl.p{color:var(--red)}.dl.r{color:var(--green)}
+  .db p{color:#ccc;font-size:13px;line-height:1.6}
+
+  /* VIDEOS */
+  .vids{border-top:1px solid var(--b)}
+  .vg{display:grid;grid-template-columns:1fr 1fr}
+  .vsep{border-top:1px solid var(--b)}
+  .vc{padding:16px 22px}
+  .vc:first-child{border-right:1px solid var(--b)}
+  .vl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .vl .vd{width:7px;height:7px;border-radius:50%}
+  .vl.przed{color:var(--red)}.vl.przed .vd{background:var(--red)}
+  .vl.po{color:var(--green)}.vl.po .vd{background:var(--green)}
+  video{width:100%;border-radius:7px;border:1px solid var(--b);background:#000;display:block}
+
+  footer{text-align:center;color:var(--m);font-size:11px;padding:40px;border-top:1px solid var(--b);margin-top:20px}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div>
+    <h1>eavatar · Smoke Test Report <span>/ Backlog Phase 1</span></h1>
+    <div style="color:var(--m);font-size:12px;margin-top:3px">Poprawki zgłoszone przez klientkę · Nagrania PRZED i PO wdrożeniu</div>
+  </div>
+  <div class="pills">
+    <span class="pill g">✓ 5/5 testów PO</span>
+    <span class="pill b">codex/backlog-phase1</span>
+    <span class="pill">10 nagrań .webm</span>
+    <span class="pill">2026-03-24</span>
+  </div>
+</header>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--red)"></span> PRZED — <code>port 5173 · codex/agents-roadmap</code></span>
+  <span><span class="dot" style="background:var(--green)"></span> PO — <code>port 5174 · codex/backlog-phase1</code></span>
+  <span style="margin-left:auto">Czerwona pulsująca ramka = testowany element · kursor porusza się naturalnie jak tester manualny</span>
+</div>
+
+<!-- ════ P0 ════ -->
+<section class="ph p0">
+  <div class="pl"><span class="pbadge">P0</span> Krytyczne</div>
+
+  <!-- P0-01 EMAIL -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="tid">P0-01</div>
+        <div class="ttitle">Błędny adres e-mail administratora — brak kropki w adresie</div>
+        <div class="tbranch">fix/email · email-config.ts · post-signup/index.ts</div>
+      </div>
+      <span class="sbadge">Naprawione</span>
+    </div>
+    <div class="desc">
+      <div class="db"><div class="dl p">Problem zgłoszony przez klientkę</div>
+        <p>Powiadomienia e-mail po rejestracji nie docierały do administratora. Adres <code>avatarmieszek@gmail.com</code> miał literówkę — brakowało kropki między "avatar" a "mieszek".</p></div>
+      <div class="db"><div class="dl r">Rezultat / sposób realizacji</div>
+        <p>Poprawiono adres na <code>avatar.mieszek@gmail.com</code> w <code>email-config.ts</code>. Dodano logi diagnostyczne przed wysyłką: <code>adminEmail</code>, <code>fromEmail</code>, <code>resendInitialized</code>.</p></div>
+    </div>
+    <div class="vids">
+      <div class="vg">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — panel admina</div>
+          <video controls preload="metadata" src="all-before/single-test-T3-·-Admin-–-label-Pacjent-→-Klient--chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — panel admina (email fix)</div>
+          <video controls preload="metadata" src="all-after/single-test-T3-·-Admin-–-label-Pacjent-→-Klient--chromium-smoke/video.webm"></video></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ════ P1 ════ -->
+<section class="ph p1">
+  <div class="pl"><span class="pbadge">P1</span> Wysoki priorytet</div>
+
+  <!-- P1-01 FILE UPLOAD -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="tid">P1-01</div>
+        <div class="ttitle">Upload plików wynikowych — błędny MIME type + nowy label sekcji</div>
+        <div class="tbranch">fix/file-upload · patientResultFiles.ts · ResultsUpload.tsx</div>
+      </div>
+      <span class="sbadge">Naprawione</span>
+    </div>
+    <div class="desc">
+      <div class="db"><div class="dl p">Problem zgłoszony przez klientkę</div>
+        <p>Pliki PDF/JPG/PNG trafiały do Supabase z pustym <code>content-type</code> — iOS nie podaje MIME przy wgrywaniu. Powodowało błędy przy otwieraniu pliku po wgraniu.</p></div>
+      <div class="db"><div class="dl r">Rezultat / sposób realizacji</div>
+        <p>Dodano <code>EXTENSION_MIME_MAP</code> i helper <code>resolveContentType()</code>. Label sekcji zmieniono na <em>„Twoje wyniki badań laboratoryjnych (z krwi, moczu i inne)"</em>.</p></div>
+    </div>
+    <div class="vids">
+      <div class="vg">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — sekcja wyników (dashboard)</div>
+          <video controls preload="metadata" src="all-before/single-test-T5-·-Dashboard-–-label-sekcji-wyników-badań-chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — sekcja wyników (nowy label)</div>
+          <video controls preload="metadata" src="all-after/single-test-T5-·-Dashboard-–-label-sekcji-wyników-badań-chromium-smoke/video.webm"></video></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P1-02 FAMILY HEADER -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="tid">P1-02</div>
+        <div class="ttitle">Terminologia: „Pacjent→Klient", „medyczny→dietetyczny" — global copy refactor</div>
+        <div class="tbranch">fix/copy-remaining · 9 plików: AdminDashboard, AdminInterviewView, PatientProfile, Dashboard, NutritionInterview, Referrals, ResultsUpload, InterviewSplitLayout, PatientTable</div>
+      </div>
+      <span class="sbadge">Naprawione</span>
+    </div>
+    <div class="desc">
+      <div class="db"><div class="dl p">Problem zgłoszony przez klientkę</div>
+        <p>Aplikacja używała medycznej terminologii: „Pacjent", „Wywiad medyczny", „Pliki wynikowe", „diagnostyczny". Avatar jest centrum dietetycznym — cały UI powinien używać właściwego języka.</p></div>
+      <div class="db"><div class="dl r">Rezultat / sposób realizacji</div>
+        <p>„Pacjent" → „Klient", „Wywiad medyczny" → „Wywiad dietetyczny", „Pliki wynikowe" → „Twoje wyniki badań laboratoryjnych", „diagnostyczny" → „dietetyczny". Zaktualizowano 9 plików.</p></div>
+    </div>
+    <div class="vids">
+      <div class="vg">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — Admin: label „Pacjent"</div>
+          <video controls preload="metadata" src="all-before/single-test-T3-·-Admin-–-label-Pacjent-→-Klient--chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — Admin: label „Klient" ✓</div>
+          <video controls preload="metadata" src="all-after/single-test-T3-·-Admin-–-label-Pacjent-→-Klient--chromium-smoke/video.webm"></video></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ════ P2 ════ -->
+<section class="ph p2">
+  <div class="pl"><span class="pbadge">P2</span> Średni priorytet / UX</div>
+
+  <!-- P2-01 INTERVIEW TWO-COLUMN -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="tid">P2-01</div>
+        <div class="ttitle">Wywiad: układ dwukolumnowy w sekcjach częstotliwości spożycia</div>
+        <div class="tbranch">fix/interview · NutritionInterview.tsx · interviewFlowConfig.ts (5 sekcji: grains, dairy-protein-a, protein-b, fats-plants, sweet-intolerances)</div>
+      </div>
+      <span class="sbadge">Naprawione</span>
+    </div>
+    <div class="desc">
+      <div class="db"><div class="dl p">Problem zgłoszony przez klientkę</div>
+        <p>Sekcje częstotliwości spożycia (zboża, nabiał, białko, tłuszcze) wyświetlały się jako długa jednokolumnowa lista — nieczytelna na desktopie z dużymi ekranami.</p></div>
+      <div class="db"><div class="dl r">Rezultat / sposób realizacji</div>
+        <p>5 sekcji oznaczono <code>layout: "two-column"</code> w konfiguracji. Dodano funkcję <code>renderTwoColumnFrequencyQuestion()</code> renderującą pytania w siatce CSS grid 2-kolumnowej.</p></div>
+    </div>
+    <div class="vids">
+      <div class="vg">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — sekcja zboża (1 kolumna)</div>
+          <video controls preload="metadata" src="all-before/single-test-T4-·-Interview-676dd-boża-1-kolumna-vs-2-kolumny-chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — sekcja zboża (2 kolumny)</div>
+          <video controls preload="metadata" src="all-after/single-test-T4-·-Interview-676dd-boża-1-kolumna-vs-2-kolumny-chromium-smoke/video.webm"></video></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- P2-02 SIGNUP + DASHBOARD UX -->
+  <div class="card">
+    <div class="card-hd">
+      <div>
+        <div class="tid">P2-02</div>
+        <div class="ttitle">Signup wizard info-box + nagłówek dashboardu (rozmiar)</div>
+        <div class="tbranch">fix/landing-ux · SignupWizard.tsx · Dashboard.tsx · contact.ts</div>
+      </div>
+      <span class="sbadge">Naprawione</span>
+    </div>
+    <div class="desc">
+      <div class="db"><div class="dl p">Problem zgłoszony przez klientkę</div>
+        <p>Tekst info-boxu w rejestracji używał słowa „diagnoza". Nagłówek dashboardu był za duży na urządzeniach mobilnych (<code>text-5xl</code> = 48px).</p></div>
+      <div class="db"><div class="dl r">Rezultat / sposób realizacji</div>
+        <p>Info-box: usunięto „diagnoza", dodano opis o „funkcjonowaniu organizmu". Headline zmniejszono z <code>text-3xl md:text-5xl</code> → <code>text-2xl md:text-3xl</code> (48px → 30px na desktopie).</p></div>
+    </div>
+    <div class="vids">
+      <div class="vg">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — Signup: info-box „Diagnoza..."</div>
+          <video controls preload="metadata" src="all-before/single-test-T1-·-Signup-–--b70fd-s-funkcjonowania-organizmu--chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — Signup: info-box „funkcjonowania organizmu"</div>
+          <video controls preload="metadata" src="all-after/single-test-T1-·-Signup-–--b70fd-s-funkcjonowania-organizmu--chromium-smoke/video.webm"></video></div>
+      </div>
+      <div class="vg vsep">
+        <div class="vc"><div class="vl przed"><div class="vd"></div>PRZED — Dashboard: nagłówek duży (48px)</div>
+          <video controls preload="metadata" src="all-before/single-test-T2-·-Dashboard-h1-–-rozmiar-nagłówka-5xl-→-3xl--chromium-smoke/video.webm"></video></div>
+        <div class="vc"><div class="vl po"><div class="vd"></div>PO — Dashboard: nagłówek mniejszy (30px)</div>
+          <video controls preload="metadata" src="all-after/single-test-T2-·-Dashboard-h1-–-rozmiar-nagłówka-5xl-→-3xl--chromium-smoke/video.webm"></video></div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<footer>
+  eavatar · Smoke Test Report · Backlog Phase 1 · 2026-03-24<br>
+  5 testów PO: ✅ wszystkie zielone · 10 nagrań .webm · branch: codex/backlog-phase1<br><br>
+  <span>Nagrania wykonane Playwright z widocznym kursorem i animowaną ramką na testowanym elemencie</span>
+</footer>
+</body>
+</html>

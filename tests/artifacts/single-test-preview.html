@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Smoke — Single Test Preview</title>
+<style>
+  body { background:#0f0f0f; color:#e8e8e8; font-family:-apple-system,sans-serif; margin:0; padding:40px; }
+  h2 { font-size:18px; margin-bottom:8px; }
+  p { color:#888; font-size:13px; margin-bottom:24px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
+  .przed { color:#ef4444; }
+  .po { color:#22c55e; }
+  video { width:100%; border-radius:8px; border:1px solid #2e2e2e; background:#000; }
+</style>
+</head>
+<body>
+<h2>Signup – info-box: zmiana tekstu</h2>
+<p>PRZED: <em>"Diagnoza powstaje na podstawie Twojego zdjęcia..."</em> &nbsp;|&nbsp; PO: <em>"Zdjęcie jest niezbędne, aby system mógł odczytać indywidualną informację..."</em></p>
+<div class="grid">
+  <div>
+    <div class="label przed">● PRZED — port 5173 (codex/agents-roadmap)</div>
+    <video controls autoplay muted src="single-before/single-test-Signup-–-info--e003d-s-funkcjonowania-organizmu--chromium-smoke/video.webm"></video>
+  </div>
+  <div>
+    <div class="label po">● PO — port 5174 (codex/backlog-phase1)</div>
+    <video controls autoplay muted src="single-after/single-test-Signup-–-info--e003d-s-funkcjonowania-organizmu--chromium-smoke/video.webm"></video>
+  </div>
+</div>
+</body>
+</html>

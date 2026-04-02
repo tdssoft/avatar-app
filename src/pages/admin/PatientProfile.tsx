@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ClipboardList,
+  PenLine,
   FileText,
   Mail,
   Phone,
@@ -1521,6 +1522,16 @@ const PatientProfile = () => {
                 </Button>
                 {!canOpenInterview && (
                   <p className="text-xs text-muted-foreground">Brak wysłanego wywiadu dla tego profilu.</p>
+                )}
+                {selectedProfileId && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => navigate(`/admin/patient/${id}/interview/${selectedProfileId}`)}
+                  >
+                    <PenLine className="h-4 w-4 mr-2" />
+                    Wypełnij wywiad za pacjenta
+                  </Button>
                 )}
               </CardContent>
             </Card>

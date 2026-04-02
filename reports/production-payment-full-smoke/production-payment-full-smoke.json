@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "stripeUrl": "https://checkout.stripe.com/c/pay/cs_live_a132VuqisgZxEtzWVO3e0y7GLqnORc3H3eDKyF3VQEzlRFvYs5TLGnYpE5#fidnandhYHdWcXxpYCc%2FJ2FgY2RwaXEnKSdpamZkaWAnPyd1aScpJ2R1bE5gfCc%2FJ3VuWmlsc2BaMDRUaWtRN0J2RzdKTnU3NXZ2RE88VWA3fUkwY09JRFxuTmBfMTxPUFBGZnMwRmlVY2RoVjA1YzRyUmhsd1x3RmszVU5nfWJ1YkhOa0dTVndgZEtddnFNf2I1NTZ2XVI1bn9fJyknY3dqaFZgd3Ngdyc%2FcXdwYCknZ2RmbmJ3anBrYUZqaWp3Jz8nJmNjY2NjYycpJ2lkfGpwcVF8dWAnPyd2bGtiaWBabHFgaCcpJ2BrZGdpYFVpZGZgbWppYWB3dic%2FcXdwYHgl",
+  "stripeTitle": "Stripe Checkout",
+  "webhookStatus": 200,
+  "webhookText": "{\"received\":true}",
+  "accessRow": {
+    "person_profile_id": "6c92d6dd-1326-4374-9e7b-fdeee1ae8923",
+    "status": "active",
+    "selected_packages": "mini",
+    "source": "stripe"
+  },
+  "patientRow": {
+    "subscription_status": "Aktywna"
+  },
+  "finalUrl": "https://app.eavatar.diet/interview",
+  "networkErrors": [],
+  "requestFailures": [],
+  "consoleErrors": [],
+  "videoPath": "/Users/alanurban/Documents/eavatar.app/avatar-app/reports/production-payment-full-smoke/production-payment-full-smoke-1773928055009.webm",
+  "seed": {
+    "email": "prod-payment-full-1773928020049@example.com",
+    "profileId": "6c92d6dd-1326-4374-9e7b-fdeee1ae8923"
+  }
+}

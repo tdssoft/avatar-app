@@ -28,6 +28,7 @@ import RecommendationCreator from "./pages/admin/RecommendationCreator";
 import Partners from "./pages/admin/Partners";
 import ImportPatients from "./pages/admin/ImportPatients";
 import ExportData from "./pages/admin/ExportData";
+import AdminFillInterview from "./pages/admin/AdminFillInterview";
 import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => (
                   <Route path="patient/:id" element={<PatientProfile />} />
                   <Route path="patient/:id/recommendation/new" element={<RecommendationCreator />} />
                   <Route path="patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
+                  <Route path="patient/:id/interview/:profileId" element={<AdminFillInterview />} />
                   <Route path="partners" element={<Partners />} />
                   <Route path="import" element={<ImportPatients />} />
                   <Route path="export" element={<ExportData />} />

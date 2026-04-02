@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eavatar · Smoke Test Report · Backlog Phase 1</title>
+<style>
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
+    --text: #e8e8e8; --muted: #888; --red: #ef4444; --green: #22c55e;
+    --blue: #3b82f6; --yellow: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  .site-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 28px 40px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .site-header h1 { font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+  .site-header h1 span { color: var(--muted); font-weight: 400; }
+  .meta-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+  .pill.green { border-color: var(--green); color: var(--green); }
+  .pill.blue { border-color: var(--blue); color: var(--blue); }
+  .legend { padding: 16px 40px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; color: #aaa; }
+  .priority-section { padding: 32px 40px 0; }
+  .priority-label { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; margin-right: 8px; font-size: 10px; }
+  .p0 .badge { background: #ef444420; color: var(--red); border: 1px solid var(--red); }
+  .p1 .badge { background: #f59e0b20; color: var(--yellow); border: 1px solid var(--yellow); }
+  .p2 .badge { background: #3b82f620; color: var(--blue); border: 1px solid var(--blue); }
+  .task-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+  .task-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .task-id { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+  .task-title { font-size: 16px; font-weight: 600; }
+  .task-branch { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'SF Mono','Fira Code',monospace; }
+  .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; background: #22c55e18; border: 1px solid var(--green); color: var(--green); }
+  .status-badge::before { content: '✓'; }
+  .task-desc { display: grid; grid-template-columns: 1fr 1fr; }
+  @media(max-width:900px){ .task-desc,.video-group { grid-template-columns: 1fr; } }
+  .desc-block { padding: 20px 24px; }
+  .desc-block:first-child { border-right: 1px solid var(--border); }
+  .desc-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .desc-label.problem { color: var(--red); }
+  .desc-label.result { color: var(--green); }
+  .desc-label::before { content: ''; display: inline-block; width: 3px; height: 14px; border-radius: 2px; background: currentColor; }
+  .desc-block p { color: #ccc; font-size: 13px; line-height: 1.65; }
+  .task-videos { border-top: 1px solid var(--border); }
+  .video-group { display: grid; grid-template-columns: 1fr 1fr; }
+  .video-row-sep { border-top: 1px solid var(--border); }
+  .video-col { padding: 20px 24px; }
+  .video-col:first-child { border-right: 1px solid var(--border); }
+  .video-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .dot-label { width: 8px; height: 8px; border-radius: 50%; }
+  .video-label.przed { color: var(--red); }
+  .video-label.przed .dot-label { background: var(--red); }
+  .video-label.po { color: var(--green); }
+  .video-label.po .dot-label { background: var(--green); }
+  video { width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #000; display: block; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 40px; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>eavatar · Smoke Test Report <span>/ Backlog Phase 1</span></h1>
+    <div style="color:var(--muted);font-size:12px;margin-top:4px">Poprawki zgłoszone przez klientkę · Nagrania PRZED i PO wdrożeniu</div>
+  </div>
+  <div class="meta-pills">
+    <span class="pill green">✓ 14/14 PO</span>
+    <span class="pill blue">branch: codex/backlog-phase1</span>
+    <span class="pill">28 nagrań .webm</span>
+    <span class="pill">2026-03-24</span>
+  </div>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot" style="background:var(--red)"></div> PRZED — <code>port 5173 · codex/agents-roadmap</code></div>
+  <div class="legend-item"><div class="dot" style="background:var(--green)"></div> PO — <code>port 5174 · codex/backlog-phase1</code></div>
+  <div class="legend-item" style="margin-left:auto">Czerwona animowana ramka = testowany element · kursor porusza się do elementu jak tester manualny</div>
+</div>
+
+<!-- P0 -->
+<section class="priority-section p0">
+  <div class="priority-label"><span class="badge">P0</span> Krytyczne</div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P0-01 · T13</div>
+        <div class="task-title">Błędny adres e-mail administratora — brak kropki</div>
+        <div class="task-branch">fix/email · email-config.ts · post-signup/index.ts</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Powiadomienia e-mail po rejestracji nie docierały do administratora. Adres <code>avatarmieszek@gmail.com</code> miał literówkę — brakowało kropki.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>Poprawiono adres na <code>avatar.mieszek@gmail.com</code>. Dodano logi <code>adminEmail</code>, <code>fromEmail</code>, <code>resendInitialized</code> przed wysyłką dla debugowania.</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — panel admina</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T13-·-0baa1--lista-klientów-i-dashboard-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — panel admina (email fix)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T13-·-0baa1--lista-klientów-i-dashboard-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P0-02 · T08</div>
+        <div class="task-title">Nieprawidłowa nazwa pakietu w Stripe + brak obsługi błędów płatności</div>
+        <div class="task-branch">fix/payments · paymentFlow.ts · create-checkout-session/index.ts</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Pakiet wyświetlał się klientom jako „Regeneracyjny program organizmu". Błędy Stripe nie były obsługiwane — użytkownik widział pustą stronę.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>Zmieniono tytuł na „Profilaktyczny program wsparcia Twojego organizmu". Dodano sprawdzenie <code>stripeResponse.ok</code> z czytelnym komunikatem błędu.</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — strona płatności</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T08-·-1f9eb-neracyjny-vs-Profilaktyczny-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — strona płatności (nowa nazwa)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T08-·-1f9eb-neracyjny-vs-Profilaktyczny-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- P1 -->
+<section class="priority-section p1">
+  <div class="priority-label"><span class="badge">P1</span> Wysoki priorytet</div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P1-03 · T03 + T14</div>
+        <div class="task-title">Upload plików wynikowych — błędny MIME type + nowy label sekcji</div>
+        <div class="task-branch">fix/file-upload · patientResultFiles.ts · ResultsUpload.tsx · PatientProfile.tsx</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Pliki (PDF, JPG, PNG) trafiały do Supabase z pustym <code>content-type</code> — iOS nie podaje MIME przy wgrywaniu. Powodowało błędy przy otwieraniu pliku.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>Dodano <code>EXTENSION_MIME_MAP</code> i helper <code>resolveContentType()</code>. Label zmieniono na „Twoje wyniki badań laboratoryjnych (z krwi, moczu i inne)".</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — sekcja wyników (dashboard)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T03-·-bdd0b-niki-badań-laboratoryjnych--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — sekcja wyników (nowy label)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T03-·-bdd0b-niki-badań-laboratoryjnych--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Admin: wyniki badań klienta</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T14-·-ef04d-ków-badań-w-profilu-klienta-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Admin: wyniki badań klienta (fix)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T14-·-ef04d-ków-badań-w-profilu-klienta-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P1-04 · T09</div>
+        <div class="task-title">Nagłówek nie pokazuje imienia profilu dziecka (konto rodzinne)</div>
+        <div class="task-branch">fix/family-header · DashboardLayout.tsx</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Po przełączeniu na profil dziecka (<code>is_primary = false</code>) nagłówek nadal pokazywał imię rodzica. Klientka nie wiedziała na czyim profilu pracuje.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>Zaimportowano hook <code>usePersonProfiles</code> do <code>DashboardLayout</code>. Gdy <code>is_primary === false</code> wyświetlane jest <code>activeProfile.name</code>. Fallback do imienia rodzica.</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — header (zawsze imię rodzica)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T09-·-d47e3-r-–-imię-profilu-w-nagłówku-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — header (imię aktywnego profilu)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T09-·-d47e3-r-–-imię-profilu-w-nagłówku-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P1-05 · T02 + T04 + T05</div>
+        <div class="task-title">Terminologia: „Pacjent→Klient", „Wywiad medyczny→dietetyczny", nowe copy w 9 plikach</div>
+        <div class="task-branch">fix/copy-remaining · AdminInterviewView · AdminDashboard · PatientProfile · Dashboard · NutritionInterview · Referrals · ResultsUpload · InterviewSplitLayout · PatientTable</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Aplikacja używała medycznej terminologii (Pacjent, Wywiad medyczny, Pliki wynikowe, „diagnostyczny"). Avatar jest centrum dietetycznym — UI powinno odpowiednio odzwierciedlać profil marki.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>„Pacjent" → „Klient", „Wywiad medyczny" → „Wywiad dietetyczny", „Pliki wynikowe" → „Twoje wyniki badań laboratoryjnych", „diagnostyczny" → „dietetyczny", „Wypełnij ponownie ankietę" → „wywiad dietetyczny".</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Dashboard: link do wywiadu</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T02-·-3cdb3-nk-do-wywiadu-dietetycznego-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Dashboard: „wywiad dietetyczny"</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T02-·-3cdb3-nk-do-wywiadu-dietetycznego-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Admin: „Pacjent" w formularzu</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T04-·-a839a-bel-Klient-zamiast-Pacjent--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Admin: „Klient" w formularzu</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T04-·-a839a-bel-Klient-zamiast-Pacjent--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Referrals: „diagnostyczny"</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T05-·-75930-etetyczny-vs-diagnostyczny--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Referrals: „dietetyczny"</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T05-·-75930-etetyczny-vs-diagnostyczny--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- P2 -->
+<section class="priority-section p2">
+  <div class="priority-label"><span class="badge">P2</span> Średni priorytet / UX</div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P2-06 · T10 + T11 + T12</div>
+        <div class="task-title">Wywiad: układ dwukolumnowy + scrollowalny widok admina z nawigacją sekcji</div>
+        <div class="task-branch">fix/interview · NutritionInterview.tsx · AdminInterviewView.tsx · interviewFlowConfig.ts</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Sekcje częstotliwości spożycia wyświetlały się jako długa jednokolumnowa lista. Panel admina wymagał klikania zakładki dla każdej sekcji wywiadu osobno.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>5 sekcji oznaczono <code>layout: "two-column"</code>. Dodano <code>renderTwoColumnFrequencyQuestion()</code>. Widok admina przerobiono na jeden scrollowalny dokument ze sticky pill-navigation po sekcjach.</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Wywiad: sekcja zboża (1 kolumna)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T10-·-ce4be-a-zboża-layout-dwukolumnowy-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Wywiad: sekcja zboża (2 kolumny)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T10-·-ce4be-a-zboża-layout-dwukolumnowy-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Wywiad: nawigacja krok po kroku</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T11-·-1ab00-igacja-przez-pierwsze-kroki-chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Wywiad: nawigacja (ulepszona)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T11-·-1ab00-igacja-przez-pierwsze-kroki-chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Admin: wywiad (zakładki)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T12-·-97403-etyczny-scrollowalny-widok--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Admin: wywiad (scrollowalny + nav)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T12-·-97403-etyczny-scrollowalny-widok--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task-card">
+    <div class="task-header">
+      <div>
+        <div class="task-id">P2-07 · T01 + T06 + T07</div>
+        <div class="task-title">Signup wizard UX — kolejność opcji zdjęcia, tekst info-box, nagłówek dashboardu</div>
+        <div class="task-branch">fix/landing-ux · SignupWizard.tsx · Dashboard.tsx · contact.ts</div>
+      </div>
+      <span class="status-badge">Naprawione</span>
+    </div>
+    <div class="task-desc">
+      <div class="desc-block">
+        <div class="desc-label problem">Problem zgłoszony przez klientkę</div>
+        <p>Opcja „zrób zdjęcie kamerą" pojawiała się jako pierwsza — większość użytkowników wgrywa plik z dysku. Teksty info-boxów używały słowa „diagnoza". Nagłówek dashboardu za duży na mobile.</p>
+      </div>
+      <div class="desc-block">
+        <div class="desc-label result">Rezultat / sposób realizacji</div>
+        <p>Zamieniono kolejność przycisków (plik z dysku → kamera). Zaktualizowano info-boxy. Zmniejszono headline z <code>text-3xl md:text-5xl</code> → <code>text-2xl md:text-3xl</code>. Poprawiono <code>contact.ts</code>.</p>
+      </div>
+    </div>
+    <div class="task-videos">
+      <div class="video-group">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Dashboard: nagłówek (za duży)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T01-·-bfb42--–-nagłówek-główny-rozmiar--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Dashboard: nagłówek (mniejszy)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T01-·-bfb42--–-nagłówek-główny-rozmiar--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Signup: kolejność opcji (kamera 1.)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T06-·-c05ae-cji-kamera-vs-plik-z-dysku--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Signup: kolejność opcji (plik 1.)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T06-·-c05ae-cji-kamera-vs-plik-z-dysku--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+      <div class="video-group video-row-sep">
+        <div class="video-col">
+          <div class="video-label przed"><div class="dot-label"></div> PRZED — Signup: info-box (stary tekst)</div>
+          <video controls preload="metadata" src="smoke-before/backlog-phase1.smoke-T07-·-b15c9-dlaczego-potrzebne-zdjęcie--chromium-smoke/video.webm"></video>
+        </div>
+        <div class="video-col">
+          <div class="video-label po"><div class="dot-label"></div> PO — Signup: info-box (nowy tekst)</div>
+          <video controls preload="metadata" src="smoke-after/backlog-phase1.smoke-T07-·-b15c9-dlaczego-potrzebne-zdjęcie--chromium-smoke/video.webm"></video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  eavatar · Smoke Test Report · Backlog Phase 1 · 2026-03-24<br>
+  14 testów PO: ✅ wszystkie zielone · 28 nagrań .webm · branch: codex/backlog-phase1
+</footer>
+</body>
+</html>
