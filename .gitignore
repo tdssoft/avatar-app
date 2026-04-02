@@ -32,4 +32,22 @@ csv/export_All-*.csv
 
 # Playwright outputs
 playwright-report/
+playwright-f1-f12-report/
+playwright-report-ai/
+playwright-smoke-report/
 test-results/
+tests/e2e/recordings/
+
+# Temporary scripts with secrets / one-off scripts
+.tmp-*.mjs
+.tmp-*.js
+
+# OAuth tokens
+.gmail-tokens.json
+*.tokens.json
+
+# Vite cache
+.vite/
+
+# Claude
+.claude/

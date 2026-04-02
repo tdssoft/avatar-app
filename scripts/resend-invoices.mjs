@@ -7,8 +7,8 @@
  *   node scripts/resend-invoices.mjs --id in_xxx  # konkretna faktura
  */
 
-const STRIPE_KEY = "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";
-const BREVO_KEY = "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";
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
+const BREVO_KEY = process.env.BREVO_API_KEY;
 const ADMIN_EMAIL = "avatar.mieszek@gmail.com";
 const FROM_EMAIL = "AVATAR SP. Z O. O. <invoices@eavatar.diet>";
 
