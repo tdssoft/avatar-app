@@ -96,6 +96,7 @@ interface Recommendation {
   person_profile_id: string | null;
   download_token: string | null;
   token_expires_at: string | null;
+  is_draft?: boolean;
 }
 
 interface Note {
@@ -1182,6 +1183,27 @@ const PatientProfile = () => {
               </div>
             )}
           </div>
+
+          {/* AI Draft banner — shown when a draft recommendation exists for selected profile */}
+          {filteredRecommendations.some((r) => r.is_draft) && (
+            <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+              <span>
+                <strong>Szkic AI gotowy</strong> — AI przygotowało wstępny szkic zaleceń na podstawie wywiadu. Przejrzyj i wyślij do klienta.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
+                onClick={() => {
+                  const draft = filteredRecommendations.find((r) => r.is_draft);
+                  if (draft) setSelectedRecommendationId(draft.id);
+                }}
+              >
+                Przejrzyj szkic
+              </Button>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <Select value={selectedRecommendationId} onValueChange={setSelectedRecommendationId}>

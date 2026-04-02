@@ -435,6 +435,15 @@ const NutritionInterview = () => {
         console.warn("[NutritionInterview] Email notification failed:", err);
       }
 
+      // Trigger AI draft generation (fire-and-forget — nie blokuje nawigacji)
+      supabase.functions
+        .invoke("generate-interview-draft", { body: { profile_id: profileId } })
+        .then(({ error }) => {
+          if (error) console.warn("[NutritionInterview] AI draft generation failed:", error);
+          else console.log("[NutritionInterview] AI draft generation triggered");
+        })
+        .catch((err) => console.warn("[NutritionInterview] AI draft invoke error:", err));
+
       localStorage.removeItem(getDraftKey(profileId));
       localStorage.removeItem(getStepKey(profileId));
     }
