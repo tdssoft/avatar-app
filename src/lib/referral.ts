@@ -49,7 +49,12 @@ export const getReferralStats = async (referralCode: string) => {
 };
 
 export const generateReferralLink = (referralCode: string): string => {
-  const baseUrl = window.location.origin;
+  // Use the production URL to ensure referral links always work correctly
+  // regardless of where the app is currently running (localhost, staging, etc.)
+  const baseUrl =
+    typeof window !== "undefined" && window.location.hostname !== "localhost"
+      ? window.location.origin
+      : "https://app.eavatar.diet";
   return `${baseUrl}/signup?ref=${referralCode}`;
 };
 

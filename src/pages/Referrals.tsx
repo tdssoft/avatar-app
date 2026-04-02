@@ -148,6 +148,50 @@ const Referrals = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!user?.referralCode) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl">
+          <div className="mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Program polecający
+            </h1>
+            <p className="text-white/80">
+              Poleć Avatar znajomym i zdobywaj nagrody!
+            </p>
+          </div>
+          <Card>
+            <CardContent className="p-8 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-accent mx-auto mb-4" />
+              <h3 className="font-semibold text-lg mb-2">Generowanie kodu polecającego…</h3>
+              <p className="text-sm text-muted-foreground">
+                Twój unikalny kod polecający jest właśnie przypisywany. Odśwież stronę za chwilę.
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Odśwież stronę
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-4xl">
