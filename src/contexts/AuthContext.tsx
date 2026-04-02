@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
 export interface User {
   id: string;
@@ -407,6 +408,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem(ACTIVE_PROFILE_STORAGE_KEY);
     setUser(null);
     setSession(null);
     loadedProfileRef.current = null;

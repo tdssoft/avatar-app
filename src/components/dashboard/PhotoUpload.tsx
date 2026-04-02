@@ -29,6 +29,7 @@ const PhotoUpload = ({
   const [isUploading, setIsUploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const activeProfileIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [captureMode, setCaptureMode] = useState<"idle" | "camera">("idle");
@@ -64,6 +65,7 @@ const PhotoUpload = ({
           return;
         }
         setActiveProfileId(storedProfileId);
+        activeProfileIdRef.current = storedProfileId;
         await fetchProfileAvatar(storedProfileId);
       }
     };
@@ -73,7 +75,7 @@ const PhotoUpload = ({
     const onAvatarUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<{ avatarUrl?: string; profileId?: string }>;
       const targetProfileId = customEvent.detail?.profileId;
-      if (customEvent.detail?.avatarUrl && targetProfileId === activeProfileId) {
+      if (customEvent.detail?.avatarUrl && targetProfileId === activeProfileIdRef.current) {
         setAvatarUrl(customEvent.detail.avatarUrl);
       }
     };
@@ -83,6 +85,7 @@ const PhotoUpload = ({
       const nextProfileId = customEvent.detail?.profileId;
       if (!nextProfileId) return;
       setActiveProfileId(nextProfileId);
+      activeProfileIdRef.current = nextProfileId;
       void fetchProfileAvatar(nextProfileId);
     };
 
@@ -92,7 +95,7 @@ const PhotoUpload = ({
       window.removeEventListener("avatar-updated", onAvatarUpdated);
       window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onActiveProfileChanged);
     };
-  }, [activeProfileId]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
