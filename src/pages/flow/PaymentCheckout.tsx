@@ -23,16 +23,16 @@ const PaymentCheckout = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    // Sprawdź brak draftu NAJPIERW
     if (!draft || draft.selectedPackages.length === 0) {
       navigate("/payment", { replace: true });
+      return; // Wyjdź — nie sprawdzaj redirectTo
     }
-  }, [draft, navigate]);
-
-  useEffect(() => {
+    // Potem sprawdź redirect
     if (!isFlowLoading && redirectTo && redirectTo !== location.pathname) {
       navigate(redirectTo, { replace: true });
     }
-  }, [isFlowLoading, location.pathname, navigate, redirectTo]);
+  }, [draft, isFlowLoading, location.pathname, navigate, redirectTo]);
 
   if (!draft || draft.selectedPackages.length === 0) {
     return null;

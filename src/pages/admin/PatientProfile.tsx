@@ -244,7 +244,7 @@ const PatientProfile = () => {
     staleTime: 2 * 60 * 1000,  // data stays fresh for 2 minutes
     gcTime:   10 * 60 * 1000,  // kept in memory for 10 minutes after unmount
     enabled: !!id,
-    retry: false,
+    retry: 1,
   });
 
   // RPC #2: profile-specific data (result_files + device_files + ai_entries + can_open_interview)
@@ -1551,9 +1551,19 @@ const PatientProfile = () => {
                   <div className="space-y-3">
                     {paymentHistory.map((record) => {
                       const isActive = record.status === "active";
+                      const safeFormat = (dateStr: string | null): string => {
+                        if (!dateStr) return "Brak daty";
+                        try {
+                          const d = new Date(dateStr);
+                          if (isNaN(d.getTime())) return "Brak daty";
+                          return format(d, "dd.MM.yyyy HH:mm", { locale: pl });
+                        } catch {
+                          return "Brak daty";
+                        }
+                      };
                       const dateDisplay = record.activated_at
-                        ? format(new Date(record.activated_at), "dd.MM.yyyy HH:mm", { locale: pl })
-                        : format(new Date(record.created_at), "dd.MM.yyyy HH:mm", { locale: pl });
+                        ? safeFormat(record.activated_at)
+                        : safeFormat(record.created_at);
 
                       return (
                         <div key={record.id} className="rounded-lg border p-4 space-y-2">

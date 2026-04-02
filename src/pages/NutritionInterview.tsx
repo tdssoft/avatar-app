@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, RotateCw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,9 @@ const NutritionInterview = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const originalDataRef = useRef<string>('');
   const [currentStep, setCurrentStep] = useState(0);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profileRefreshNonce, setProfileRefreshNonce] = useState(0);
@@ -163,6 +165,7 @@ const NutritionInterview = () => {
         }
         const normalizedContent = normalizeInterviewContent(existing.content);
         setFormData(normalizedContent);
+        originalDataRef.current = JSON.stringify(normalizedContent);
         if (existing.last_updated_at) {
           setLastSavedAt(new Date(existing.last_updated_at));
         }
@@ -251,34 +254,8 @@ const NutritionInterview = () => {
               ),
             });
             // Powiadomienie email do admina o edycji wywiadu (fire-and-forget)
-            if (targetStatus === "draft") {
-              (async () => {
-                try {
-                  const { data: patientRow } = await supabase
-                    .from("patients")
-                    .select("id")
-                    .eq("user_id", user!.id)
-                    .maybeSingle();
-                  const { data: profileRow } = await supabase
-                    .from("person_profiles")
-                    .select("name")
-                    .eq("id", profileId!)
-                    .maybeSingle();
-                  await supabase.functions.invoke("send-question-notification", {
-                    body: {
-                      type: "interview_draft",
-                      user_email: user!.email ?? "",
-                      user_name: profileRow?.name ?? user!.email ?? "",
-                      profile_name: profileRow?.name ?? undefined,
-                      patient_id: patientRow?.id ?? undefined,
-                      message: "",
-                    },
-                  });
-                } catch (err) {
-                  console.warn("[NutritionInterview] Draft email notification failed:", err);
-                }
-              })();
-            }
+            // Wysyłamy TYLKO przy status="sent" — draft nie generuje emaila
+            // (guard przed spamem maili przy każdym ręcznym zapisie roboczym)
           }
         }
 
@@ -375,8 +352,13 @@ const NutritionInterview = () => {
       return;
     }
 
-    await saveInterview("draft", true);
-    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+    setIsNavigating(true);
+    try {
+      await saveInterview("draft", true);
+      setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   const handleBack = async () => {
@@ -405,34 +387,41 @@ const NutritionInterview = () => {
 
     if (success && profileId) {
       // Wyślij powiadomienie email do admina (fire-and-forget)
-      try {
-        // Pobierz patient_id przez patients.user_id
-        const { data: patientRow } = await supabase
-          .from("patients")
-          .select("id")
-          .eq("user_id", user!.id)
-          .maybeSingle();
+      // Deep-diff guard: wysyłaj tylko jeśli dane się zmieniły
+      const currentStr = JSON.stringify(formData);
+      const hasChanged = originalDataRef.current !== currentStr;
+      originalDataRef.current = currentStr;
 
-        // Pobierz nazwę profilu
-        const { data: profileRow } = await supabase
-          .from("person_profiles")
-          .select("name")
-          .eq("id", profileId)
-          .maybeSingle();
+      if (hasChanged) {
+        try {
+          // Pobierz patient_id przez patients.user_id
+          const { data: patientRow } = await supabase
+            .from("patients")
+            .select("id")
+            .eq("user_id", user!.id)
+            .maybeSingle();
 
-        await supabase.functions.invoke("send-question-notification", {
-          body: {
-            type: "interview_sent",
-            user_email: user!.email ?? "",
-            user_name: profileRow?.name ?? user!.email ?? "",
-            profile_name: profileRow?.name ?? undefined,
-            patient_id: patientRow?.id ?? undefined,
-            message: "",
-          },
-        });
-      } catch (err) {
-        // Nie blokuj nawigacji jeśli email się nie uda
-        console.warn("[NutritionInterview] Email notification failed:", err);
+          // Pobierz nazwę profilu
+          const { data: profileRow } = await supabase
+            .from("person_profiles")
+            .select("name")
+            .eq("id", profileId)
+            .maybeSingle();
+
+          await supabase.functions.invoke("send-question-notification", {
+            body: {
+              type: "interview_sent",
+              user_email: user!.email ?? "",
+              user_name: profileRow?.name ?? user!.email ?? "",
+              profile_name: profileRow?.name ?? undefined,
+              patient_id: patientRow?.id ?? undefined,
+              message: "",
+            },
+          });
+        } catch (err) {
+          // Nie blokuj nawigacji jeśli email się nie uda
+          console.warn("[NutritionInterview] Email notification failed:", err);
+        }
       }
 
       // Trigger AI draft generation (fire-and-forget — nie blokuje nawigacji)
@@ -710,18 +699,18 @@ const NutritionInterview = () => {
             : current.questions.map(renderQuestion)}
         </div>
 
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="mt-6 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
           <Button type="button" variant="ghost" onClick={handleBack} className="text-[#111]">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Powrót
           </Button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={handleCancel}
-              disabled={isSaving || isSubmitting}
+              disabled={isSaving || isSubmitting || isNavigating}
             >
               Anuluj
             </Button>
@@ -729,20 +718,21 @@ const NutritionInterview = () => {
               type="button"
               variant="outline"
               onClick={() => saveInterview("draft", false)}
-              disabled={isSaving || isSubmitting}
+              disabled={isSaving || isSubmitting || isNavigating}
             >
               <Save className="h-4 w-4 mr-2" />
               Zapisz roboczo
             </Button>
 
             {currentStep === totalSteps - 1 ? (
-              <Button type="button" variant="black" onClick={handleSubmit} disabled={isSubmitting}>
+              <Button type="button" variant="black" onClick={handleSubmit} disabled={isSubmitting} className="w-full sm:w-auto">
                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Zapisz
               </Button>
             ) : (
-              <Button type="button" variant="black" onClick={handleNext} disabled={isSaving || isSubmitting}>
-                Dalej
+              <Button type="button" variant="black" onClick={handleNext} disabled={isSaving || isSubmitting || isNavigating} className="w-full sm:w-auto">
+                {isNavigating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {isNavigating ? "Zapisywanie..." : "Dalej →"}
               </Button>
             )}
           </div>

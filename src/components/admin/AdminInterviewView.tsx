@@ -653,11 +653,11 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
           </Button>
         </div>
 
-        <Accordion type="multiple" defaultValue={["general", "preferences", "allergies", "health", "supplements", "goals"]} className="space-y-4">
-          {/* General Info */}
+        <Accordion type="multiple" defaultValue={["general", "health", "supplements", "preferences", "allergies", "goals"]} className="space-y-4">
+          {/* 1. Dane podstawowe */}
           <AccordionItem value="general" className="border rounded-lg px-4">
             <AccordionTrigger className="text-lg font-semibold">
-              Informacje ogólne
+              Dane podstawowe
             </AccordionTrigger>
             <AccordionContent className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -732,10 +732,91 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </AccordionContent>
           </AccordionItem>
 
-          {/* Preferences */}
+          {/* 2. Dolegliwości/potrzeby */}
+          <AccordionItem value="health" className="border rounded-lg px-4">
+            <AccordionTrigger className="text-lg font-semibold">
+              Dolegliwości zdrowotne
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="digestive_issues">Problemy trawienne</Label>
+                <Textarea
+                  id="digestive_issues"
+                  placeholder="Opisz ewentualne problemy trawienne..."
+                  value={formData.digestive_issues || ""}
+                  onChange={(e) => setFormData({ ...formData, digestive_issues: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="energy_issues">Problemy z energią</Label>
+                <Textarea
+                  id="energy_issues"
+                  placeholder="Opisz ewentualne problemy z energią..."
+                  value={formData.energy_issues || ""}
+                  onChange={(e) => setFormData({ ...formData, energy_issues: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="skin_issues">Problemy skórne</Label>
+                <Textarea
+                  id="skin_issues"
+                  placeholder="Opisz ewentualne problemy skórne..."
+                  value={formData.skin_issues || ""}
+                  onChange={(e) => setFormData({ ...formData, skin_issues: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="other_health_issues">Inne dolegliwości</Label>
+                <Textarea
+                  id="other_health_issues"
+                  placeholder="Opisz inne dolegliwości zdrowotne..."
+                  value={formData.other_health_issues || ""}
+                  onChange={(e) => setFormData({ ...formData, other_health_issues: e.target.value })}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* 3. Historia zdrowotna (leki, suplementy) */}
+          <AccordionItem value="supplements" className="border rounded-lg px-4">
+            <AccordionTrigger className="text-lg font-semibold">
+              Historia zdrowotna
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label htmlFor="current_supplements">Aktualne suplementy</Label>
+                <Textarea
+                  id="current_supplements"
+                  placeholder="Wymień aktualnie przyjmowane suplementy..."
+                  value={formData.current_supplements || ""}
+                  onChange={(e) => setFormData({ ...formData, current_supplements: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="past_supplements">Wcześniejsze suplementy</Label>
+                <Textarea
+                  id="past_supplements"
+                  placeholder="Wymień suplementy przyjmowane w przeszłości..."
+                  value={formData.past_supplements || ""}
+                  onChange={(e) => setFormData({ ...formData, past_supplements: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="medications">Przyjmowane leki</Label>
+                <Textarea
+                  id="medications"
+                  placeholder="Wymień przyjmowane leki..."
+                  value={formData.medications || ""}
+                  onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* 4. Nawyki żywieniowe */}
           <AccordionItem value="preferences" className="border rounded-lg px-4">
             <AccordionTrigger className="text-lg font-semibold">
-              Preferencje żywieniowe
+              Nawyki żywieniowe
             </AccordionTrigger>
             <AccordionContent className="space-y-4 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -808,7 +889,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </AccordionContent>
           </AccordionItem>
 
-          {/* Allergies */}
+          {/* 5. Inne (alergie, nietolerancje) */}
           <AccordionItem value="allergies" className="border rounded-lg px-4">
             <AccordionTrigger className="text-lg font-semibold">
               Alergie i nietolerancje
@@ -864,88 +945,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </AccordionContent>
           </AccordionItem>
 
-          {/* Health Issues */}
-          <AccordionItem value="health" className="border rounded-lg px-4">
-            <AccordionTrigger className="text-lg font-semibold">
-              Dolegliwości zdrowotne
-            </AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="digestive_issues">Problemy trawienne</Label>
-                <Textarea
-                  id="digestive_issues"
-                  placeholder="Opisz ewentualne problemy trawienne..."
-                  value={formData.digestive_issues || ""}
-                  onChange={(e) => setFormData({ ...formData, digestive_issues: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="energy_issues">Problemy z energią</Label>
-                <Textarea
-                  id="energy_issues"
-                  placeholder="Opisz ewentualne problemy z energią..."
-                  value={formData.energy_issues || ""}
-                  onChange={(e) => setFormData({ ...formData, energy_issues: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="skin_issues">Problemy skórne</Label>
-                <Textarea
-                  id="skin_issues"
-                  placeholder="Opisz ewentualne problemy skórne..."
-                  value={formData.skin_issues || ""}
-                  onChange={(e) => setFormData({ ...formData, skin_issues: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="other_health_issues">Inne dolegliwości</Label>
-                <Textarea
-                  id="other_health_issues"
-                  placeholder="Opisz inne dolegliwości zdrowotne..."
-                  value={formData.other_health_issues || ""}
-                  onChange={(e) => setFormData({ ...formData, other_health_issues: e.target.value })}
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Supplements */}
-          <AccordionItem value="supplements" className="border rounded-lg px-4">
-            <AccordionTrigger className="text-lg font-semibold">
-              Suplementacja i leki
-            </AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label htmlFor="current_supplements">Aktualne suplementy</Label>
-                <Textarea
-                  id="current_supplements"
-                  placeholder="Wymień aktualnie przyjmowane suplementy..."
-                  value={formData.current_supplements || ""}
-                  onChange={(e) => setFormData({ ...formData, current_supplements: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="past_supplements">Wcześniejsze suplementy</Label>
-                <Textarea
-                  id="past_supplements"
-                  placeholder="Wymień suplementy przyjmowane w przeszłości..."
-                  value={formData.past_supplements || ""}
-                  onChange={(e) => setFormData({ ...formData, past_supplements: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="medications">Przyjmowane leki</Label>
-                <Textarea
-                  id="medications"
-                  placeholder="Wymień przyjmowane leki..."
-                  value={formData.medications || ""}
-                  onChange={(e) => setFormData({ ...formData, medications: e.target.value })}
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Goals */}
+          {/* 6. Cele zdrowotne */}
           <AccordionItem value="goals" className="border rounded-lg px-4">
             <AccordionTrigger className="text-lg font-semibold">
               Cele zdrowotne
@@ -1168,10 +1168,10 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
         </div>
       ) : (
         <>
-          {/* General Info */}
+          {/* 1. Dane podstawowe */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Informacje ogólne</CardTitle>
+              <CardTitle className="text-lg">Dane podstawowe</CardTitle>
             </CardHeader>
             <CardContent>
               <InfoRow label="Wzrost" value={data.height ? `${data.height} cm` : undefined} />
@@ -1182,10 +1182,35 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </CardContent>
           </Card>
 
-          {/* Preferences */}
+          {/* 2. Dolegliwości/potrzeby */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Preferencje żywieniowe</CardTitle>
+              <CardTitle className="text-lg">Dolegliwości zdrowotne</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextSection label="Problemy trawienne" value={data.digestive_issues} />
+              <TextSection label="Problemy z energią" value={data.energy_issues} />
+              <TextSection label="Problemy skórne" value={data.skin_issues} />
+              <TextSection label="Inne dolegliwości" value={data.other_health_issues} />
+            </CardContent>
+          </Card>
+
+          {/* 3. Historia zdrowotna (leki, suplementy) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Historia zdrowotna</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <TextSection label="Aktualne suplementy" value={data.current_supplements} />
+              <TextSection label="Wcześniejsze suplementy" value={data.past_supplements} />
+              <TextSection label="Przyjmowane leki" value={data.medications} />
+            </CardContent>
+          </Card>
+
+          {/* 4. Nawyki żywieniowe */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Nawyki żywieniowe</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <InfoRow label="Typ diety" value={dietLabels[data.diet_type || ""]} />
@@ -1196,7 +1221,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </CardContent>
           </Card>
 
-          {/* Allergies */}
+          {/* 5. Inne (alergie, nietolerancje) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Alergie i nietolerancje</CardTitle>
@@ -1230,32 +1255,7 @@ const AdminInterviewView = ({ personProfileId, patientId }: AdminInterviewViewPr
             </CardContent>
           </Card>
 
-          {/* Health Issues */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Dolegliwości zdrowotne</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <TextSection label="Problemy trawienne" value={data.digestive_issues} />
-              <TextSection label="Problemy z energią" value={data.energy_issues} />
-              <TextSection label="Problemy skórne" value={data.skin_issues} />
-              <TextSection label="Inne dolegliwości" value={data.other_health_issues} />
-            </CardContent>
-          </Card>
-
-          {/* Supplements */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Suplementacja i leki</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <TextSection label="Aktualne suplementy" value={data.current_supplements} />
-              <TextSection label="Wcześniejsze suplementy" value={data.past_supplements} />
-              <TextSection label="Przyjmowane leki" value={data.medications} />
-            </CardContent>
-          </Card>
-
-          {/* Goals */}
+          {/* 6. Cele zdrowotne */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Cele zdrowotne</CardTitle>

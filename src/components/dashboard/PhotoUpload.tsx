@@ -95,7 +95,7 @@ const PhotoUpload = ({
       window.removeEventListener("avatar-updated", onAvatarUpdated);
       window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onActiveProfileChanged);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -227,12 +227,20 @@ const PhotoUpload = ({
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" }
+      });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setCaptureMode("camera");
-    } catch {
-      // Kamera niedostępna — nic nie rób
+    } catch (error) {
+      console.error("Camera error:", error);
+      toast({
+        title: "Brak dostępu do kamery",
+        description: "Sprawdź uprawnienia przeglądarki lub wybierz zdjęcie z urządzenia.",
+        variant: "destructive"
+      });
+      fileInputRef.current?.click();
     }
   };
 

@@ -24,9 +24,9 @@ const Payment = () => {
   const groupConfig = paymentGroups[activeGroup];
 
   const packages = useMemo(() => {
-    // Users with an active plan (hasPaidPlan) can only purchase the upgrade package "optimal" (370 zł).
+    // Users with an active plan (hasPaidPlan) can purchase the upgrade "optimal" (370 zł) or continuation "update" (220 zł).
     if (hasPaidPlan) {
-      return allPackages.filter((pkg) => pkg.id === "optimal");
+      return allPackages.filter((pkg) => ["optimal", "update"].includes(pkg.id));
     }
     return allPackages.filter((pkg) => groupConfig.packageIds.includes(pkg.id));
   }, [groupConfig.packageIds, hasPaidPlan]);
@@ -68,11 +68,11 @@ const Payment = () => {
 
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {hasPaidPlan ? "Upgrade — Pełny Program Startowy" : groupConfig.title}
+            {hasPaidPlan ? "Rozszerz lub kontynuuj program" : groupConfig.title}
           </h1>
           <p className="text-muted-foreground italic mt-2">
             {hasPaidPlan
-              ? "Masz już aktywny plan. Możesz dokupić Pełny Program Startowy (370 zł) jako upgrade lub kontynuację programu."
+              ? "Masz już aktywny plan. Możesz dokupić Pełny Program Startowy (370 zł) jako upgrade lub Kontynuację Programu Zdrowotnego (220 zł)."
               : groupConfig.description}
           </p>
         </div>
