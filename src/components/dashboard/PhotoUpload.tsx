@@ -263,6 +263,12 @@ const PhotoUpload = ({
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, []);
 
+  useEffect(() => {
+    if (captureMode === "camera" && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [captureMode]);
+
   const handleClick = () => {
     if (!editable) {
       onAction?.();
