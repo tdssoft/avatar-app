@@ -21,7 +21,6 @@ const jsonResponse = (status: number, body: Record<string, unknown>) =>
 
 const normalizeToE164 = (rawPhone: string): string | null => {
   const withoutFormatting = rawPhone.replace(/[\s\-().]/g, "");
-
   let normalized = withoutFormatting;
   if (normalized.startsWith("00")) {
     normalized = `+${normalized.slice(2)}`;
@@ -32,7 +31,6 @@ const normalizeToE164 = (rawPhone: string): string | null => {
       normalized = `+${normalized}`;
     }
   }
-
   return /^\+[1-9]\d{7,14}$/.test(normalized) ? normalized : null;
 };
 
@@ -59,17 +57,14 @@ serve(async (req: Request): Promise<Response> => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const {
-      data: { user },
-      error: userError,
-    } = await userClient.auth.getUser();
-
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
       return jsonResponse(401, { error: "Unauthorized" });
     }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    // Verify admin role
     const { data: roleData, error: roleError } = await adminClient
       .from("user_roles")
       .select("role")
@@ -81,7 +76,6 @@ serve(async (req: Request): Promise<Response> => {
       console.error("[send-patient-sms] role check failed:", roleError);
       return jsonResponse(500, { error: "Role validation failed" });
     }
-
     if (!roleData) {
       return jsonResponse(403, { error: "Brak uprawnień administratora" });
     }
@@ -97,6 +91,7 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(400, { error: "Wiadomość SMS jest za długa (max 1000 znaków)" });
     }
 
+    // Get patient user_id
     const { data: patient, error: patientError } = await adminClient
       .from("patients")
       .select("user_id")
@@ -104,10 +99,10 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (patientError || !patient) {
-      console.error("[send-patient-sms] patient fetch error:", patientError);
       return jsonResponse(404, { error: "Nie znaleziono pacjenta" });
     }
 
+    // Get phone number
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select("phone")
@@ -115,7 +110,6 @@ serve(async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (profileError) {
-      console.error("[send-patient-sms] profile fetch error:", profileError);
       return jsonResponse(500, { error: "Nie udało się pobrać numeru telefonu pacjenta" });
     }
 
@@ -128,52 +122,38 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(400, { error: "Nieprawidłowy numer telefonu pacjenta (wymagany format E.164)" });
     }
 
-    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioFromNumber = Deno.env.get("TWILIO_FROM_NUMBER");
-    const twilioMessagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID");
-
-    if (!twilioAccountSid || !twilioAuthToken) {
-      return jsonResponse(500, { error: "Brak konfiguracji Twilio (SID/TOKEN)" });
+    // Send SMS via Brevo transactional SMS API
+    const brevoApiKey = Deno.env.get("BREVO_API_KEY");
+    if (!brevoApiKey) {
+      return jsonResponse(500, { error: "Brak konfiguracji BREVO_API_KEY" });
     }
 
-    if (!twilioFromNumber && !twilioMessagingServiceSid) {
-      return jsonResponse(500, {
-        error: "Brak konfiguracji Twilio nadawcy (TWILIO_FROM_NUMBER lub TWILIO_MESSAGING_SERVICE_SID)",
-      });
-    }
-
-    const twilioPayload = new URLSearchParams({
-      To: toNumber,
-      Body: trimmedMessage,
-    });
-
-    if (twilioMessagingServiceSid) {
-      twilioPayload.append("MessagingServiceSid", twilioMessagingServiceSid);
-    } else if (twilioFromNumber) {
-      twilioPayload.append("From", twilioFromNumber);
-    }
-
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-    const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
-    const twilioResponse = await fetch(twilioUrl, {
+    const brevoResponse = await fetch("https://api.brevo.com/v3/transactionalSMS/sms", {
       method: "POST",
       headers: {
-        Authorization: `Basic ${twilioAuth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+        "api-key": brevoApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
       },
-      body: twilioPayload.toString(),
+      body: JSON.stringify({
+        sender: "AVATAR",
+        recipient: toNumber,
+        content: trimmedMessage,
+        type: "transactional",
+      }),
     });
 
-    const twilioData = await twilioResponse.json().catch(() => ({}));
+    const brevoData = await brevoResponse.json().catch(() => ({}));
 
-    if (!twilioResponse.ok) {
-      const twilioError = typeof twilioData?.message === "string" ? twilioData.message : "Twilio request failed";
-      console.error("[send-patient-sms] Twilio error:", twilioData);
-      return jsonResponse(502, { error: `Nie udało się wysłać SMS: ${twilioError}` });
+    if (!brevoResponse.ok) {
+      const brevoError = brevoData?.message ?? brevoData?.code ?? "Brevo SMS request failed";
+      console.error("[send-patient-sms] Brevo SMS error:", brevoData);
+      return jsonResponse(502, { error: `Nie udało się wysłać SMS: ${brevoError}` });
     }
 
+    console.log(`[send-patient-sms] SMS sent to ${toNumber} via Brevo, messageId: ${brevoData?.messageId}`);
+
+    // Save to patient_messages history
     const { error: insertError } = await adminClient.from("patient_messages").insert({
       patient_id,
       admin_id: user.id,
@@ -189,9 +169,11 @@ serve(async (req: Request): Promise<Response> => {
 
     return jsonResponse(200, {
       success: true,
-      message: "SMS sent successfully",
-      twilio_sid: twilioData?.sid ?? null,
+      message: "SMS sent successfully via Brevo",
+      messageId: brevoData?.messageId ?? null,
+      to: toNumber,
     });
+
   } catch (error) {
     console.error("[send-patient-sms] unexpected error:", error);
     return jsonResponse(500, { error: "Internal server error" });
