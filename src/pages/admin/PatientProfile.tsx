@@ -1197,7 +1197,7 @@ const PatientProfile = () => {
                 className="ml-auto shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
                 onClick={() => {
                   const draft = filteredRecommendations.find((r) => r.is_draft);
-                  if (draft) setSelectedRecommendationId(draft.id);
+                  if (draft) navigate(`/admin/patient/${id}/recommendation/${draft.id}/edit`);
                 }}
               >
                 Przejrzyj szkic

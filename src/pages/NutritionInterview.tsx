@@ -356,7 +356,7 @@ const NutritionInterview = () => {
 
         if (question.type === "frequency") {
           const frequency = value as FrequencyAnswer;
-          return !frequency?.frequency || !frequency?.note?.trim();
+          return !frequency?.frequency;
         }
 
         return typeof value !== "string" || value.trim().length === 0;
