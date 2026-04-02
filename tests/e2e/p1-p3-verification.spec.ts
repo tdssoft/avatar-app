@@ -186,9 +186,9 @@ test("P3 | post-signup edge function odpowiada (nie 500)", async ({ page }) => {
   await page.screenshot({ path: "tests/artifacts/p1-p3/p3-post-signup.png" });
 });
 
-// ─── P3b — send-patient-sms function odpowiada (nie 500 na brak kluczy) ──────
+// ─── P3b — send-patient-sms (Brevo SMS) — funkcja odpowiada poprawnie ────────
 
-test("P3b | send-patient-sms nie zwraca 500 na braku konfiguracji Twilio", async ({ page }) => {
+test("P3b | send-patient-sms (Brevo SMS) nie zwraca 500 na braku konfiguracji", async ({ page }) => {
   await loginAsAdmin(page);
 
   const accessToken = await page.evaluate(async () => {
@@ -220,11 +220,11 @@ test("P3b | send-patient-sms nie zwraca 500 na braku konfiguracji Twilio", async
   const body = await res.text().catch(() => "");
   console.log(`P3b: send-patient-sms status=${status}, body=${body.slice(0, 300)}`);
 
-  // 500 z "Brak konfiguracji Twilio" = problem z kluczami
-  // 404 "Nie znaleziono pacjenta" = funkcja działa, klucze OK
+  // 500 z "Brak konfiguracji BREVO_API_KEY" = problem z kluczami
+  // 404 "Nie znaleziono pacjenta" = funkcja działa, Brevo OK
   // 400 = walidacja danych = funkcja działa
-  const hasTwilioConfigError = body.includes("Brak konfiguracji Twilio");
-  expect(hasTwilioConfigError).toBe(false);
-  console.log(`✅ P3b: SMS function działa (brak błędu konfiguracji Twilio). Status: ${status}`);
+  const hasBrevoConfigError = body.includes("Brak konfiguracji BREVO_API_KEY");
+  expect(hasBrevoConfigError).toBe(false);
+  console.log(`✅ P3b: SMS (Brevo) function działa (brak błędu konfiguracji Brevo). Status: ${status}`);
   await page.screenshot({ path: "tests/artifacts/p1-p3/p3b-sms.png" });
 });
