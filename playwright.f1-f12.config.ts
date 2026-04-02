@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testMatch: ["f1-f12-verification.spec.ts", "texts-verification.spec.ts"],
+  testMatch: ["f1-f12-verification.spec.ts", "texts-verification.spec.ts", "p1-p3-verification.spec.ts"],
   timeout: 60_000,
   retries: 0,
   workers: 1,
