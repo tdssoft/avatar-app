@@ -10,7 +10,7 @@ import { test, expect, Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 
-const BASE_URL = "https://app.eavatar.diet";
+const BASE_URL = process.env.BASE_URL ?? "https://app.eavatar.diet";
 const ADMIN_EMAIL = "admin@eavatar.diet";
 const ADMIN_PASSWORD = "Admin123!";
 const CLIENT_EMAIL = "alan@tdssoft.pl";

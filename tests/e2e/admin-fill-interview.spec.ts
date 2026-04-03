@@ -6,7 +6,7 @@
  */
 import { test, expect } from "@playwright/test";
 
-const BASE_URL = "https://app.eavatar.diet";
+const BASE_URL = process.env.BASE_URL ?? "https://app.eavatar.diet";
 const ADMIN_EMAIL = "admin@eavatar.diet";
 const ADMIN_PASSWORD = "E2ETest2026!";
 
@@ -67,42 +67,21 @@ test("Admin wypełnia wywiad za pacjenta", async ({ page }) => {
   await dateInput.fill("1990-03-15");
   await page.waitForTimeout(300);
 
-  // Waga
-  const inputs = page.locator('input[type="text"], input:not([type])').filter({ hasNotText: "" });
-  const weightInput = page.getByPlaceholder(/waga|kg/i).first();
-  if (await weightInput.count() > 0) {
-    await weightInput.fill("70");
-  } else {
-    // Fallback: wypełnij drugi input tekstowy
-    const allInputs = page.locator('input[placeholder]');
-    await allInputs.nth(0).fill("70");
-  }
+  // Waga — input w divie który ma Label z tekstem "Waga"
+  const wagaInput = page.locator("div.space-y-2").filter({ hasText: /^Waga/ }).locator("input");
+  await wagaInput.fill("70");
   await page.waitForTimeout(300);
 
-  // Wzrost
-  const heightInput = page.getByPlaceholder(/wzrost|cm/i).first();
-  if (await heightInput.count() > 0) {
-    await heightInput.fill("170");
-  } else {
-    const allInputs = page.locator('input[placeholder]');
-    await allInputs.nth(1).fill("170");
-  }
+  // Wzrost — input w divie który ma Label z tekstem "Wzrost"
+  const wzrostInput = page.locator("div.space-y-2").filter({ hasText: /^Wzrost/ }).locator("input");
+  await wzrostInput.fill("170");
   await page.waitForTimeout(300);
 
-  // Płeć - Select
-  const sexSelect = page.locator('[role="combobox"]').first();
-  if (await sexSelect.count() > 0) {
-    await sexSelect.click();
-    await page.waitForTimeout(500);
-    // Wybierz "Kobieta" jeśli dostępne
-    const kobietaOption = page.getByRole("option", { name: /kobieta/i });
-    if (await kobietaOption.count() > 0) {
-      await kobietaOption.click();
-    } else {
-      // Wybierz pierwszą opcję
-      await page.locator('[role="option"]').first().click();
-    }
-  }
+  // Płeć — combobox (Select) w divie z Label "Płeć"
+  const plecDiv = page.locator("div.space-y-2").filter({ hasText: /^Płeć/ });
+  await plecDiv.locator('[role="combobox"]').click();
+  await page.waitForTimeout(400);
+  await page.getByRole("option", { name: /kobieta/i }).first().click();
   await page.waitForTimeout(500);
   console.log("✅ Krok 1 wypełniony");
 

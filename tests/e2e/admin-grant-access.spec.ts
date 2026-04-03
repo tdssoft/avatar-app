@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const BASE_URL = "https://app.eavatar.diet";
+const BASE_URL = process.env.BASE_URL ?? "https://app.eavatar.diet";
 const ADMIN_EMAIL = "admin@eavatar.diet";
 const ADMIN_PASSWORD = "E2ETest2026!";
 

@@ -13,7 +13,7 @@
  */
 import { test, expect, Page } from "@playwright/test";
 
-const BASE_URL = "https://app.eavatar.diet";
+const BASE_URL = process.env.BASE_URL ?? "https://app.eavatar.diet";
 const CLIENT_EMAIL = "alan@tdssoft.pl";
 const CLIENT_PASSWORD = "Admin1234!";
 
