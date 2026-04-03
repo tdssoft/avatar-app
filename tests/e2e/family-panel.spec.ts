@@ -52,13 +52,23 @@ async function getPageText(page: Page): Promise<string> {
 }
 
 async function navigateToAddProfile(page: Page): Promise<boolean> {
-  // Szukaj przycisku dodania nowego profilu / dodania osoby
+  // Przejdź do strony profilu gdzie jest sekcja "Moje profile" z przyciskiem "Dodaj"
+  // PersonProfilesSection jest renderowana na /dashboard/profile
+  const currentUrl = page.url();
+  if (!currentUrl.includes("/dashboard/profile")) {
+    await page.goto(`${BASE_URL}/dashboard/profile`);
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(1500);
+  }
+
+  // Kliknij przycisk "Dodaj" w sekcji "Moje profile" (PersonProfilesSection)
+  // Przycisk ma ikonę UserPlus i tekst "Dodaj"
   const addSelectors = [
+    'button:has-text("Dodaj")',
     'button:has-text("Dodaj profil")',
     'button:has-text("Dodaj osobę")',
     'button:has-text("Dodaj dziecko")',
     'button:has-text("Nowy profil")',
-    'button:has-text("+")',
     '[data-testid="add-profile"]',
   ];
 
@@ -70,6 +80,21 @@ async function navigateToAddProfile(page: Page): Promise<boolean> {
       return true;
     }
   }
+
+  // Fallback: spróbuj otworzyć dropdown ProfileSelector w sidebarze
+  // i kliknij "Dodaj profil" (DropdownMenuItem)
+  const dropdownTrigger = page.locator('[class*="sidebar"] button, nav button').filter({ has: page.locator('svg') }).first();
+  if (await dropdownTrigger.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await dropdownTrigger.click();
+    await page.waitForTimeout(500);
+    const menuItem = page.locator('[role="menuitem"]:has-text("Dodaj profil")').first();
+    if (await menuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await menuItem.click();
+      await page.waitForTimeout(1500);
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -166,19 +191,22 @@ test.describe("Panel rodzinny — dodawanie dziecka/sub-profilu", () => {
 
     const text = await getPageText(page);
     // Sprawdź że jest możliwość dania dostępu
-    const hasGrantAccess = text.includes("Daj dostęp") ||
+    // Rzeczywisty tekst przycisku w PatientProfile.tsx to "Aktywuj dostęp"
+    const hasGrantAccess = text.includes("Aktywuj dostęp") ||
+      text.includes("Daj dostęp") ||
       text.includes("Nadaj dostęp") ||
+      await page.locator('button:has-text("Aktywuj dostęp")').isVisible({ timeout: 3000 }).catch(() => false) ||
       await page.locator('button:has-text("Daj dostęp")').isVisible({ timeout: 3000 }).catch(() => false);
 
     // Sprawdź że jest dropdown/selector profilów (nie tylko główny)
     const hasProfileDropdown = await page.locator('select, [class*="dropdown"]').first().isVisible({ timeout: 2000 }).catch(() => false);
 
-    console.log(`FP-03: Daj dostęp=${hasGrantAccess}, dropdown=${hasProfileDropdown}`);
+    console.log(`FP-03: Aktywuj dostęp=${hasGrantAccess}, dropdown=${hasProfileDropdown}`);
     // BUG Z PDF str. 4: "nie ma możliwości dla tego dodanego konta dać dostępu z poziomu admina"
     if (!hasGrantAccess) {
       console.log("FP-03: ❌ BUG POTWIERDZONY — admin nie może dać dostępu sub-profilowi (PDF str. 4)");
     } else {
-      console.log("FP-03: ✅ Daj dostęp dostępne dla sub-profilu");
+      console.log("FP-03: ✅ Aktywuj dostęp dostępne dla sub-profilu");
     }
     // expect(hasGrantAccess).toBe(true);
   });

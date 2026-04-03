@@ -536,96 +536,6 @@ const Dashboard = () => {
               </Card>
             </div>
 
-            <Card className="rounded-lg border-[#d9dee4] shadow-none">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-[24px] leading-tight font-bold">Twoje wyniki badań laboratoryjne (z krwi, moczu i inne)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {patientResultFiles.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {patientResultFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className="rounded-md border border-[#d9dee4] bg-white px-4 py-3"
-                      >
-                        <div className="flex items-start gap-3 mb-2">
-                          <FileText className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{file.file_name}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(file.created_at).toLocaleDateString("pl-PL")}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2.5 text-xs gap-1"
-                            onClick={() => void openResultFile(file)}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            Otwórz
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 px-2.5 text-xs gap-1"
-                            onClick={async () => {
-                              try {
-                                const url = await createPatientResultFileSignedUrl(file.file_path);
-                                const link = document.createElement("a");
-                                link.href = url;
-                                link.download = file.file_name;
-                                link.rel = "noopener noreferrer";
-                                document.body.appendChild(link);
-                                link.click();
-                                link.remove();
-                              } catch {
-                                toast({ variant: "destructive", title: "Błąd", description: "Nie udało się pobrać pliku." });
-                              }
-                            }}
-                          >
-                            <Download className="h-3 w-3" />
-                            Pobierz
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Brak wgranych wyników badań dla aktywnego profilu.</p>
-                )}
-                <div className="mt-4">
-                  <input
-                    id="patient-result-upload"
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handlePatientResultFileUpload(file);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isUploadingResultFile}
-                    onClick={() => document.getElementById("patient-result-upload")?.click()}
-                    className="gap-2"
-                  >
-                    {isUploadingResultFile ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4" />
-                    )}
-                    {isUploadingResultFile ? "Wgrywanie..." : "Wgraj wyniki badań"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             <section className="pt-1">
               <h2 className="text-[24px] leading-tight font-bold mb-3">Zadaj pytanie</h2>
               <p className="text-sm text-muted-foreground mb-4">
@@ -675,6 +585,97 @@ const Dashboard = () => {
             </div>
           </>
         )}
+
+        {/* Sekcja wyników badań — widoczna zawsze (PDF str. 15/20) */}
+        <Card className="rounded-lg border-[#d9dee4] shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[24px] leading-tight font-bold">Twoje wyniki badań laboratoryjne (z krwi, moczu i inne)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {patientResultFiles.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {patientResultFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="rounded-md border border-[#d9dee4] bg-white px-4 py-3"
+                  >
+                    <div className="flex items-start gap-3 mb-2">
+                      <FileText className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{file.file_name}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(file.created_at).toLocaleDateString("pl-PL")}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2.5 text-xs gap-1"
+                        onClick={() => void openResultFile(file)}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Otwórz
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2.5 text-xs gap-1"
+                        onClick={async () => {
+                          try {
+                            const url = await createPatientResultFileSignedUrl(file.file_path);
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = file.file_name;
+                            link.rel = "noopener noreferrer";
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                          } catch {
+                            toast({ variant: "destructive", title: "Błąd", description: "Nie udało się pobrać pliku." });
+                          }
+                        }}
+                      >
+                        <Download className="h-3 w-3" />
+                        Pobierz
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Brak wgranych wyników badań dla aktywnego profilu.</p>
+            )}
+            <div className="mt-4">
+              <input
+                id="patient-result-upload"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handlePatientResultFileUpload(file);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isUploadingResultFile}
+                onClick={() => document.getElementById("patient-result-upload")?.click()}
+                className="gap-2"
+              >
+                {isUploadingResultFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+                {isUploadingResultFile ? "Wgrywanie..." : "Wgraj wyniki badań"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       </div>
     </DashboardLayout>

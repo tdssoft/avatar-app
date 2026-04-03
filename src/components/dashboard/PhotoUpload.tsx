@@ -138,7 +138,7 @@ const PhotoUpload = ({
 
     try {
       let currentUserId = userId;
-      let currentProfileId = activeProfileId || localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
+      let currentProfileId = activeProfileIdRef.current || activeProfileId || localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
       if (!currentUserId) {
         const {
           data: { user },

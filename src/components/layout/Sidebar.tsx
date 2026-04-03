@@ -135,7 +135,7 @@ const Sidebar = () => {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-0 bg-sidebar">
+          <SheetContent side="left" className="w-72 p-0 bg-sidebar z-[100]">
             <SidebarContent onItemClick={() => setOpen(false)} />
           </SheetContent>
         </Sheet>

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -34,6 +35,7 @@ import { AdminNotificationsProvider } from "@/contexts/AdminNotificationsContext
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ErrorBoundary>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
@@ -64,19 +66,22 @@ const App = () => (
             <Route path="/recommendation/download" element={<RecommendationDownload />} />
             {/* Admin Routes */}
             <Route path="/admin/*" element={
-              <AdminNotificationsProvider>
-                <Routes>
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="patient/:id" element={<PatientProfile />} />
-                  <Route path="patient/:id/recommendation/new" element={<RecommendationCreator />} />
-                  <Route path="patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
-                  <Route path="patient/:id/interview/:profileId" element={<AdminFillInterview />} />
-                  <Route path="partners" element={<Partners />} />
-                  <Route path="import" element={<ImportPatients />} />
-                  <Route path="export" element={<ExportData />} />
-                </Routes>
-              </AdminNotificationsProvider>
+              <ErrorBoundary>
+                <AdminNotificationsProvider>
+                  <Routes>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="patient/:id" element={<PatientProfile />} />
+                    <Route path="patient/:id/recommendation/new" element={<RecommendationCreator />} />
+                    <Route path="patient/:id/recommendation/:recommendationId/edit" element={<RecommendationCreator />} />
+                    <Route path="patient/:id/interview/:profileId" element={<AdminFillInterview />} />
+                    <Route path="partners" element={<Partners />} />
+                    <Route path="import" element={<ImportPatients />} />
+                    <Route path="export" element={<ExportData />} />
+                  </Routes>
+                </AdminNotificationsProvider>
+              </ErrorBoundary>
             } />
+            <Route path="/help" element={<Navigate to="/dashboard/help" replace />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
@@ -84,6 +89,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
