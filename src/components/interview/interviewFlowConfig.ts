@@ -28,6 +28,13 @@ export type InterviewQuestionConfig =
       label: string;
       helper?: string;
       notePlaceholder?: string;
+    }
+  | {
+      type: "mealPair";
+      keyLeft: keyof InterviewV2Content;
+      labelLeft: string;
+      keyRight: keyof InterviewV2Content;
+      labelRight: string;
     };
 
 export type InterviewStepConfig = {
@@ -65,12 +72,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
       {
         type: "textarea",
         key: "mainSymptoms",
-        label: "Opisz swoje dolegliwości/potrzeby — od jak dawna występują? Kiedy się nasilają i jak często?",
-      },
-      {
-        type: "textarea",
-        key: "symptomTriggers",
-        label: "Czy są jakieś okoliczności które je nasilają?",
+        label: "Opisz swoje dolegliwości/potrzeby od jak dawna występują? Kiedy się nasilają i jak często?",
       },
     ],
   },
@@ -86,12 +88,7 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
       {
         type: "textarea",
         key: "medicationsSupplementsHerbs",
-        label: "Czy obecnie przyjmujesz lub przyjmowałeś/aś w przeszłości leki, suplementy diety lub zioła? Jeśli tak – jakie?",
-      },
-      {
-        type: "textarea",
-        key: "infectionTendency",
-        label: "Czy masz skłonność do infekcji?",
+        label: "Czy obecnie przyjmujesz lub przyjmowałeś/aś w przeszłości leki, suplementy diety lub zioła? Jeśli tak – jakie? Czy masz skłonność do infekcji?",
       },
     ],
   },
@@ -132,11 +129,10 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
           { value: "mix", label: "Mix (w domu i poza domem)" },
         ],
       },
-      { type: "input", key: "mealsPerDay", label: "Ile posiłków spożywasz w ciągu dnia?" },
       {
         type: "textarea",
         key: "snacking",
-        label: "Czy podjadasz pomiędzy posiłkami? Jakie produkty?",
+        label: "Czy podjada Pan/Pani pomiędzy posiłkami i jakie produkty?",
       },
     ],
   },
@@ -144,17 +140,10 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
     id: "daily-meals",
     heading: "Struktura posiłków",
     questions: [
-      { type: "input", key: "breakfast", label: "Co jest spożywane na śniadanie?" },
-      { type: "input", key: "breakfastTime", label: "Pora przyjmowania śniadania" },
-      { type: "input", key: "lunch", label: "Co jest spożywane na obiad?" },
-      { type: "input", key: "lunchTime", label: "Pora przyjmowania obiadu" },
-      { type: "input", key: "dinner", label: "Co jest spożywane na kolację?" },
-      { type: "input", key: "dinnerTime", label: "Pora przyjmowania kolacji" },
-      {
-        type: "textarea",
-        key: "extraMeals",
-        label: "Czy spożywasz więcej niż 3 posiłki dziennie? Jeśli tak, jakie są to dodatkowe posiłki i o której porze?",
-      },
+      { type: "mealPair", keyLeft: "breakfast", labelLeft: "Co jest spożywane na śniadanie?", keyRight: "breakfastTime", labelRight: "Pora przyjmowania?" },
+      { type: "mealPair", keyLeft: "lunch", labelLeft: "Co jest spożywane na obiad?", keyRight: "lunchTime", labelRight: "Pora przyjmowania?" },
+      { type: "mealPair", keyLeft: "dinner", labelLeft: "Co jest spożywane na kolację?", keyRight: "dinnerTime", labelRight: "Pora przyjmowania?" },
+      { type: "mealPair", keyLeft: "extraMeals", labelLeft: "Czy spożywasz więcej niż 3 posiłki dziennie? Jeśli tak, jakie są to dodatkowe posiłki?", keyRight: "extraMealsTime", labelRight: "Pora przyjmowania?" },
     ],
   },
   {
@@ -171,14 +160,8 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
       {
         type: "frequency",
         key: "whiteBreadFrequency",
-        label: "Jak często spożywane są kasze?",
-        helper: "gryczane, jaglane, manna, płatki owsiane, jęczmienne, bulgur, kuskus",
-      },
-      {
-        type: "frequency",
-        key: "groatsFrequency",
-        label: "Jak często spożywany jest ryż?",
-        helper: "biały, basmati, brązowy, czarny, czerwony, dziki",
+        label: "Jak często spożywane są kasze i ryż?",
+        helper: "gryczane, jaglane, manna, płatki owsiane, jęczmienne, bulgur, kuskus; biały, basmati, brązowy, czarny, czerwony, dziki",
       },
     ],
   },
@@ -229,17 +212,10 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
         label: "Jak często spożywane są podroby mięsne, wędliny?",
         helper: "pasztety, drobiowe, wątróbki, żołądki, flaczki",
       },
-    ],
-  },
-  {
-    id: "fats-plants",
-    heading: "Tłuszcze i produkty roślinne",
-    layout: "two-column",
-    questions: [
       {
         type: "frequency",
         key: "butterFrequency",
-        label: "Jak często spożywane są tłuszcze zwierzęce: masło, smalec, margaryna, śmietana?",
+        label: "Jak często spożywane są tłuszcze zwierzęce: masło, smalec, margaryna, śmietana, smalec?",
         helper: "ilość % tłuszczu: 82, 18, 20, 30, 36",
       },
       {
@@ -248,6 +224,13 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
         label: "Jak często spożywane są tłuszcze roślinne?",
         helper: "olej kokosowy, olej lniany, olej z czarnuszki, oliwa z oliwek, olej słonecznikowy, olej rzepakowy, olej z wiesiołka",
       },
+    ],
+  },
+  {
+    id: "fats-plants",
+    heading: "Owoce, warzywa i rośliny",
+    layout: "two-column",
+    questions: [
       {
         type: "frequency",
         key: "fruitsFrequency",
@@ -276,13 +259,13 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
   },
   {
     id: "sweet-intolerances",
-    heading: "Słodycze i nietolerancje",
+    heading: "Słodycze",
     layout: "two-column",
     questions: [
       {
         type: "frequency",
         key: "honeyFrequency",
-        label: "Jak często spożywasz produkty słodkie: miód, dżem lub słodycze?",
+        label: "Jak często spożywa Pan/Pani produkty słodkie, takie jak miód, dżem lub słodycze?",
       },
       {
         type: "frequency",
@@ -295,15 +278,21 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
         key: "sugarFrequency",
         label: "Jak często spożywany jest cukier?",
       },
+    ],
+  },
+  {
+    id: "intolerances",
+    heading: "Nietolerancje i polepszacze",
+    questions: [
       {
         type: "textarea",
         key: "intolerancesAllergies",
-        label: "Jakich potraw nie tolerujesz? (alergie pokarmowe)",
+        label: "Jakich potraw Pan/Pani nie toleruje? (alergie pokarmowe)",
       },
       {
         type: "textarea",
         key: "flavorEnhancers",
-        label: "Czy używasz kostek rosołowych, vegety i innych \u201Epolepszaczy\u201D?",
+        label: "Czy używa Pan/Pani kostek rosołowych, vegety i innych \u201Epolepszaczy\u201D?",
       },
     ],
   },
@@ -311,14 +300,13 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
     id: "summary",
     heading: "Podsumowanie",
     questions: [
-      { type: "textarea", key: "addictions", label: "Czy posiadasz nałogi? Jakie?" },
+      { type: "textarea", key: "addictions", label: "Czy posiada Pan/Pani nałogi? Jakie?" },
       { type: "textarea", key: "petsAtHome", label: "Czy są zwierzęta w domu lub były?" },
       {
         type: "textarea",
         key: "cycleRegularity",
-        label: "Czy występują u Ciebie problemy związane z układem rozrodczym lub moczowym? (np. nieregularne lub bolesne miesiączki, problemy z prostatą, oddawaniem moczu lub inne)",
+        label: "Czy występują u Pana/Pani problemy związane z układem rozrodczym lub moczowym – np. nieregularne lub bolesne miesiączki (u kobiet) albo problemy z prostatą, oddawaniem moczu czy powiększeniem gruczołu krokowego (u mężczyzn)? lub inne",
       },
-      { type: "textarea", key: "notes", label: "Dodatkowe uwagi" },
     ],
   },
 ];
