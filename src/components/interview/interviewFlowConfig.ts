@@ -172,12 +172,6 @@ export const INTERVIEW_STEPS: InterviewStepConfig[] = [
     questions: [
       {
         type: "frequency",
-        key: "milkFrequency",
-        label: "Jak często spożywane jest mleko?",
-        helper: "Podaj uwagi i rodzaj: krowie, kozie, roślinne.",
-      },
-      {
-        type: "frequency",
         key: "kefirYogurtFrequency",
         label: "Jak często spożywane są produkty mleczne?",
         helper: "kefiry, jogurty, maślanka, sery żółte, białe, pleśniowe, topione",
