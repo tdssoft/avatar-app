@@ -341,7 +341,7 @@ const AdminFillInterview = () => {
     }
 
     // frequency (default)
-    const frequencyValue = formData[key] as FrequencyAnswer;
+    const frequencyValue = (formData[key] as FrequencyAnswer) ?? { frequency: "" as const, note: "" };
     return (
       <div key={String(key)} className="space-y-2 border-b border-[#dddddd] pb-4 last:border-0">
         <Label className="text-base font-semibold leading-tight text-[#191919]">{question.label}</Label>
@@ -383,7 +383,7 @@ const AdminFillInterview = () => {
     if (question.type !== "frequency") return renderQuestion(question);
 
     const key = question.key;
-    const frequencyValue = formData[key] as FrequencyAnswer;
+    const frequencyValue = (formData[key] as FrequencyAnswer) ?? { frequency: "" as const, note: "" };
 
     return (
       <div
