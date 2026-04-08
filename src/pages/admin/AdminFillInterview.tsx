@@ -342,6 +342,29 @@ const AdminFillInterview = () => {
       );
     }
 
+    if (question.type === "mealPair") {
+      return (
+        <div key={String(question.keyLeft)} className="grid grid-cols-2 gap-4 items-end">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold leading-tight text-[#191919]">{question.labelLeft}</Label>
+            <Input
+              value={formData[question.keyLeft] as string}
+              onChange={(e) => updateStringField(question.keyLeft, e.target.value)}
+              className="bg-transparent border-[#cfcfcf]"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-base font-semibold leading-tight text-[#191919]">{question.labelRight}</Label>
+            <Input
+              value={formData[question.keyRight] as string}
+              onChange={(e) => updateStringField(question.keyRight, e.target.value)}
+              className="bg-transparent border-[#cfcfcf]"
+            />
+          </div>
+        </div>
+      );
+    }
+
     // frequency (default)
     const frequencyValue = (formData[key] as FrequencyAnswer) ?? { frequency: "" as const, note: "" };
     return (
