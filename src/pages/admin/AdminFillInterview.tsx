@@ -188,6 +188,8 @@ const AdminFillInterview = () => {
   const getMissingStepFields = (step: (typeof INTERVIEW_STEPS)[number]): string[] =>
     step.questions
       .filter((question) => {
+        // mealPair questions are optional — skip validation
+        if (question.type === "mealPair") return false;
         const value = formData[question.key];
         if (question.type === "checkboxGroup") return !Array.isArray(value) || value.length === 0;
         if (question.type === "frequency") return !(value as FrequencyAnswer)?.frequency;

@@ -325,6 +325,9 @@ const NutritionInterview = () => {
   const getMissingStepFields = (step: (typeof INTERVIEW_STEPS)[number]): string[] => {
     return step.questions
       .filter((question) => {
+        // mealPair questions are optional — skip validation
+        if (question.type === "mealPair") return false;
+
         const value = formData[question.key];
 
         if (question.type === "checkboxGroup") {
