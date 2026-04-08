@@ -75,8 +75,8 @@ export interface InterviewV2Content {
 
 export const FREQUENCY_OPTIONS: Array<{ value: FrequencyOption; label: string }> = [
   { value: "daily", label: "Codziennie" },
-  { value: "weekly", label: "Raz w tygodniu" },
-  { value: "monthly", label: "Raz w miesiącu" },
+  { value: "weekly", label: "Kilka razy w tygodniu" },
+  { value: "monthly", label: "Kilka razy w miesiącu" },
   { value: "rarely", label: "Rzadziej" },
 ];
 

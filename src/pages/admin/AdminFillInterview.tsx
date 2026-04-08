@@ -371,7 +371,7 @@ const AdminFillInterview = () => {
       <div key={String(key)} className="space-y-2 border-b border-[#dddddd] pb-4 last:border-0">
         <Label className="text-base font-semibold leading-tight text-[#191919]">{question.label}</Label>
         {question.helper && <p className="text-xs text-[#8a8a8a] italic">{question.helper}</p>}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3 items-start">
+        <div className="grid grid-cols-[1fr_240px] gap-3 items-start">
           <Textarea
             value={frequencyValue.note}
             onChange={(e) => updateFrequencyField(key, { note: e.target.value })}
@@ -413,7 +413,7 @@ const AdminFillInterview = () => {
     return (
       <div
         key={String(key)}
-        className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-x-6 gap-y-2 items-start border-b border-[#dddddd] pb-4 last:border-0"
+        className="grid grid-cols-[1fr_220px] gap-x-6 gap-y-2 items-start border-b border-[#dddddd] pb-4 last:border-0"
       >
         <div className="space-y-1">
           <Label className="text-base font-semibold leading-tight text-[#191919]">{question.label}</Label>
