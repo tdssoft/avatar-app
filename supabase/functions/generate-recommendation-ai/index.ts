@@ -68,12 +68,44 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Brak notatek do przetworzenia");
     }
 
-    const systemPrompt = `W tym czacie będą dane dotyczące podsumowania diagnozy medycznej dotyczącej tylko funkcjonowania ludzkiego organizmu. Proszę opracuj, usystematyzuj poniższe dane uszczegóławiając tą diagnozę o pełne dane. każdy zakres tematyczny diagnozy dotyczący jednego tematu ujmij w jednym akapicie i nadaj mu tytuł. Akapitów niech będzie tyle ile tematów. Na podstawie poniżej notatki opracuj 3 działy: podsumowanie diagnozy, zalecenia dietetyczne oraz zalecenia suplementacje w rozłożeniu na poszczególne miesiące oraz terapie dodatkowe jeśli są takowe wskazane w notatce. Od razu przygotuj mi to w formie do odczytu oraz w dokumencie word. Na początku podsumowania diagnozy jeśli jest to kolejna konsultacja napisz co się zmieniło od ostatniej konsultacji jeśli jest to zawarte w notatce.
+    const systemPrompt = `Jesteś ekspertem medycznym opracowującym szczegółowe podsumowania diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji.
 
-Co do zaleceń suplementacyjnych to zapoznaj się z nazwami suplementów z firmy coral Club i ich używaj w kuracjach suplementacyjnych, a jeśli czegoś nie będzie na stronie to wówczas wyszukaj dobrej jakości suplementacji w internecie i podaj mi od razu link do strony gdzie można je zakupić.
+Na podstawie otrzymanej notatki przygotuj 4 sekcje w formacie HTML. Każda sekcja musi używać DOKŁADNIE tej struktury z emoji i nagłówkami jak poniżej.
+
+SEKCJA 1 — diagnosis_summary:
+Dla każdego układu/obszaru ciała wymienionego w notatce utwórz osobny blok z emoji i nagłówkiem h3. Używaj tych emoji i nagłówków (dobierz odpowiednie do treści notatki):
+🩸 Układ krwionośny i niedokrwienie
+🌬️ Układ oddechowy i infekcje
+🦠 Układ pokarmowy i mikrobiota
+🧠 Układ nerwowy i napięcie
+🧬 Niedobory i regeneracja organizmu
+⚖️ Układ hormonalny i rozrodczy
+💧 Układ limfatyczny i zastój
++ inne układy jeśli wspomniane.
+Jeśli to wizyta kontrolna — dodaj na początku akapit "Co się zmieniło od ostatniej konsultacji".
+Format każdego bloku: <h3>emoji Tytuł układu</h3><p>szczegółowy opis...</p>
+
+SEKCJA 2 — dietary_recommendations:
+Użyj dokładnie tej struktury:
+<h3>🥗 ZALECENIA DIETETYCZNE</h3>
+<h3>🔥 Główne założenia diety</h3><ul><li>...</li></ul>
+<h3>❌ Eliminacje</h3><ul><li>całkowicie: ...</li><li>ograniczyć: ...</li></ul>
+<h3>✅ Produkty wskazane</h3><ul><li>...</li></ul>
+<h3>🍽️ Schemat dnia</h3><p>śniadania: ...<br/>obiady: ...<br/>kolacje: ...</p>
+
+SEKCJA 3 — supplementation_program:
+Używaj suplementów Coral Club (jeśli wprost wymienione w notatce — zachowaj oryginalne nazwy). Jeśli czegoś brakuje w Coral Club, użyj dobrej jakości alternatywy.
+Użyj dokładnie tej struktury z podziałem na miesiące:
+<h3>💊 SUPLEMENTACJA (ROZPISANA NA MIESIĄCE)</h3>
+<h3>📅 MIESIĄC 1–2 (oczyszczanie + jelita + odporność)</h3><ul><li>Nazwa suplementu – dawkowanie</li></ul><p>➡️ dodatkowo: ...</p>
+<h3>📅 MIESIĄC 3–4 (antybakteryjnie + regeneracja)</h3><ul><li>...</li></ul>
+<h3>📅 MIESIĄC 5+ (odbudowa)</h3><ul><li>...</li></ul>
+
+SEKCJA 4 — supporting_therapies:
+<h3>🧘‍♀️ TERAPIE DODATKOWE</h3><ul><li>...</li></ul>
 
 Odpowiedź zwróć jako poprawny JSON z 4 kluczami: diagnosis_summary, dietary_recommendations, supplementation_program, supporting_therapies.
-Każde pole zawiera sformatowany HTML (używaj <p>, <strong>, <h3>, <ul><li>).
+Każde pole zawiera sformatowany HTML zgodnie z powyższymi wzorcami.
 Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
 
     const userMessage = [
