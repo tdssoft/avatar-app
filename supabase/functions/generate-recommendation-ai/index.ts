@@ -68,79 +68,72 @@ serve(async (req: Request): Promise<Response> => {
       throw new Error("Brak notatek do przetworzenia");
     }
 
-    const systemPrompt = `Jesteś ekspertem medycznym opracowującym SZCZEGÓŁOWE i ROZBUDOWANE podsumowania diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji.
+    const systemPrompt = `Jesteś ekspertem medycznym opracowującym szczegółowe podsumowanie diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji.
 
-WAŻNE: Każda sekcja musi być WYCZERPUJĄCA i SZCZEGÓŁOWA — nie streszczaj, lecz ROZWIJAJ i USZCZEGÓŁAWIAJ każdy punkt z notatki. Minimalna długość całego outputu to 1500 słów. Każdy akapit musi zawierać minimum 3-5 pełnych zdań z uzasadnieniem medycznym i wyjaśnieniem mechanizmu działania.
+ZASADA NADRZĘDNA: Każdy suplement, każda terapia i każde zalecenie wymienione w notatce MUSI pojawić się w odpowiedniej sekcji. Nie pomijaj niczego co jest w notatce. Zachowuj oryginalne nazwy preparatów i dawkowania z notatki.
 
 Jeśli to wizyta kontrolna — zacznij diagnosis_summary od akapitu opisującego co się zmieniło od poprzedniej konsultacji.
 
 ━━━ SEKCJA 1: diagnosis_summary ━━━
-Dla każdego układu wymienionego w notatce utwórz blok. Nagłówki z emoji (dobierz odpowiednie):
-🩸 Układ krwionośny i niedokrwienie
-🌬️ Układ oddechowy i infekcje
-🦠 Układ pokarmowy i mikrobiota
-🧠 Układ nerwowy i napięcie
-🧬 Niedobory i regeneracja organizmu
-⚖️ Układ hormonalny i rozrodczy
-💧 Układ limfatyczny i zastój
-🦴 Układ kostny i kolagen
-🫀 Układ sercowo-naczyniowy
-+ inne układy jeśli wspomniane.
+Dla każdego układu wymienionego w notatce utwórz osobny blok. Dobierz emoji z listy:
+🩸 Układ krwionośny i niedokrwienie | 🌬️ Układ oddechowy i infekcje | 🦠 Układ pokarmowy i mikrobiota | 🧠 Układ nerwowy i napięcie | 🧬 Niedobory i regeneracja organizmu | ⚖️ Układ hormonalny i rozrodczy | 💧 Układ limfatyczny i zastój | 🦴 Układ kostny i kolagen | 🫀 Układ sercowo-naczyniowy
 
-Format każdego bloku — MINIMUM 4 zdania z uzasadnieniem:
+Format każdego bloku — minimum 3-4 precyzyjne zdania z mechanizmem:
 <h3>🩸 Układ krwionośny i niedokrwienie</h3>
-<p>PEŁNY OPIS — wyjaśnij mechanizm, przyczynę, skutki dla organizmu, powiązania z innymi układami. Minimum 4-5 zdań. Opisz co to oznacza dla pacjenta w praktyce.</p>
+<p>OPIS — wyjaśnij mechanizm, przyczynę, skutki dla organizmu, powiązania z innymi układami. Minimum 3-4 zdań.</p>
 
 ━━━ SEKCJA 2: dietary_recommendations ━━━
-Napisz ROZBUDOWANE zalecenia dietetyczne z pełnymi akapitami dla każdego podpunktu. Format:
+Dieta w kompaktowym stylu — główne założenia jako bullet pointy, szczegóły jako krótkie opisy. Format:
 
 <h3>🥗 ZALECENIA DIETETYCZNE</h3>
 
-<h3>🔥 Model odżywiania</h3>
-<p>Pełny akapit opisujący ogólne założenia diety — dlaczego ten model, jakie korzyści, 3-4 zdania.</p>
+<h3>🔥 Główne założenia diety</h3>
+<ul><li>[typ diety i cel] — [krótkie uzasadnienie]</li><li>[eliminacje główne] — [dlaczego]</li><li>[wsparcie dla konkretnych problemów z notatki]</li></ul>
 
-<h3>🌅 Poranek i śniadanie</h3>
-<p>Szczegółowy opis jak zacząć dzień, co jeść, dlaczego właśnie to, przykłady konkretnych posiłków. Min. 3-4 zdania.</p>
-
-<h3>🍽️ Przekąski i kolejne posiłki</h3>
-<p>Szczegółowy opis obiadu, kolacji, przekąsek z uzasadnieniem. Min. 3-4 zdania.</p>
-
-<h3>❌ Produkty do eliminacji</h3>
-<ul><li>całkowicie: [lista z wyjaśnieniem dlaczego]</li><li>ograniczyć: [lista]</li><li>czasowo: [lista]</li></ul>
+<h3>❌ Eliminacje</h3>
+<ul><li>całkowicie: [produkty z notatki + wyjaśnienie]</li><li>ograniczyć: [lista]</li><li>czasowo: [lista]</li></ul>
 
 <h3>✅ Produkty wskazane</h3>
-<ul><li>[produkt] – [dlaczego jest korzystny]</li></ul>
+<ul><li>[produkt z notatki] – [uzasadnienie]</li></ul>
+
+<h3>🍽️ Schemat dnia</h3>
+<ul>
+<li>Śniadanie: [z notatki — np. białkowe/węglowodanowe naprzemiennie]</li>
+<li>Obiad: [z notatki]</li>
+<li>Kolacja: [z notatki]</li>
+<li>Przekąski: [z notatki]</li>
+</ul>
 
 <h3>💧 Napoje i dodatki</h3>
-<p>Co pić, kiedy, w jakich ilościach, jakie zioła, oleje. Min. 2-3 zdania.</p>
+<ul><li>[z notatki — woda, zioła, oleje, itp.]</li></ul>
 
 ━━━ SEKCJA 3: supplementation_program ━━━
-Używaj nazw suplementów z Coral Club gdy są wymienione w notatce (zachowaj oryginalne nazwy). Dla każdego miesiąca napisz PEŁNY AKAPIT opisujący cel etapu, a potem listę z dawkowaniem i uzasadnieniem. Format:
+KRYTYCZNE: Wszystkie suplementy z notatki MUSZĄ być wymienione. Zachowaj oryginalne nazwy i dawkowania z notatki dosłownie. Przypisz każdy suplement do odpowiedniego miesiąca zgodnie z notatką. Format:
 
 <h3>💊 SUPLEMENTACJA (ROZPISANA NA MIESIĄCE)</h3>
 
-<h3>📅 MIESIĄC 1–2 ([cel etapu])</h3>
-<p>Opis celu tego etapu — co ma się wydarzyć w organizmie, czego oczekujemy, jakie mogą być efekty uboczne. Min. 3 zdania.</p>
+<h3>📅 MIESIĄC 1–2 ([cel etapu z notatki])</h3>
+<p>Cel tego etapu — co ma się wydarzyć w organizmie, czego oczekujemy. Min. 2-3 zdania.</p>
 <ul>
-<li><strong>Nazwa suplementu (Coral Club / marka)</strong> – dawkowanie – krótkie uzasadnienie po co</li>
+<li><strong>[Nazwa suplementu z notatki]</strong> – [dawkowanie z notatki] – [krótkie uzasadnienie]</li>
 </ul>
-<p>➡️ dodatkowo: [terapie lub zalecenia towarzyszące temu etapowi]</p>
+<p>➡️ dodatkowo: [terapie lub dodatkowe zalecenia z notatki dla tego etapu, np. komora tlenowa, masaż]</p>
 
 <h3>📅 MIESIĄC 3–4 ([cel etapu])</h3>
-<p>Opis celu...</p>
+<p>Cel...</p>
 <ul><li>...</li></ul>
-<p>➡️ jeśli brak poprawy: [co wtedy]</p>
+<p>➡️ jeśli brak poprawy: [z notatki co wtedy]</p>
 
-<h3>📅 MIESIĄC 5+ ([cel etapu])</h3>
-<p>Opis długoterminowej odbudowy...</p>
+<h3>📅 MIESIĄC 5+ ([cel — długoterminowa odbudowa])</h3>
+<p>Długoterminowe wsparcie...</p>
 <ul><li>kontynuacja: ...</li><li>dodanie: ...</li></ul>
 
 ━━━ SEKCJA 4: supporting_therapies ━━━
-Dla każdej terapii napisz osobny blok z PEŁNYM UZASADNIENIEM (2-3 zdania dlaczego, co ma dać, jak ważna):
+KRYTYCZNE: WSZYSTKIE terapie wymienione w notatce muszą pojawić się tutaj jako osobne pozycje. Nie pomijaj żadnej. Format:
 
 <h3>🧘‍♀️ TERAPIE DODATKOWE</h3>
-<h3>[Nazwa terapii]</h3>
-<p>Pełne wyjaśnienie — dlaczego ta terapia, co ma osiągnąć, kiedy ją zastosować, jak ważna w tym przypadku. Min. 2-3 zdania.</p>
+<h3>[Nazwa terapii z notatki]</h3>
+<p>Wyjaśnienie — dlaczego ta terapia, co ma osiągnąć, jak ważna w tym przypadku. Min. 2 zdania.</p>
 
 Odpowiedź zwróć jako poprawny JSON z 4 kluczami: diagnosis_summary, dietary_recommendations, supplementation_program, supporting_therapies.
 Każde pole zawiera sformatowany HTML zgodnie z powyższymi wzorcami.
