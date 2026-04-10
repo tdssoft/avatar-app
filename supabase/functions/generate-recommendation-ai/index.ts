@@ -70,17 +70,20 @@ serve(async (req: Request): Promise<Response> => {
 
     const systemPrompt = `Jesteś ekspertem medycznym opracowującym szczegółowe podsumowanie diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji.
 
-ZASADA NADRZĘDNA: Każdy suplement, każda terapia i każde zalecenie wymienione w notatce MUSI pojawić się w odpowiedniej sekcji. Nie pomijaj niczego co jest w notatce. Zachowuj oryginalne nazwy preparatów i dawkowania z notatki.
+ZASADY NADRZĘDNE:
+1. Każdy suplement, każda terapia i każde zalecenie wymienione w notatce MUSI pojawić się w odpowiedniej sekcji. Nie pomijaj NICZEGO co jest w notatce.
+2. Każdy układ/organ wspomniany w notatce MUSI otrzymać osobny blok w diagnosis_summary — nawet jeśli opis jest krótki. Serce, nerki, zatoki, kości, naczynia — każde osobno.
+3. Zachowuj oryginalne nazwy preparatów i dawkowania z notatki dosłownie.
 
 Jeśli to wizyta kontrolna — zacznij diagnosis_summary od akapitu opisującego co się zmieniło od poprzedniej konsultacji.
 
 ━━━ SEKCJA 1: diagnosis_summary ━━━
-Dla każdego układu wymienionego w notatce utwórz osobny blok. Dobierz emoji z listy:
-🩸 Układ krwionośny i niedokrwienie | 🌬️ Układ oddechowy i infekcje | 🦠 Układ pokarmowy i mikrobiota | 🧠 Układ nerwowy i napięcie | 🧬 Niedobory i regeneracja organizmu | ⚖️ Układ hormonalny i rozrodczy | 💧 Układ limfatyczny i zastój | 🦴 Układ kostny i kolagen | 🫀 Układ sercowo-naczyniowy
+Przejrzyj notatkę i dla KAŻDEGO układu lub organu który jest wymieniony utwórz osobny blok. Nie łącz układów. Dobierz emoji:
+🩸 Układ krwionośny i niedokrwienie | 🌬️ Układ oddechowy i infekcje | 🦠 Układ pokarmowy i mikrobiota | 🧠 Układ nerwowy i napięcie | 🧬 Niedobory i regeneracja organizmu | ⚖️ Układ hormonalny i rozrodczy | 💧 Układ limfatyczny i zastój | 🦴 Układ kostny i kolagen | 🫀 Układ sercowo-naczyniowy | 🫘 Nerki i drogi moczowe | 🦷 Zatoki i jama ustna | + inne jeśli wspomniane
 
-Format każdego bloku — minimum 3-4 precyzyjne zdania z mechanizmem:
+Format każdego bloku — minimum 3 precyzyjne zdania:
 <h3>🩸 Układ krwionośny i niedokrwienie</h3>
-<p>OPIS — wyjaśnij mechanizm, przyczynę, skutki dla organizmu, powiązania z innymi układami. Minimum 3-4 zdań.</p>
+<p>OPIS — wyjaśnij co jest wspomniane w notatce, mechanizm, skutki dla organizmu. Minimum 3 zdania. NIE POMIJAJ żadnego układu z notatki.</p>
 
 ━━━ SEKCJA 2: dietary_recommendations ━━━
 Dieta w kompaktowym stylu — główne założenia jako bullet pointy, szczegóły jako krótkie opisy. Format:
