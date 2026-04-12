@@ -21,54 +21,233 @@ interface AIRecommendationResult {
   supporting_therapies: string;
 }
 
-serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+// ──────────────────────────────────────────────────────────────────────────────
+// Convert nested JSON objects to HTML (handles gpt-4.5 structured output)
+// ──────────────────────────────────────────────────────────────────────────────
+function objectToHtml(obj: Record<string, unknown>): string {
+  let html = "";
+  for (const [key, content] of Object.entries(obj)) {
+    html += `<h3>${key}</h3>`;
+    if (typeof content === "string") {
+      const trimmed = content.trim();
+      // If content already has HTML tags or list items, keep as-is or wrap properly
+      if (trimmed.includes("<li>") && !trimmed.trimStart().startsWith("<ul>")) {
+        html += `<ul>${trimmed}</ul>`;
+      } else if (trimmed.startsWith("<") || trimmed.includes("</")) {
+        html += trimmed;
+      } else {
+        html += `<p>${trimmed}</p>`;
+      }
+    } else if (Array.isArray(content)) {
+      html += "<ul>";
+      for (const item of content) {
+        html += `<li>${typeof item === "string" ? item : JSON.stringify(item)}</li>`;
+      }
+      html += "</ul>";
+    } else if (typeof content === "object" && content !== null) {
+      html += objectToHtml(content as Record<string, unknown>);
+    }
   }
+  return html;
+}
+
+function normalizeField(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return "<ul>" + value.map((item) => `<li>${normalizeField(item)}</li>`).join("") + "</ul>";
+  }
+  if (typeof value === "object" && value !== null) {
+    return objectToHtml(value as Record<string, unknown>);
+  }
+  return String(value ?? "");
+}
+
+interface ExtractedData {
+  supplements: Array<{ name: string; dose: string }>;
+  therapies: string[];
+  diet_hints: string[];
+  organs: string[];
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// SPOSÓB 3: Step 1 — Extract structured data from note (fast, cheap model)
+// ──────────────────────────────────────────────────────────────────────────────
+async function extractNoteData(notes: string, openAiApiKey: string): Promise<ExtractedData> {
+  const extractPrompt = `Jesteś ekstraktor danych medycznych. Z notatki konsultacji wyodrębnij WSZYSTKIE elementy w JSON.
+
+ZASADY KLASYFIKACJI:
+- supplements: preparaty przyjmowane doustnie/kapsułki/krople/proszki (Narine, Multilac, FanDetox, Griffonia, Oceanmin, Pau darco, Parafight, Zaferan, Ginerra, Assymilator, Artichoke, H 500, Kurkumina, olej lniany, Omega-3, Tauryna, srebro koloidalne, żelazo/Iron, witaminy, Koenzym Q10, Lax-Max, itp.)
+- therapies: zabiegi fizyczne lub emocjonalne (masaż, osteopatia, terapia manualna, ustawienie stawu, drenaż limfatyczny, komora tlenowa, zdjęcie emocji, praca z nerwem, itp.) — KOMORA TLENOWA = terapia (NIE suplement)
+- diet_hints: wszystkie wytyczne dietetyczne (produkty, godziny posiłków, eliminacje, napary, zasady)
+- organs: układy i narządy wymienione (żołądek, wątroba, jelita, nerki, płuca, tarczyca, itp.)
+
+WAŻNE:
+- Zachowaj DOKŁADNIE nazwy preparatów z notatki
+- Każdy suplement to osobny obiekt z name i dose (jeśli dawka podana, inaczej dose: "")
+- Nie pomijaj żadnego suplementu ani terapii
+
+Zwróć TYLKO poprawny JSON z kluczami: supplements, therapies, diet_hints, organs.`;
 
   try {
-    const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openAiApiKey) {
-      throw new Error("Brak konfiguracji OPENAI_API_KEY");
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: extractPrompt },
+          { role: "user", content: `Notatka:\n${notes}` },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("Extract step API error:", errorBody);
+      return { supplements: [], therapies: [], diet_hints: [], organs: [] };
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    const raw = JSON.parse(content);
+    // Normalize: ensure therapies are strings (OpenAI may return objects)
+    const parsed: ExtractedData = {
+      supplements: (raw.supplements ?? []).map((s: unknown) =>
+        typeof s === "object" && s !== null
+          ? { name: String((s as Record<string,unknown>).name ?? ""), dose: String((s as Record<string,unknown>).dose ?? "") }
+          : { name: String(s), dose: "" }
+      ),
+      therapies: (raw.therapies ?? []).map((t: unknown) =>
+        typeof t === "object" && t !== null
+          ? String((t as Record<string,unknown>).name ?? JSON.stringify(t))
+          : String(t)
+      ),
+      diet_hints: (raw.diet_hints ?? []).map(String),
+      organs: (raw.organs ?? []).map(String),
+    };
+    console.log(`Extract: found ${parsed.supplements.length} supplements, ${parsed.therapies.length} therapies`);
+    return parsed;
+  } catch (err) {
+    console.error("Extract step failed:", err);
+    return { supplements: [], therapies: [], diet_hints: [], organs: [] };
+  }
+}
 
-    // Verify caller is admin
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Brak autoryzacji");
+// ──────────────────────────────────────────────────────────────────────────────
+// SPOSÓB 4: Step 3 — Validate output and patch missing items
+// ──────────────────────────────────────────────────────────────────────────────
+async function validateAndPatch(
+  extracted: ExtractedData,
+  result: AIRecommendationResult,
+  openAiApiKey: string
+): Promise<AIRecommendationResult> {
+  if (!extracted.supplements || extracted.supplements.length === 0) return result;
+
+  // Ensure all fields are strings (defensive — OpenAI may return non-string values)
+  const safeResult: AIRecommendationResult = {
+    diagnosis_summary: String(result.diagnosis_summary ?? ""),
+    dietary_recommendations: String(result.dietary_recommendations ?? ""),
+    supplementation_program: String(result.supplementation_program ?? ""),
+    supporting_therapies: String(result.supporting_therapies ?? ""),
+  };
+
+  const outputText = (
+    safeResult.supplementation_program +
+    safeResult.diagnosis_summary +
+    safeResult.supporting_therapies
+  ).toLowerCase();
+
+  // Find supplements missing from the output
+  const missingSupplements = extracted.supplements.filter((s) => {
+    const name = String(s.name ?? "").toLowerCase().trim();
+    if (!name || name.length < 3) return false;
+    // Check if any significant word from the name appears in output
+    const words = name.split(/\s+/).filter((w) => w.length > 3);
+    if (words.length === 0) return !outputText.includes(name);
+    return !words.some((word) => outputText.includes(word));
+  });
+
+  // Find therapies missing from the output
+  const therapyOutputText = safeResult.supporting_therapies.toLowerCase();
+  const missingTherapies = (extracted.therapies ?? []).filter((t) => {
+    const therapy = String(t ?? "").toLowerCase().trim();
+    if (!therapy || therapy.length < 4) return false;
+    const words = therapy.split(/\s+/).filter((w) => w.length > 3);
+    return words.length > 0 && !words.some((word) => therapyOutputText.includes(word));
+  });
+
+  if (missingSupplements.length === 0 && missingTherapies.length === 0) {
+    console.log("Validation: ✅ all items present in output");
+    return safeResult;
+  }
+
+  console.log("Validation: ⚠️ missing items found", {
+    missingSupplements: missingSupplements.map((s) => s.name),
+    missingTherapies,
+  });
+
+  const patchLines: string[] = [];
+  if (missingSupplements.length > 0) {
+    patchLines.push("BRAKUJĄCE SUPLEMENTY (dodaj do supplementation_program jako <li> z dawkowaniem i uzasadnieniem):");
+    patchLines.push(...missingSupplements.map((s) => `- ${s.name}${s.dose ? `: ${s.dose}` : ""}`));
+  }
+  if (missingTherapies.length > 0) {
+    patchLines.push("BRAKUJĄCE TERAPIE (dodaj do supporting_therapies jako nowy blok h3):");
+    patchLines.push(...missingTherapies.map((t) => `- ${t}`));
+  }
+
+  const validatePrompt = `Masz JSON z rekomendacjami medycznymi. Z notatki wejściowej brakuje poniższych elementów. Dodaj je do odpowiednich sekcji i zwróć PEŁNY poprawiony JSON z HTML.
+
+${patchLines.join("\n")}
+
+ISTNIEJĄCY OUTPUT (popraw go, nie skracaj):
+${JSON.stringify(safeResult)}
+
+Zwróć TYLKO poprawny JSON z 4 kluczami: diagnosis_summary, dietary_recommendations, supplementation_program, supporting_therapies.
+Nie skracaj ani nie usuwaj żadnej istniejącej treści.`;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAiApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: validatePrompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 8000,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Patch step API error, returning original result");
+      return result;
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    const patched = JSON.parse(content) as AIRecommendationResult;
+    console.log("Validation: ✅ patched successfully");
+    return patched;
+  } catch (err) {
+    console.error("Patch step failed, returning original result:", err);
+    return safeResult;
+  }
+}
 
-    if (userError || !user) {
-      throw new Error("Nieprawidłowy token");
-    }
-
-    // Check admin role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .single();
-
-    if (!roleData) {
-      throw new Error("Brak uprawnień administratora");
-    }
-
-    const { notes, patientName, isFollowUp = false, previousSummary }: GenerateRecommendationRequest = await req.json();
-
-    if (!notes || notes.trim() === "") {
-      throw new Error("Brak notatek do przetworzenia");
-    }
-
-    const systemPrompt = `Jesteś ekspertem medycznym tworzącym szczegółowe podsumowania diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji Lucyny — specjalistki terapii funkcjonalnej.
+// ──────────────────────────────────────────────────────────────────────────────
+// SYSTEM PROMPT (main generation)
+// ──────────────────────────────────────────────────────────────────────────────
+const systemPrompt = `Jesteś ekspertem medycznym tworzącym szczegółowe podsumowania diagnozy funkcjonalnej organizmu na podstawie notatek z konsultacji Lucyny — specjalistki terapii funkcjonalnej.
 
 ━━━ PRZYKŁAD REFERENCYJNY (dokładnie taki format jest wymagany) ━━━
 
@@ -146,7 +325,16 @@ ZASADY NADRZĘDNE (przestrzegaj bezwzględnie):
 4. FOLLOW-UP — jeśli wizyta kontrolna, PIERWSZYM akapitem jest porównanie: co się poprawiło, co wymaga dalszej pracy.
 5. STYL KLINICZNY — każdy blok diagnozy: minimum 4 zdania (mechanizm, przyczyna, powiązania, skutki dla pacjenta).
 6. ROZPOZNANIE TERAPII — "do ustawienia X", "masaż X", "drenaż X", "praca z nerwem", "zdjęcie emocji", "osteopatia", "limfodrenaż", "komora tlenowa" = TERAPIA (nie suplement).
-7. SUPLEMENTY — każdy z notatki jako osobny <li> z dawkowaniem: Multilac, Narine, Assymilator, kurkumina liposomalna, Zaferan, Ginerra, olej lniany, Artichoke, H 500, Iron/żelazo, witaminy (A+E, D, C, B12), Omega-3, Tauryna, Griffonia, Lax-Max, Pau darco, Parafight, srebro koloidalne, Koenzym Q10, Oceanmin, FanDetox — WSZYSTKIE jako osobne <li>.
+7. SUPLEMENTY — każdy z notatki jako osobny <li> z dawkowaniem.
+8. BAZA SUPLEMENTÓW — ZAWSZE używaj TYCH dokładnych nazw (nigdy nie modyfikuj pisowni):
+   FanDetox (nie "Fandetanox", nie "Fan Detox", nie "Fandetox"),
+   Parafight, Pau darco, Oceanmin,
+   Griffonia (lub "Griffonia / Serotonina 5-HTP"),
+   Multilac, Narine, Assymilator, Kurkumina liposomalna,
+   Zaferan, Ginerra, Artichoke, H 500,
+   Koenzym Q10, Lax-Max, Srebro koloidalne, Tauryna,
+   Iron / żelazo chelatowane, Omega-3,
+   Witamina A+E, Witamina D3+K2, Witamina C, B12, B kompleks
 
 ━━━ SEKCJA 1: diagnosis_summary ━━━
 Jeśli wizyta kontrolna: zacznij od bloku "📋 Porównanie z poprzednią konsultacją".
@@ -163,9 +351,11 @@ KLUCZOWE: Twórz subsections WYŁĄCZNIE z tego co jest w notatce. Używaj nazw 
 - "Etap N" — jeśli notatka ma wyraźne fazy miesięczne
 NIE stosuj fixed template (Schemat dnia / Eliminacje / Produkty wskazane / Napoje) jeśli notatka nie ma takiej struktury.
 Jeśli notatka ma etapy (Etap 1/2/3) → osobny blok na każdy etap.
+WAŻNE: uwzględnij WSZYSTKIE zalecenia dietetyczne z notatki, w tym napary, zioła, herbaty, konkretne produkty.
 
 ━━━ SEKCJA 3: supplementation_program ━━━
 KRYTYCZNE: KAŻDY suplement z notatki musi być wymieniony jako osobny <li> z dawkowaniem.
+Jeśli w wiadomości użytkownika są WYEKSTRAHOWANE SUPLEMENTY — WSZYSTKIE muszą pojawić się jako <li>.
 MIESIĄCE: Jeśli notatka mówi "3 miesiące" bez podziału → jeden blok "MIESIĄC 1–3". Rozbijaj na osobne miesiące TYLKO gdy notatka wyraźnie różnicuje ("w pierwszym miesiącu X, w drugim Y").
 
 <h3>💊 SUPLEMENTACJA (ROZPISANA NA MIESIĄCE)</h3>
@@ -185,27 +375,91 @@ Wszystkie terapie z notatki — numerowane bloki jak w przykładzie. Grupuj powi
 
 ━━━ WERYFIKACJA PRZED JSON ━━━
 □ Czy "Obciążenia pasożytnicze" są osobną sekcją (gdy wspomniane w notatce)?
-□ Czy każdy suplement z notatki ma własny <li>?
+□ Czy KAŻDY suplement z listy WYEKSTRAHOWANE SUPLEMENTY ma własny <li>?
 □ Czy miesiące nie są sztucznie rozbite gdy notatka tego nie wskazuje?
 □ Czy terapie manualne i emocjonalne mają swoje bloki?
+□ Czy FanDetox jest napisany poprawnie (nie Fandetanox)?
 
 Odpowiedź zwróć jako poprawny JSON z 4 kluczami: diagnosis_summary, dietary_recommendations, supplementation_program, supporting_therapies.
 Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
 
+// ──────────────────────────────────────────────────────────────────────────────
+// MAIN HANDLER
+// ──────────────────────────────────────────────────────────────────────────────
+serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const openAiApiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openAiApiKey) {
+      throw new Error("Brak konfiguracji OPENAI_API_KEY");
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Brak autoryzacji");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+
+    if (userError || !user) {
+      throw new Error("Nieprawidłowy token");
+    }
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .single();
+
+    if (!roleData) {
+      throw new Error("Brak uprawnień administratora");
+    }
+
+    const { notes, patientName, isFollowUp = false, previousSummary }: GenerateRecommendationRequest = await req.json();
+
+    if (!notes || notes.trim() === "") {
+      throw new Error("Brak notatek do przetworzenia");
+    }
+
+    // ── SPOSÓB 3: Step 1 — Extract structured data from note ──────────────────
+    console.log("Step 1: Extracting structured data from note...");
+    const extracted = await extractNoteData(notes, openAiApiKey);
+
+    // Build supplement list for injection into user message
+    const supplementList = extracted.supplements && extracted.supplements.length > 0
+      ? `\n\n⚠️ WYEKSTRAHOWANE SUPLEMENTY Z NOTATKI (WSZYSTKIE muszą pojawić się w supplementation_program jako osobne <li>):\n${extracted.supplements.map((s) => `- ${s.name}${s.dose ? `: ${s.dose}` : ""}`).join("\n")}`
+      : "";
+
+    const therapyList = extracted.therapies && extracted.therapies.length > 0
+      ? `\n\n⚠️ WYEKSTRAHOWANE TERAPIE Z NOTATKI (WSZYSTKIE muszą pojawić się w supporting_therapies):\n${extracted.therapies.map((t) => `- ${t}`).join("\n")}`
+      : "";
+
+    // ── SPOSÓB 3: Step 2 — Generate full recommendations ──────────────────────
     const userMessage = [
       patientName ? `Klient: ${patientName}` : null,
       isFollowUp ? "Typ konsultacji: follow-up (wizyta kontrolna)" : "Typ konsultacji: pierwsza wizyta",
       previousSummary ? `Poprzednie podsumowanie:\n${previousSummary}` : null,
       `Notatki z konsultacji:\n${notes}`,
+      supplementList || null,
+      therapyList || null,
     ]
       .filter(Boolean)
       .join("\n\n");
 
-    // Try gpt-4.5 first, fall back to gpt-4o on model error
     const models = ["gpt-4.5", "gpt-4o"];
     let lastError: Error | null = null;
     let result: AIRecommendationResult | null = null;
 
+    console.log("Step 2: Generating recommendations...");
     for (const model of models) {
       try {
         console.log(`Trying model: ${model}`);
@@ -230,7 +484,6 @@ Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
         if (!openAiResponse.ok) {
           const errorBody = await openAiResponse.text();
           console.error(`OpenAI error with model ${model}:`, errorBody);
-          // If model not found, try next
           if (openAiResponse.status === 404 || openAiResponse.status === 400) {
             lastError = new Error(`Model ${model} nie jest dostępny: ${errorBody}`);
             continue;
@@ -245,15 +498,21 @@ Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
           throw new Error("Brak treści w odpowiedzi OpenAI");
         }
 
-        const parsed = JSON.parse(content) as AIRecommendationResult;
+        const raw = JSON.parse(content);
+        // Normalize: ensure all fields are HTML strings (gpt-4.5 may return nested objects)
+        const parsed: AIRecommendationResult = {
+          diagnosis_summary: normalizeField(raw.diagnosis_summary),
+          dietary_recommendations: normalizeField(raw.dietary_recommendations),
+          supplementation_program: normalizeField(raw.supplementation_program),
+          supporting_therapies: normalizeField(raw.supporting_therapies),
+        };
         result = parsed;
-        console.log(`Successfully generated with model: ${model}`);
+        console.log(`Step 2: Successfully generated with model: ${model}`);
         break;
       } catch (err) {
         if (err instanceof SyntaxError) {
           throw new Error("Nieprawidłowy JSON w odpowiedzi AI");
         }
-        // If it's a model availability error, try next model
         if (lastError && err === lastError) {
           continue;
         }
@@ -264,6 +523,10 @@ Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
     if (!result) {
       throw lastError || new Error("Nie udało się wygenerować zaleceń");
     }
+
+    // ── SPOSÓB 4: Step 3 — Validate and patch missing items ───────────────────
+    console.log("Step 3: Validating and patching output...");
+    result = await validateAndPatch(extracted, result, openAiApiKey);
 
     return new Response(
       JSON.stringify({
