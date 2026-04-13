@@ -27,24 +27,49 @@ interface AIRecommendationResult {
 function objectToHtml(obj: Record<string, unknown>): string {
   let html = "";
   for (const [key, content] of Object.entries(obj)) {
-    html += `<h3>${key}</h3>`;
+    const trimmedKey = key.trim();
+    // Skip empty/blank keys and top-level wrapper keys (DIAGNOZA, ZALECENIA etc.)
+    const isWrapperKey = !trimmedKey ||
+      trimmedKey === "DIAGNOZA" ||
+      trimmedKey === "ZALECENIA DIETETYCZNE" ||
+      trimmedKey === "SUPLEMENTACJA" ||
+      trimmedKey === "TERAPIE";
+
     if (typeof content === "string") {
       const trimmed = content.trim();
-      // If content already has HTML tags or list items, keep as-is or wrap properly
+      // Don't add key as h3 if the content already starts with an h3 tag (model already added it)
+      const contentAlreadyHasH3 = trimmed.startsWith("<h3>");
+      if (!isWrapperKey && trimmedKey && !contentAlreadyHasH3) {
+        html += `<h3>${trimmedKey}</h3>`;
+      }
       if (trimmed.includes("<li>") && !trimmed.trimStart().startsWith("<ul>")) {
         html += `<ul>${trimmed}</ul>`;
       } else if (trimmed.startsWith("<") || trimmed.includes("</")) {
         html += trimmed;
-      } else {
+      } else if (trimmed) {
         html += `<p>${trimmed}</p>`;
       }
     } else if (Array.isArray(content)) {
+      if (!isWrapperKey && trimmedKey) {
+        html += `<h3>${trimmedKey}</h3>`;
+      }
       html += "<ul>";
       for (const item of content) {
-        html += `<li>${typeof item === "string" ? item : JSON.stringify(item)}</li>`;
+        if (typeof item === "string") {
+          html += `<li>${item}</li>`;
+        } else if (typeof item === "object" && item !== null) {
+          const itemObj = item as Record<string, unknown>;
+          const name = String(itemObj.name ?? itemObj.title ?? "");
+          const desc = String(itemObj.description ?? itemObj.dose ?? itemObj.content ?? "");
+          html += `<li>${name}${desc ? ` – ${desc}` : ""}</li>`;
+        }
       }
       html += "</ul>";
     } else if (typeof content === "object" && content !== null) {
+      // Don't add h3 for wrapper keys or if the nested content will produce its own headers
+      if (!isWrapperKey && trimmedKey) {
+        html += `<h3>${trimmedKey}</h3>`;
+      }
       html += objectToHtml(content as Record<string, unknown>);
     }
   }
@@ -257,57 +282,60 @@ NOTATKA WEJŚCIOWA (wizyta kontrolna):
 OCZEKIWANY FORMAT WYJŚCIOWY:
 
 diagnosis_summary:
-<h3>📋 Porównanie z poprzednią konsultacją</h3>
-<p>W porównaniu do poprzedniej konsultacji widoczna jest poprawa w zakresie zakwaszenia żołądka (zapewne przez suplementację) — funkcja trawienna zaczyna się stabilizować, jednak nadal wymaga wsparcia. Widoczna jest poprawa funkcjonowania nerwu błędnego, jednak nadal znajduje się on na dolnej granicy normy. Tarczyca reaguje wtórnie na stan organizmu, jednak bez niedoboru jodu — poprawa względem poprzedniej konsultacji.</p>
-<h3>🦠 Układ pokarmowy i trawienie</h3>
-<p>Obecny stan wskazuje na lekkie zaburzenia trawienia oraz zaleganie treści pokarmowej, co może wynikać z osłabionej pracy enzymatycznej i współistniejącego stanu zapalnego błony śluzowej żołądka. Kwasowość żołądka zaczyna się stabilizować, jednak wymaga dalszego wsparcia probiotycznego i enzymatycznego. Zaburzenia trawienia wpływają wtórnie na wchłanianie składników odżywczych, co potęguje istniejące niedobory. Kluczowe jest utrzymanie ciągłości suplementacji i unikanie czynników obciążających żołądek.</p>
-<h3>🦠 Obciążenia pasożytnicze i bakteryjne</h3>
-<p>W organizmie nadal obecne są obciążenia pasożytnicze (lamblia, przywra, obleńce), które wtórnie wpływają na rozprzestrzenianie się obciążeń bakteryjnych. Aktualnie nie są one w stanie ostrym, jednak wymagają długofalowej strategii eliminacji przez ok. 2–3 lata. Pasożyty negatywnie wpływają na florę jelitową i wchłanianie składników odżywczych. Proces oczyszczania powinien być prowadzony etapowo i systematycznie, bez nadmiernego obciążania organizmu.</p>
-<h3>🧠 Układ nerwowy i napięcie organizmu</h3>
-<p>Układ nerwowy wykazuje oznaki przeciążenia i wymaga wsparcia aminokwasowego oraz regulacji napięcia. Widoczna jest poprawa funkcjonowania nerwu błędnego, jednak nadal znajduje się on na dolnej granicy normy. Napięcia w ciele, szczególnie w obrębie układu autonomicznego, wpływają na funkcjonowanie narządów wewnętrznych. Praca z nerwem błędnym jest kluczowym elementem terapii.</p>
-<h3>🦴 Układ ruchu i napięcia strukturalne</h3>
-<p>Występuje konflikt napięciowy w obrębie stawu krzyżowo-biodrowego oraz kości krzyżowej, co może wpływać na funkcjonowanie narządów jamy brzusznej i układu nerwowego. Napięcia strukturalne w tej okolicy mogą wtórnie zaburzać pracę układu pokarmowego poprzez mechaniczne oddziaływanie na nerwy trzewne. Wymaga to terapii manualnej i korekty ustawienia. Bez interwencji napięcia będą narastać i utrudniać regenerację.</p>
-<h3>🧬 Gospodarka tlenowa i niedobory</h3>
-<p>Widoczny jest niedobór żelaza oraz obniżone natlenienie komórkowe, co przekłada się na ogólne zmęczenie i obniżoną wydolność organizmu. Dodatkowo występuje niedobór witaminy E, co wpływa na regenerację tkanek i funkcjonowanie układu nerwowego. Tarczyca reaguje wtórnie na stan organizmu, jednak bez niedoboru jodu — jest to poprawa względem poprzedniej konsultacji. Uzupełnienie tych niedoborów jest warunkiem koniecznym do prawidłowej regeneracji.</p>
-<h3>🫀 Wątroba i drogi żółciowe</h3>
-<p>Obserwuje się lekkie zablokowanie pracy wątroby oraz niedostateczną aktywację dróg żółciowych, co wpływa na trawienie tłuszczów i ogólną detoksykację organizmu. Niedostateczna produkcja żółci zaburza wchłanianie witamin rozpuszczalnych w tłuszczach (A, E, K, D). Aktywacja dróg żółciowych wymaga obecności tłuszczu przy każdym posiłku. Wsparcie wątroby preparatami Artichoke jest kluczowe dla poprawy detoksykacji.</p>
+<h3>Układ pokarmowy i trawienie</h3>
+<p>W porównaniu do poprzedniej konsultacji widoczna jest poprawa w zakresie zakwaszenia żołądka (zapewne przez suplementację obecną) — funkcja trawienna zaczyna się stabilizować, jednak nadal wymaga wsparcia. Obecny stan wskazuje na lekkie zaburzenia trawienia oraz zaleganie treści pokarmowej, co może wynikać z osłabionej pracy enzymatycznej i współistniejącego stanu zapalnego błony śluzowej żołądka. Dodatkowo widoczna jest potrzeba wsparcia flory bakteryjnej jelit.</p>
+<h3>Obciążenia pasożytnicze i bakteryjne</h3>
+<p>W organizmie nadal obecne są obciążenia pasożytnicze (lamblia, przywra, obleńce), które wtórnie wpływają na rozprzestrzenianie się obciążeń bakteryjnych. Aktualnie nie są one w stanie ostrym, jednak wymagają długofalowej strategii eliminacji. Proces oczyszczania powinien być prowadzony etapowo i systematycznie przez dłuższy czas (ok. 2–3 lata), bez nadmiernego obciążania organizmu.</p>
+<h3>Układ nerwowy i napięcie organizmu</h3>
+<p>Układ nerwowy wykazuje oznaki przeciążenia i wymaga wsparcia aminokwasowego oraz regulacji napięcia. Widoczna jest poprawa funkcjonowania nerwu błędnego, jednak nadal znajduje się on na dolnej granicy normy. Napięcia w ciele, szczególnie w obrębie układu autonomicznego, wpływają na funkcjonowanie narządów wewnętrznych.</p>
+<h3>Układ ruchu i napięcia strukturalne</h3>
+<p>Występuje konflikt napięciowy w obrębie stawu krzyżowo-biodrowego oraz kości krzyżowej, co może wpływać na funkcjonowanie narządów jamy brzusznej i układu nerwowego. Wymaga to terapii manualnej i korekty ustawienia.</p>
+<h3>Gospodarka tlenowa i niedobory</h3>
+<p>Widoczny jest niedobór żelaza oraz obniżone natlenienie komórkowe. Dodatkowo występuje niedobór witaminy E, co wpływa na regenerację tkanek i układ nerwowy. Tarczyca reaguje wtórnie na stan organizmu, jednak bez niedoboru jodu (poprawa względem poprzedniej konsultacji).</p>
+<h3>Wątroba i drogi żółciowe</h3>
+<p>Obserwuje się lekkie zablokowanie pracy wątroby oraz niedostateczną aktywację dróg żółciowych. Może to wpływać na trawienie tłuszczów i ogólną detoksykację organizmu.</p>
 
 dietary_recommendations:
-<h3>🥗 ZALECENIA DIETETYCZNE</h3>
-<h3>🔥 Ogólne zasady</h3>
-<ul><li>Dieta umiarkowana — bez dużych restrykcji, ale z eliminacją produktów silnie obciążających</li><li>Unikać: smażonych potraw (szczególnie frytek), ciężkostrawnych dań, nadmiaru cukru</li><li>Słodycze dopuszczalne okazjonalnie, wyłącznie po posiłku — nie powodują wtedy gwałtownego wzrostu insuliny</li></ul>
-<h3>🍳 Wsparcie trawienia</h3>
-<ul><li>Każdy posiłek powinien zawierać niewielką ilość tłuszczu — aktywacja żółci</li><li>Olej lniany – 1 łyżka dziennie — wspiera redukcję stanu zapalnego</li><li>Nie pić w trakcie posiłków — najpóźniej 30 min przed jedzeniem (max 1/3 filiżanki jeśli konieczne)</li></ul>
-<h3>☀️ Śniadania</h3>
-<ul><li>Lekkie, ciepłe lub półpłynne</li><li>Kasze gotowane (jaglana, ryżowa)</li><li>Opcjonalnie owoce — tylko rano</li></ul>
-<h3>🌙 Kolacje</h3>
+<h3>ZALECENIA DIETETYCZNE</h3>
+<h3>Ogólne zasady</h3>
+<ul><li>Dieta umiarkowana — bez dużych restrykcji, ale z eliminacją produktów silnie obciążających</li><li>Unikać: smażonych potraw (szczególnie frytek), ciężkostrawnych dań, nadmiaru cukru</li><li>Słodycze dopuszczalne okazjonalnie, wyłącznie po posiłku</li></ul>
+<h3>Wsparcie trawienia</h3>
+<ul><li>Każdy posiłek powinien zawierać niewielką ilość tłuszczu (aktywacja żółci)</li><li>Wprowadzić: olej lniany – 1 łyżka dziennie</li><li>Nie pić w trakcie posiłków (najpóźniej 30 min przed jedzeniem i ok. godzinę, a jak będzie duże uczucie pragnienia to wówczas ok 1/3 szklanki do posiłku jest dopuszczalna)</li></ul>
+<h3>Śniadania</h3>
+<ul><li>Lekkie, ciepłe lub półpłynne</li><li>Kasze gotowane (jaglana, ryżowa)</li><li>Opcjonalnie owoce (tylko rano)</li></ul>
+<h3>Kolacje</h3>
 <ul><li>Lekkostrawne, ciepłe</li><li>Zupy, pasty warzywne (np. z fasoli)</li><li>Unikać: owoców i prostych węglowodanów wieczorem</li></ul>
-<h3>📌 Dodatkowe zalecenia</h3>
+<h3>Dodatkowe zalecenia</h3>
 <ul><li>Regularność posiłków</li><li>Ograniczenie fermentujących produktów wieczorem</li></ul>
 
 supplementation_program:
-<h3>💊 SUPLEMENTACJA (ROZPISANA NA MIESIĄCE)</h3>
-<h3>📅 MIESIĄC 1–3 — Regulacja flory, redukcja obciążeń, wsparcie wątroby</h3>
-<p>Celem tego etapu jest poprawa równowagi mikrobioty jelitowej, wspomaganie trawienia i aktywacja wątroby oraz dróg żółciowych. Oczekiwane efekty: poprawa trawienia, zmniejszenie wzdęć, lepsza tolerancja tłuszczów.</p>
+<h3>ZALECENIA SUPLEMENTACYJNE (3 MIESIĄCE)</h3>
+<h3>MIESIĄC 1 - 3</h3>
 <ul>
-<li><strong>Narine zielone</strong> – 1x dziennie przez 3 miesiące – probiotyk żołądkowy, odbudowa flory</li>
-<li><strong>Multilac</strong> – 2x1 kapsułka dziennie (wprowadzić po skończeniu Narine) – wsparcie mikrobioty jelitowej</li>
-<li><strong>Assymilator</strong> – enzymy trawienne do głównych posiłków, szczególnie śniadania – poprawa wchłaniania</li>
-<li><strong>Kurkumina liposomalna</strong> – 2 ml 1x dziennie – redukcja stanu zapalnego żołądka</li>
-<li><strong>Olej lniany</strong> – 1 łyżka dziennie – wsparcie przeciwzapalne, aktywacja żółci</li>
-<li><strong>Artichoke (karczoch)</strong> – 2x1-2 kapsułki dziennie – wsparcie wątroby i produkcji żółci</li>
-<li><strong>H 500</strong> – raz dziennie – poprawa natlenienia komórkowego, wsparcie energii</li>
+<li><strong>Narine zielone</strong> (probiotyk) – 1x dziennie przez 3 miesiące – odbudowa flory jelitowej. W czasie jak skończy się Narine wówczas wprowadzić <strong>Multilac</strong> – 2x1 kapsułka dziennie – wsparcie mikrobioty jelitowej</li>
+<li><strong>Assymilator</strong> – enzymy trawienne do głównych posiłków, szczególnie do śniadania</li>
+<li><strong>Kurkumina liposomalna</strong> – 1x dziennie (stan zapalny) – zużyć do wyczerpania opakowania, następnie wprowadzić <strong>Ginerra</strong> – 1 sztuka do kolacji</li>
+<li><strong>Olej lniany</strong> – 1 łyżka dziennie</li>
+<li><strong>Witamina A+E</strong> – 1x dziennie 5 kropli</li>
+<li><strong>Iron</strong> – żelazo (dobrze przyswajalne) – 1 sztuka dziennie do posiłku</li>
+<li><strong>Artichoke (karczoch)</strong> – 2x1-2 kapsułki dziennie (wątroba, żółć)</li>
+<li><strong>H 500</strong> – raz dziennie – poprawa natlenienia komórkowego</li>
 </ul>
-<p>➡️ dodatkowo: terapia manualna stawu krzyżowo-biodrowego, praca z nerwem błędnym</p>
 
 supporting_therapies:
-<h3>🧘‍♀️ TERAPIE DODATKOWE</h3>
+<h3>TERAPIE DODATKOWE</h3>
 <h3>1. Terapia manualna</h3>
-<p>Ustawienie stawu krzyżowo-biodrowego oraz praca z kością krzyżową w celu redukcji konfliktu napięciowego wpływającego na układ pokarmowy i nerwowy. Rozluźnienie napięć trzewnych jest kluczowe dla prawidłowego funkcjonowania narządów jamy brzusznej.</p>
+<ul>
+<li>Ustawienie stawu krzyżowo-biodrowego</li>
+<li>Praca z kością krzyżową</li>
+<li>Rozluźnienie napięć trzewnych</li>
+</ul>
 <h3>2. Regulacja układu nerwowego</h3>
-<p>Praca z nerwem błędnym (techniki oddechowe, osteopatia) w celu poprawy jego funkcji na dolnej granicy normy. Terapia emocjonalna (redukcja napięcia) — osteopatyczne uwalnianie emocji wspiera stabilizację układu autonomicznego.</p>
-<h3>3. Zdjęcie emocji z psem — Piotrek mieszek</h3>
-<p>Terapia emocjonalna ukierunkowana na redukcję napięcia w układzie nerwowym i uwolnienie skumulowanego stresu. Praca z emocjami wspiera stabilizację nerwu błędnego i poprawę ogólnego samopoczucia.</p>
+<ul>
+<li>Praca z nerwem błędnym (techniki oddechowe, osteopatia)</li>
+<li>Terapia emocjonalna (redukcja napięcia) – osteopatyczne uwalnianie emocji</li>
+<li>Zdjęcie emocji z psem — Piotrek mieszek</li>
+</ul>
 
 ━━━ KONIEC PRZYKŁADU ━━━
 
@@ -322,8 +350,8 @@ ZASADY NADRZĘDNE (przestrzegaj bezwzględnie):
    - wątroba, woreczek żółciowy, nerki, zatoki, płuca, skóra, układ rozrodczy, nerwy sympatyczne → osobne bloki
    ZAKAZ: NIE dodawaj sekcji których nie ma w notatce.
 3. ORYGINALNE NAZWY — zachowaj dosłownie: nazwy preparatów, dawkowania z notatki.
-4. FOLLOW-UP — jeśli wizyta kontrolna, PIERWSZYM akapitem jest porównanie: co się poprawiło, co wymaga dalszej pracy.
-5. STYL KLINICZNY — każdy blok diagnozy: minimum 4 zdania (mechanizm, przyczyna, powiązania, skutki dla pacjenta).
+4. FOLLOW-UP — jeśli wizyta kontrolna: NIE twórz osobnego bloku "Porównanie". Zamiast tego wpleć porównanie jako PIERWSZY akapit PIERWSZEJ sekcji diagnozy (np. "Układ pokarmowy i trawienie"). Zacznij od "W porównaniu do poprzedniej konsultacji...".
+5. STYL KLINICZNY — każdy blok diagnozy: minimum 3 zdania (stan, przyczyna, powiązania).
 6. ROZPOZNANIE TERAPII — "do ustawienia X", "masaż X", "drenaż X", "praca z nerwem", "zdjęcie emocji", "osteopatia", "limfodrenaż", "komora tlenowa" = TERAPIA (nie suplement).
 7. SUPLEMENTY — każdy z notatki jako osobny <li> z dawkowaniem.
 8. BAZA SUPLEMENTÓW — ZAWSZE używaj TYCH dokładnych nazw (nigdy nie modyfikuj pisowni):
@@ -335,11 +363,17 @@ ZASADY NADRZĘDNE (przestrzegaj bezwzględnie):
    Koenzym Q10, Lax-Max, Srebro koloidalne, Tauryna,
    Iron / żelazo chelatowane, Omega-3,
    Witamina A+E, Witamina D3+K2, Witamina C, B12, B kompleks
+9. WNIOSKOWANIE KLINICZNE — jeśli notatka stwierdza niedobór, dodaj do suplementów:
+   - "żelazo w niedoborze" / "brakuje żelaza" → Iron / żelazo chelatowane – 1 sztuka dziennie do posiłku
+   - "witamina E w niedoborze" / "niedobór witaminy E" → Witamina A+E – 1x dziennie 5 kropli
+   - "witamina D w niedoborze" → Witamina D3+K2
+   - "niedobór B12" / "witamina B12" → B12
+   Te suplementy są standardem Lucyny — dodawaj je ZAWSZE gdy niedobór potwierdzony w notatce.
 
 ━━━ SEKCJA 1: diagnosis_summary ━━━
-Jeśli wizyta kontrolna: zacznij od bloku "📋 Porównanie z poprzednią konsultacją".
-Dla każdego układu z notatki — osobny blok h3 z minimum 4 zdaniami klinicznymi.
-Używaj nazw sekcji jak w przykładzie referencyjnym (np. "Układ pokarmowy i trawienie", "Obciążenia pasożytnicze i bakteryjne", "Układ ruchu i napięcia strukturalne", "Gospodarka tlenowa i niedobory", "Wątroba i drogi żółciowe").
+WAŻNE: BEZ EMOJI w nagłówkach h3 — używaj plain text: "Układ pokarmowy i trawienie" (NIE "🦠 Układ pokarmowy").
+Jeśli wizyta kontrolna: PIERWSZY akapit PIERWSZEJ sekcji zaczyna się od "W porównaniu do poprzedniej konsultacji...". NIE twórz osobnego bloku Porównanie.
+Dla każdego układu z notatki — osobny blok h3.
 
 ━━━ SEKCJA 2: dietary_recommendations ━━━
 KLUCZOWE: Twórz subsections WYŁĄCZNIE z tego co jest w notatce. Używaj nazw pasujących do treści:
@@ -350,35 +384,43 @@ KLUCZOWE: Twórz subsections WYŁĄCZNIE z tego co jest w notatce. Używaj nazw 
 - "Dodatkowe zalecenia" — inne zasady
 - "Etap N" — jeśli notatka ma wyraźne fazy miesięczne
 NIE stosuj fixed template (Schemat dnia / Eliminacje / Produkty wskazane / Napoje) jeśli notatka nie ma takiej struktury.
-Jeśli notatka ma etapy (Etap 1/2/3) → osobny blok na każdy etap.
+BEZ EMOJI w nagłówkach.
 WAŻNE: uwzględnij WSZYSTKIE zalecenia dietetyczne z notatki, w tym napary, zioła, herbaty, konkretne produkty.
 
 ━━━ SEKCJA 3: supplementation_program ━━━
 KRYTYCZNE: KAŻDY suplement z notatki musi być wymieniony jako osobny <li> z dawkowaniem.
 Jeśli w wiadomości użytkownika są WYEKSTRAHOWANE SUPLEMENTY — WSZYSTKIE muszą pojawić się jako <li>.
-MIESIĄCE: Jeśli notatka mówi "3 miesiące" bez podziału → jeden blok "MIESIĄC 1–3". Rozbijaj na osobne miesiące TYLKO gdy notatka wyraźnie różnicuje ("w pierwszym miesiącu X, w drugim Y").
+NAGŁÓWEK: zawsze "ZALECENIA SUPLEMENTACYJNE (X MIESIĄCE)" — gdzie X to liczba miesięcy z notatki.
+MIESIĄCE: Jeśli notatka mówi "3 miesiące" bez podziału → jeden blok "MIESIĄC 1 - 3". Rozbijaj na osobne miesiące TYLKO gdy notatka wyraźnie różnicuje.
+BEZ EMOJI w nagłówkach.
 
-<h3>💊 SUPLEMENTACJA (ROZPISANA NA MIESIĄCE)</h3>
-<h3>📅 MIESIĄC [X lub X–Y] — [cel etapu]</h3>
-<p>Co ma się wydarzyć w organizmie, czego się spodziewać. 2-3 zdania.</p>
+<h3>ZALECENIA SUPLEMENTACYJNE ([X] MIESIĄCE)</h3>
+<h3>MIESIĄC [X] lub MIESIĄC [X] - [Y]</h3>
 <ul>
-<li><strong>[Nazwa z notatki]</strong> – [dawkowanie z notatki] – [uzasadnienie]</li>
+<li><strong>[Nazwa z notatki]</strong> – [dawkowanie z notatki] – [krótkie uzasadnienie]</li>
 </ul>
-<p>➡️ dodatkowo: [z notatki]</p>
 
 ━━━ SEKCJA 4: supporting_therapies ━━━
-Wszystkie terapie z notatki — numerowane bloki jak w przykładzie. Grupuj powiązane działania razem (np. wszystkie terapie manualne jako "1. Terapia manualna" z sub-opisem).
+WAŻNE: Terapie jako numerowane h3 + lista BULLETS (NIE paragrafy).
+BEZ EMOJI w nagłówkach.
+Grupuj powiązane terapie: wszystkie terapie manualne (ustawienie, praca z kością, rozluźnienie) → "1. Terapia manualna". Praca z nerwem + terapia emocjonalna → "2. Regulacja układu nerwowego". Zdjęcie emocji dołącz jako bullet do odpowiedniej grupy.
 
-<h3>🧘‍♀️ TERAPIE DODATKOWE</h3>
+<h3>TERAPIE DODATKOWE</h3>
 <h3>[N]. [Nazwa terapii]</h3>
-<p>Cel, dlaczego ważna, czego pacjent może się spodziewać. Min. 2-3 zdania.</p>
+<ul>
+<li>[konkretna czynność/technika 1]</li>
+<li>[konkretna czynność/technika 2]</li>
+<li>[konkretna czynność/technika 3]</li>
+</ul>
 
 ━━━ WERYFIKACJA PRZED JSON ━━━
+□ Czy diagnoza zaczyna się bez emoji w nagłówkach h3?
+□ Czy w follow-up porównanie jest w PIERWSZYM akapicie pierwszej sekcji (nie osobny blok)?
 □ Czy "Obciążenia pasożytnicze" są osobną sekcją (gdy wspomniane w notatce)?
 □ Czy KAŻDY suplement z listy WYEKSTRAHOWANE SUPLEMENTY ma własny <li>?
-□ Czy miesiące nie są sztucznie rozbite gdy notatka tego nie wskazuje?
-□ Czy terapie manualne i emocjonalne mają swoje bloki?
-□ Czy FanDetox jest napisany poprawnie (nie Fandetanox)?
+□ Czy dodano Iron i Witamina A+E gdy notatka wskazuje niedobory żelaza/witaminy E?
+□ Czy terapie mają format bullet <ul><li> (nie paragraf)?
+□ Czy nagłówek suplementacji to "ZALECENIA SUPLEMENTACYJNE" (bez emoji)?
 
 Odpowiedź zwróć jako poprawny JSON z 4 kluczami: diagnosis_summary, dietary_recommendations, supplementation_program, supporting_therapies.
 Zwróć TYLKO poprawny JSON bez żadnego tekstu poza nim.`;
