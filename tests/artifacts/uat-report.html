@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UAT Smoke — Backlog Phase 1</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0f172a;
+      --bg-card:      #1e293b;
+      --bg-card2:     #162032;
+      --border:       #334155;
+      --text:         #e2e8f0;
+      --muted:        #94a3b8;
+      --p0:           #ef4444;
+      --p0-bg:        rgba(239,68,68,0.12);
+      --p1:           #f97316;
+      --p1-bg:        rgba(249,115,22,0.12);
+      --p2:           #3b82f6;
+      --p2-bg:        rgba(59,130,246,0.12);
+      --red-box:      rgba(239,68,68,0.08);
+      --red-border:   rgba(239,68,68,0.35);
+      --green-box:    rgba(34,197,94,0.08);
+      --green-border: rgba(34,197,94,0.35);
+      --green:        #22c55e;
+      --accent:       #38bdf8;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .nav-brand {
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+
+    nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    nav a:hover { opacity: 0.75; }
+    nav a.p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid rgba(239,68,68,0.3); }
+    nav a.p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid rgba(249,115,22,0.3); }
+    nav a.p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid rgba(59,130,246,0.3); }
+
+    .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+    .nav-spacer { flex: 1; }
+    .nav-count { font-size: 12px; color: var(--muted); }
+
+    /* HEADER */
+    header {
+      padding: 56px 24px 48px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(56,189,248,0.04) 0%, transparent 100%);
+    }
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    header h1 {
+      font-size: clamp(24px, 4vw, 40px);
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.02em;
+      margin-bottom: 20px;
+    }
+    .meta {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--bg-card);
+    }
+    .meta-pill.count {
+      color: var(--green);
+      border-color: rgba(34,197,94,0.3);
+      background: rgba(34,197,94,0.07);
+    }
+
+    /* SECTION HEADER */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 48px 24px 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .section-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 14px;
+      border-radius: 9999px;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .section-header.p0 .section-badge { background: var(--p0-bg); color: var(--p0); border: 1px solid rgba(239,68,68,0.4); }
+    .section-header.p1 .section-badge { background: var(--p1-bg); color: var(--p1); border: 1px solid rgba(249,115,22,0.4); }
+    .section-header.p2 .section-badge { background: var(--p2-bg); color: var(--p2); border: 1px solid rgba(59,130,246,0.4); }
+    .section-header h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; white-space: nowrap; }
+    .section-line { flex: 1; height: 1px; background: var(--border); }
+
+    /* CARDS GRID */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      padding: 0 24px 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.15), 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    /* CARD HEADER */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+    .badge.p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid rgba(239,68,68,0.4); }
+    .badge.p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid rgba(249,115,22,0.4); }
+    .badge.p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid rgba(59,130,246,0.4); }
+    .card-header-text { flex: 1; }
+    .card-title { font-size: 15px; font-weight: 700; color: #f8fafc; line-height: 1.4; }
+    .card-id { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    /* CARD BODY */
+    .card-body { padding: 20px 24px; }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+      .info-row { grid-template-columns: 1fr; }
+    }
+
+    .info-box {
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .info-box.problem { background: var(--red-box); border: 1px solid var(--red-border); }
+    .info-box.fix     { background: var(--green-box); border: 1px solid var(--green-border); }
+
+    .info-box-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .info-box.problem .info-box-label { color: #f87171; }
+    .info-box.fix     .info-box-label { color: #4ade80; }
+    .info-box-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+
+    /* VIDEO PAIR */
+    .video-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .video-pair { grid-template-columns: 1fr; }
+    }
+
+    .video-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+    .video-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .vdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .video-label.przed { color: #f87171; }
+    .video-label.przed .vdot { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.6); }
+    .video-label.po    { color: #4ade80; }
+    .video-label.po    .vdot { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+
+    .video-player {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0a0f1e;
+      display: block;
+    }
+
+    /* CARD FOOTER */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card2);
+    }
+    .footer-branch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    }
+    .footer-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--green);
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.3);
+      padding: 3px 12px;
+      border-radius: 9999px;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 32px;
+    }
+    footer strong { color: var(--text); }
+
+    /* GIT BRANCH ICON */
+    .git-icon { opacity: 0.55; vertical-align: middle; }
+  </style>
+</head>
+<body>
+
+<!-- ======================================================= NAV -->
+<nav>
+  <span class="nav-brand">UAT Report</span>
+  <a href="#section-p0" class="p0"><span class="nav-dot"></span>P0 Critical</a>
+  <a href="#section-p1" class="p1"><span class="nav-dot"></span>P1 High</a>
+  <a href="#section-p2" class="p2"><span class="nav-dot"></span>P2 Medium</a>
+  <span class="nav-spacer"></span>
+  <span class="nav-count">20 test&oacute;w &bull; 2026-03-24</span>
+</nav>
+
+<!-- ==================================================== HEADER -->
+<header>
+  <p class="eyebrow">User Acceptance Testing</p>
+  <h1>UAT Smoke &mdash; Backlog Phase&nbsp;1</h1>
+  <div class="meta">
+    <span class="meta-pill">
+      <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm.5 4.75v3.5l2.5 1.5-.75 1.25L7.5 9V4.75h1z"/></svg>
+      2026-03-24
+    </span>
+    <span class="meta-pill count">
+      <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>
+      20 zmian przetestowanych
+    </span>
+    <span class="meta-pill">
+      <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 0 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5v-9zm10.5-1V9h-8c-.356 0-.694.074-1 .208V2.5a1 1 0 0 1 1-1h8z"/></svg>
+      Chromium &bull; Smoke Suite
+    </span>
+  </div>
+</header>
+
+
+<!-- ======================================================== P0 -->
+<div id="section-p0" class="section-header p0">
+  <span class="section-badge">P0</span>
+  <h2>Krytyczne &mdash; Must Fix</h2>
+  <div class="section-line"></div>
+</div>
+
+<div class="cards-grid">
+
+  <!-- 1 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p0">P0</span>
+      <div class="card-header-text">
+        <div class="card-title">P0-01 &mdash; P&#322;atno&#347;ci &ndash; obs&#322;uga b&#322;&#281;d&#243;w Stripe + nazwy pakiet&#243;w</div>
+        <div class="card-id">uat-live-P0-01 &bull; fix/payments</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">B&#322;&#281;dy Stripe nieobs&#322;u&#380;one, stara nazwa &ldquo;Regeneracyjny&rdquo;</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Obs&#322;uga HTTP errors, &ldquo;Profilaktyczny program wsparcia&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P0-01-·-Płatności-6381d-payment-flow-nazwy-pakietów-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P0-01-·-Płatności-6381d-payment-flow-nazwy-pakietów-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/payments</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p0">P0</span>
+      <div class="card-header-text">
+        <div class="card-title">P0-02 &mdash; Email admina po rejestracji</div>
+        <div class="card-id">uat-live-P0-02 &bull; fix/email</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Adres &ldquo;avatarmieszek@gmail.com&rdquo; &mdash; brak kropki w nazwie</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&ldquo;avatar.mieszek@gmail.com&rdquo; &mdash; adres poprawiony</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P0-02-·-Email-admina-–-adres-kontaktowy-w-Help-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P0-02-·-Email-admina-–-adres-kontaktowy-w-Help-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/email</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p0">P0</span>
+      <div class="card-header-text">
+        <div class="card-title">P0-03 &mdash; Upload plik&#243;w Word/PDF/JPG</div>
+        <div class="card-id">uat-live-P0-03 &bull; fix/file-upload</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">MIME type nie rozpoznawany dla .docx/.pdf &mdash; upload blokowany</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Fallback po rozszerzeniu pliku &mdash; upload dzia&#322;a poprawnie</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P0-03-·-Upload-pl-f7129-cja-wgrywania-Word-PDF-JPG--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P0-03-·-Upload-pl-f7129-cja-wgrywania-Word-PDF-JPG--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/file-upload</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+</div><!-- /P0 grid -->
+
+
+<!-- ======================================================== P1 -->
+<div id="section-p1" class="section-header p1">
+  <span class="section-badge">P1</span>
+  <h2>Wysokie &mdash; Should Fix</h2>
+  <div class="section-line"></div>
+</div>
+
+<div class="cards-grid">
+
+  <!-- 4 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-03 &mdash; Panel rodzinny &ndash; header aktywnego profilu</div>
+        <div class="card-id">uat-live-P1-03 &bull; fix/family-header</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Header pokazuje imi&#281; rodzica nawet gdy aktywny profil dziecka</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Header pokazuje imi&#281; aktywnego profilu</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-03-·-Panel-rod-1cdcd-ader-imię-aktywnego-profilu-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-03-·-Panel-rod-1cdcd-ader-imię-aktywnego-profilu-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/family-header</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-04 &mdash; Admin &ndash; grant access per profil</div>
+        <div class="card-id">uat-live-P1-04 &bull; codex/backlog-phase1</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Brak zarz&#261;dzania dost&#281;pem per profil w panelu admina</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Admin mo&#380;e nadawa&#263; dost&#281;p per profil</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-04-·-Admin-–-grant-access-per-profil-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-04-·-Admin-–-grant-access-per-profil-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; codex/backlog-phase1</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-05 &mdash; Header &ndash; imi&#281; dziecka/rodzica</div>
+        <div class="card-id">uat-live-P1-05 &bull; fix/family-header</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Rodzic zamiast dziecka wy&#347;wietlany w nag&#322;&#243;wku aplikacji</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Aktywny profil wy&#347;wietlony poprawnie w nag&#322;&#243;wku</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-05-·-Header-–--64bf3-rofil-imię-dziecka-rodzica--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-05-·-Header-–--64bf3-rofil-imię-dziecka-rodzica--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/family-header</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-06 &mdash; Admin &ndash; &bdquo;Pacjent&rdquo; &#8594; &bdquo;Klient&rdquo;</div>
+        <div class="card-id">uat-live-P1-06 &bull; fix/copy-remaining</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Label &bdquo;Pacjent&rdquo; w formularzu admina</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Label zmieniony na &bdquo;Klient&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-06-·-Admin-–-Pacjent-→-Klient-label-formularza--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-06-·-Admin-–-Pacjent-→-Klient-label-formularza--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/copy-remaining</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-07 &mdash; Admin profil &ndash; sekcja wynik&#243;w</div>
+        <div class="card-id">uat-live-P1-07 &bull; fix/copy-remaining</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;Pliki wynikowe dla pacjenta&rdquo; &mdash; stara nazwa sekcji</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Wyniki bada&#324; laboratoryjne klienta&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-07-·-Admin-pro-6b65a-wyników-stara-vs-nowa-nazwa-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-07-·-Admin-pro-6b65a-wyników-stara-vs-nowa-nazwa-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/copy-remaining</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-07b &mdash; Dashboard &ndash; sekcja wynik&#243;w (user-side)</div>
+        <div class="card-id">uat-live-P1-07b &bull; fix/copy-remaining</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;Pliki wynikowe&rdquo; w dashboardzie u&#380;ytkownika</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Wyniki bada&#324; laboratoryjne&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-07b-·-Dashboar-5cb7b-ja-wyników-user-side-label--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-07b-·-Dashboar-5cb7b-ja-wyników-user-side-label--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/copy-remaining</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-08 &mdash; Wywiad &ndash; heading</div>
+        <div class="card-id">uat-live-P1-08 &bull; fix/interview</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;Wywiad medyczny&rdquo; &mdash; niepoprawna nazwa sekcji</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Wywiad dietetyczny&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-08-·-Interview-7b25b-yczny-→-Wywiad-dietetyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-08-·-Interview-7b25b-yczny-→-Wywiad-dietetyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/interview</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 11 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-09 &mdash; Wywiad &ndash; 2-kolumnowy layout sekcji &#380;ywieniowych</div>
+        <div class="card-id">uat-live-P1-09 &bull; fix/interview</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">1-kolumnowy layout sekcji &#380;ywieniowych &mdash; ma&#322;o czytelny</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">2-kolumnowy grid dla sekcji zb&#243;&#380;/warzyw/owoc&#243;w/nabi a&#322;u/mi&#281;sa</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-09-·-Interview-df908--layout-sekcji-żywieniowych-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-09-·-Interview-df908--layout-sekcji-żywieniowych-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/interview</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 12 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-09b &mdash; Admin wywiad &ndash; scrollable single-page view</div>
+        <div class="card-id">uat-live-P1-09b &bull; fix/interview</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Paginacja &bdquo;ta&#347;moci&#261;g&rdquo; krok po kroku &mdash; nieergonomiczna</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Scrollable single-page wid ok wywiadu &mdash; pe&#322;ny przegl&#261;d</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-09b-·-Admin-wywiad-–-scrollable-single-page-view-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-09b-·-Admin-wywiad-–-scrollable-single-page-view-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/interview</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 13 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-10 &mdash; Copy &ndash; &bdquo;diagnostyka&rdquo; &#8594; &bdquo;analiza organizmu&rdquo;</div>
+        <div class="card-id">uat-live-P1-10 &bull; fix/copy-remaining</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">S&#322;owo &bdquo;diagnoza&rdquo;/&bdquo;diagnostyka&rdquo; w ca&#322;ej aplikacji</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;analiza&rdquo;/&bdquo;funkcjonowanie organizmu&rdquo; globalnie</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-10-·-Copy-–-diagnostyka-→-analiza-organizmu--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-10-·-Copy-–-diagnostyka-→-analiza-organizmu--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/copy-remaining</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 14 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p1">P1</span>
+      <div class="card-header-text">
+        <div class="card-title">P1-11 &mdash; Admin PatientProfile &ndash; &bdquo;Wywiad dietetyczny&rdquo;</div>
+        <div class="card-id">uat-live-P1-11 &bull; fix/interview</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Zak&#322;adka &bdquo;Wywiad medyczny&rdquo; w profilu klienta admina</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Wywiad dietetyczny&rdquo; &mdash; zak&#322;adka poprawiona</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P1-11-·-Admin-Pat-0a546-ietetyczny-zakładka-sekcja--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P1-11-·-Admin-Pat-0a546-ietetyczny-zakładka-sekcja--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/interview</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+</div><!-- /P1 grid -->
+
+
+<!-- ======================================================== P2 -->
+<div id="section-p2" class="section-header p2">
+  <span class="section-badge">P2</span>
+  <h2>&#346;rednie &mdash; Nice to Fix</h2>
+  <div class="section-line"></div>
+</div>
+
+<div class="cards-grid">
+
+  <!-- 15 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-01 &mdash; Help/FAQ &ndash; nowe teksty i dane kontaktowe</div>
+        <div class="card-id">uat-live-P2-01 &bull; codex/backlog-phase1</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Stare teksty z &bdquo;medyczny&rdquo; w sekcji Help/FAQ</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Zaktualizowane teksty z &bdquo;dietetyczny&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-01-·-Help-FAQ-–-nowe-teksty-dane-kontaktowe-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-01-·-Help-FAQ-–-nowe-teksty-dane-kontaktowe-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; codex/backlog-phase1</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 16 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-02 &mdash; Signup wizard &ndash; info-box + kolejno&#347;&#263; opcji</div>
+        <div class="card-id">uat-live-P2-02 &bull; fix/landing-ux</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;Diagnoza...&rdquo; w info-box, stara kolejno&#347;&#263; opcji i zdj&#281;&#263;</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Zdj&#281;cie jest niezb&#281;dne...&rdquo;, nowa kolejno&#347;&#263; opcji</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-02-·-Signup-wi-dff35-box-kolejność-opcji-zdjęcia-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-02-·-Signup-wi-dff35-box-kolejność-opcji-zdjęcia-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/landing-ux</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 17 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-03 &mdash; Dashboard &ndash; headline h1 rozmiar (5xl &#8594; 3xl)</div>
+        <div class="card-id">uat-live-P2-03 &bull; fix/landing-ux</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">h1 = 48px (text-5xl) &mdash; za du&#380;y na dashboardzie</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">h1 zmniejszony do text-3xl &mdash; lepsza proporcja</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-03-·-Dashboard-–-headline-h1-rozmiar-5xl-→-3xl--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-03-·-Dashboard-–-headline-h1-rozmiar-5xl-→-3xl--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/landing-ux</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 18 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-04 &mdash; Dane kontaktowe</div>
+        <div class="card-id">uat-live-P2-04 &bull; fix/landing-ux</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">Brak/b&#322;&#281;dne dane kontaktowe w aplikacji</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">Telefon 608&nbsp;243&nbsp;601, email avatar.mieszek@gmail.com</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-04-·-Dane-kont-4343c-Help-InterviewSplit-heading-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-04-·-Dane-kont-4343c-Help-InterviewSplit-heading-chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/landing-ux</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 19 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-05 &mdash; Nazwy pakiet&#243;w &mdash; &bdquo;Regeneracyjny&rdquo; &#8594; &bdquo;Profilaktyczny&rdquo;</div>
+        <div class="card-id">uat-live-P2-05 &bull; fix/payments</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;Regeneracyjny program organizmu&rdquo; &mdash; stara nazwa</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;Profilaktyczny program wsparcia Twojego organizmu&rdquo;</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-05-·-Nazwy-pak-0c1fe-neracyjny-→-Profilaktyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-05-·-Nazwy-pak-0c1fe-neracyjny-→-Profilaktyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/payments</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+  <!-- 20 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="badge p2">P2</span>
+      <div class="card-header-text">
+        <div class="card-title">P2-05b &mdash; Referrals &ndash; &bdquo;diagnostyczny&rdquo; &#8594; &bdquo;dietetyczny&rdquo;</div>
+        <div class="card-id">uat-live-P2-05b &bull; fix/copy-remaining</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="info-row">
+        <div class="info-box problem">
+          <div class="info-box-label">Problem zg&#322;oszony</div>
+          <div class="info-box-text">&bdquo;diagnostyczny&rdquo; w sekcji Referrals</div>
+        </div>
+        <div class="info-box fix">
+          <div class="info-box-label">Zmiana / realizacja</div>
+          <div class="info-box-text">&bdquo;dietetyczny&rdquo; &mdash; copy poprawiony</div>
+        </div>
+      </div>
+      <div class="video-pair">
+        <div class="video-wrap">
+          <span class="video-label przed"><span class="vdot"></span>PRZED &mdash; produkcja</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-przed/uat-live-P2-05b-·-Referrals-–-diagnostyczny-→-dietetyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+        <div class="video-wrap">
+          <span class="video-label po"><span class="vdot"></span>PO &mdash; localhost</span>
+          <video class="video-player" controls preload="metadata">
+            <source src="uat-po/uat-live-P2-05b-·-Referrals-–-diagnostyczny-→-dietetyczny--chromium-smoke/video.webm" type="video/webm">
+          </video>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="footer-branch">&#x2387; fix/copy-remaining</span>
+      <span class="footer-status">&#10003; Naprawione</span>
+    </div>
+  </div>
+
+</div><!-- /P2 grid -->
+
+
+<footer>
+  <strong>UAT Smoke &mdash; Backlog Phase 1</strong> &bull; 2026-03-24 &bull; 20 zmian przetestowanych &bull; Chromium Smoke Suite
+</footer>
+
+</body>
+</html>

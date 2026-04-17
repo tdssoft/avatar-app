@@ -1,0 +1,234 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { pl } from "date-fns/locale";
+import { ClipboardList, MessageSquare, LogIn } from "lucide-react";
+import { toast } from "sonner";
+import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
+
+interface Patient {
+  id: string;
+  user_id: string;
+  subscription_status: string;
+  diagnosis_status: string;
+  last_communication_at: string | null;
+  created_at: string;
+  tags?: string[] | null;
+  profiles?: {
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  };
+  primary_person_profile?: {
+    name: string | null;
+  } | null;
+  referral?: {
+    referrer_code: string;
+    referrer_name: string | null;
+  } | null;
+}
+
+interface PatientTableProps {
+  patients: Patient[];
+  isLoading: boolean;
+  unreadByPatient?: Record<string, { unread_messages: number; unread_interviews: number }>;
+  onOpenPatientMessages?: (patientId: string) => void | Promise<void>;
+  onOpenPatientInterview?: (patientId: string) => void | Promise<void>;
+  onImpersonate?: (userId: string, fullName: string) => void | Promise<void>;
+}
+
+const NewDot = ({ visible }: { visible: boolean }) => {
+  if (!visible) return null;
+  return <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />;
+};
+
+const PatientTable = ({
+  patients,
+  isLoading,
+  unreadByPatient = {},
+  onOpenPatientMessages,
+  onOpenPatientInterview,
+  onImpersonate,
+}: PatientTableProps) => {
+  const navigate = useNavigate();
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Aktywna":
+        return <Badge variant="default">Aktywna</Badge>;
+      case "Wygasła":
+        return <Badge variant="destructive">Wygasła</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  const getDiagnosisBadge = (status: string) => {
+    switch (status) {
+      case "Wykonana":
+        return <Badge variant="default">Wykonana</Badge>;
+      case "Oczekuje":
+        return <Badge variant="outline">Oczekuje</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (patients.length === 0) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        Brak pacjentów do wyświetlenia
+      </div>
+    );
+  }
+
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            <TableHead className="font-semibold">Imię i nazwisko</TableHead>
+            <TableHead className="font-semibold">Polecony przez</TableHead>
+            <TableHead className="font-semibold">Subskrypcja</TableHead>
+            <TableHead className="font-semibold">Diagnoza</TableHead>
+            <TableHead className="font-semibold">Data rejestracji</TableHead>
+            <TableHead className="font-semibold">Nowości</TableHead>
+            <TableHead className="font-semibold">Akcja</TableHead>
+            <TableHead className="font-semibold">Ostatnia komunikacja</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {patients.map((patient) => {
+            const hasValidPatientId = typeof patient.id === "string" && patient.id.trim().length > 0;
+            const firstName = patient.profiles?.first_name?.trim() || "";
+            const lastName = patient.profiles?.last_name?.trim() || "";
+            const fullName = resolvePatientDisplayName(firstName, lastName, patient.primary_person_profile?.name || "");
+            const unreadCounters = unreadByPatient[patient.id] ?? {
+              unread_messages: 0,
+              unread_interviews: 0,
+            };
+
+            return (
+              <TableRow key={patient.id} className="hover:bg-muted/30">
+                <TableCell className="font-medium">{fullName}</TableCell>
+                <TableCell>
+                  {patient.referral ? (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-primary">
+                        {patient.referral.referrer_name || "Partner"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {patient.referral.referrer_code}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
+                <TableCell>{getStatusBadge(patient.subscription_status)}</TableCell>
+                <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {patient.created_at
+                    ? format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
+                    : "Brak"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                      aria-label={`Wiadomości pacjenta ${fullName}`}
+                      onClick={() => {
+                        if (!hasValidPatientId) {
+                          console.error("[PatientTable] Missing patient id for message action", patient);
+                          toast.error("Nie udało się otworzyć wiadomości pacjenta");
+                          return;
+                        }
+                        if (onOpenPatientMessages) {
+                          void onOpenPatientMessages(patient.id);
+                          return;
+                        }
+                        navigate(`/admin/patient/${patient.id}?tab=notes`);
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <NewDot visible={unreadCounters.unread_messages > 0} />
+                    </button>
+                    <button
+                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                      aria-label={`Wywiad pacjenta ${fullName}`}
+                      onClick={() => {
+                        if (!hasValidPatientId) {
+                          console.error("[PatientTable] Missing patient id for interview action", patient);
+                          toast.error("Nie udało się otworzyć wywiadu pacjenta");
+                          return;
+                        }
+                        if (onOpenPatientInterview) {
+                          void onOpenPatientInterview(patient.id);
+                          return;
+                        }
+                        navigate(`/admin/patient/${patient.id}?tab=interview`);
+                      }}
+                    >
+                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                      <NewDot visible={unreadCounters.unread_interviews > 0} />
+                    </button>
+                    {onImpersonate && (
+                      <button
+                        className="relative p-2 rounded-md border border-primary bg-primary hover:bg-primary/90 transition-colors"
+                        aria-label={`Zaloguj jako ${fullName}`}
+                        title="Zaloguj jako ten użytkownik"
+                        onClick={() => {
+                          if (!patient.user_id) {
+                            console.error("[PatientTable] Missing user_id for impersonation", patient);
+                            toast.error("Nie udało się zalogować jako pacjent");
+                            return;
+                          }
+                          void onImpersonate(patient.user_id, fullName);
+                        }}
+                      >
+                        <LogIn className="h-4 w-4 text-primary-foreground" />
+                      </button>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!hasValidPatientId) {
+                        console.error("[PatientTable] Missing patient id for profile navigation", patient);
+                        toast.error("Nie udało się otworzyć profilu pacjenta");
+                        return;
+                      }
+                      navigate(`/admin/patient/${patient.id}`);
+                    }}
+                  >
+                    Profil klienta
+                  </Button>
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {patient.last_communication_at
+                    ? format(new Date(patient.last_communication_at), "dd.MM.yyyy HH:mm", { locale: pl })
+                    : "Brak"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+};
+
+export default PatientTable;

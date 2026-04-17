@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1",
+      "localStorage": [
+        {
+          "name": "sb-51-auth-token",
+          "value": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0NjIyMzI4LCJpYXQiOjE3NzQ2MTg3MjgsInN1YiI6Ijk4NGU0NDcyLWM2OTAtNDY0Mi1iNWQ3LThjMGI2ZTg4YjMyMyIsImVtYWlsIjoiYWRtaW5AZWF2YXRhci5kaWV0IiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiYWRtaW4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZmlyc3ROYW1lIjoiQWRtaW4iLCJsYXN0TmFtZSI6IkVhdmF0YXIiLCJyZWZlcnJhbENvZGUiOiJWTUpVSzY3RyJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc0NjE4NzI4fV0sInNlc3Npb25faWQiOiIyMjc5NWYzNi02ZDhhLTQzNDUtODkwMi01NzQ5ZGUwZWEwMjEifQ.RXAqn0ZbhjRkkRfrRtlek0NdqtirZ1CeiZfdHwWinE0\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1774622328,\"refresh_token\":\"JDSq6nfKMK4SVeaqeV0pfQ\",\"user\":{\"id\":\"984e4472-c690-4642-b5d7-8c0b6e88b323\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"admin@eavatar.diet\",\"email_confirmed_at\":\"2026-03-03T12:03:51.014677Z\",\"phone\":\"\",\"confirmed_at\":\"2026-03-03T12:03:51.014677Z\",\"last_sign_in_at\":\"2026-03-27T13:38:48.976103413Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"],\"role\":\"admin\"},\"user_metadata\":{\"email_verified\":true,\"firstName\":\"Admin\",\"lastName\":\"Eavatar\",\"referralCode\":\"VMJUK67G\"},\"identities\":[{\"identity_id\":\"a6f9015c-e2ce-4166-9638-fff65b6bba10\",\"id\":\"984e4472-c690-4642-b5d7-8c0b6e88b323\",\"user_id\":\"984e4472-c690-4642-b5d7-8c0b6e88b323\",\"identity_data\":{\"email\":\"admin@eavatar.diet\",\"email_verified\":true,\"phone_verified\":false,\"sub\":\"984e4472-c690-4642-b5d7-8c0b6e88b323\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-02-17T14:27:29.386854Z\",\"created_at\":\"2026-02-17T14:27:29.386892Z\",\"updated_at\":\"2026-02-17T14:27:29.386892Z\",\"email\":\"admin@eavatar.diet\"}],\"created_at\":\"2026-02-17T14:27:29.384269Z\",\"updated_at\":\"2026-03-27T13:38:48.978853Z\"}}"
+        }
+      ]
+    }
+  ]
+}

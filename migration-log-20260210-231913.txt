@@ -1,0 +1,216 @@
+
+╔════════════════════════════════════════════════╗
+║   CSV → Supabase Migration Tool               ║
+╚════════════════════════════════════════════════╝
+
+📡 Connecting to Supabase database...
+✅ Connected successfully
+
+👥 Importing Users...
+   Found 25 users in CSV
+
+   ✅ Created: anna.ojdana@gmail.com (Anna Ojdana)
+   ✅ Created: kamil.niegowski@devs.personit.net (Kamil Niegowski)
+   ✅ Created: kamil.niegowski+ref@devs.personit.net (Kamil Testowy)
+   ✅ Created: kamil.niegowski+ref2@devs.personit.net (Kamil Referral)
+   ✅ Created: kamil.niegowski+ref3@devs.personit.net (Kamil Referalny)
+   ✅ Created: kamil.niegowski+referral12@devs.personit.net (Kamil Ref)
+   ✅ Created: kamil.niegowski+referral13@devs.personit.net (Kamil Referralowy)
+   ✅ Created: kamil.niegowski+referral14@devs.personit.net (REF REF)
+   ✅ Created: bartoszlasakk@gmail.com (⚠️ Ireneusz Dudek)
+   ✅ Created: bartek833@gmail.com (Joe Doe)
+   ✅ Created: bartek833+1@gmail.com (Arthur Moe)
+   ✅ Created: wiriri2185@owlny.com (⚠️Karol Woźniak)
+   ✅ Created: yageva6942@shouxs.com (Andrzej Zając)
+   ✅ Created: wfv82922@bcooq.com (⚠️ Urjasz Symanski)
+   ✅ Created: hiweb79819@owlny.com (Maciej Michalski)
+   ✅ Created: potepiy660@perceint.com (⚠️ Brygida Piotrowska)
+   ✅ Created: lucyna.mieszek@gmail.com (Lucyna Mieszek)
+   ✅ Created: tesciarz1@gmail.com (Jan Kowalski)
+   ✅ Created: bartoszlasakk+99@gmail.com (Bartosz Lasak)
+   ✅ Created: bartoszlasakk+100@gmail.com (Bartosz Lasak)
+   ✅ Created: bartek833+5@gmail.com (Paweł Kowalski)
+   ✅ Created: bartek833+6@gmail.com (Sergio Canalez)
+   ✅ Created: lucyna.mieszek+1@gmail.com (Jan Mieszek )
+   ✅ Created: testnumber@testnumber.pl (TESTnumber TESTnumber)
+   ✅ Created: anna.ojdana@devs.personit.net (Imię Nazwisko)
+
+   Summary: 25 created, 0 skipped, 0 failed
+
+🔗 Importing Referrals...
+   Found 5 referrals in CSV
+
+   ✅ Created referral: kamil.niegowski@devs.personit.net → kamil.niegowski+referral12@devs.personit.net
+   ✅ Created referral: kamil.niegowski@devs.personit.net → kamil.niegowski+referral13@devs.personit.net
+   ✅ Created referral: kamil.niegowski+referral13@devs.personit.net → kamil.niegowski+referral14@devs.personit.net
+   ✅ Created referral: hiweb79819@owlny.com → bartek833+5@gmail.com
+   ✅ Created referral: hiweb79819@owlny.com → lucyna.mieszek+1@gmail.com
+
+   Summary: 5 created, 0 skipped
+
+📝 Importing Notes...
+   Found 9 notes in CSV
+
+   ✅ Created note for: bartoszlasakk@gmail.com
+   ✅ Created note for: bartoszlasakk@gmail.com
+   ✅ Created note for: bartoszlasakk@gmail.com
+   ✅ Created note for: kamil.niegowski+referral14@devs.personit.net
+   ✅ Created note for: kamil.niegowski+ref3@devs.personit.net
+   ✅ Created note for: bartoszlasakk@gmail.com
+   ✅ Created note for: bartoszlasakk@gmail.com
+   ✅ Created note for: wfv82922@bcooq.com
+   ✅ Created note for: potepiy660@perceint.com
+
+   Summary: 9 created, 0 skipped
+
+💬 Importing Messages...
+   Found 48 messages in CSV
+
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: kamil.niegowski+ref3@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski+referral14@devs.personit.net (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski+ref3@devs.personit.net (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: kamil.niegowski+referral14@devs.personit.net (question)
+   ✅ Created message from: kamil.niegowski+ref3@devs.personit.net (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski+referral14@devs.personit.net (question)
+   ✅ Created message from: kamil.niegowski+referral14@devs.personit.net (question)
+   ✅ Created message from: kamil.niegowski+ref3@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski+ref3@devs.personit.net (answer)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: wfv82922@bcooq.com (question)
+   ✅ Created message from: wfv82922@bcooq.com (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: potepiy660@perceint.com (question)
+   ✅ Created message from: potepiy660@perceint.com (question)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: kamil.niegowski@devs.personit.net (answer)
+   ✅ Created message from: bartoszlasakk@gmail.com (question)
+   ✅ Created message from: wfv82922@bcooq.com (question)
+   ✅ Created message from: anna.ojdana@devs.personit.net (answer)
+   ✅ Created message from: anna.ojdana@gmail.com (question)
+   ✅ Created message from: anna.ojdana@devs.personit.net (answer)
+   ✅ Created message from: anna.ojdana@gmail.com (question)
+   ✅ Created message from: anna.ojdana@devs.personit.net (answer)
+   ✅ Created message from: anna.ojdana@gmail.com (question)
+   ✅ Created message from: anna.ojdana@gmail.com (question)
+   ✅ Created message from: anna.ojdana@gmail.com (question)
+
+   Summary: 48 created, 0 skipped
+
+🔗 Importing Links...
+   Found 12 links in CSV
+
+   ✅ Created link: Link...
+   ✅ Created link: Link...
+   ✅ Created link: Link...
+   ✅ Created link: Link...
+   ✅ Created link: https://personit.net/pl/...
+   ✅ Created link: https://personit.net/pl/...
+   ✅ Created link: https://personit.net/pl/...
+   ✅ Created link: LINK DO USUNIĘCIA v1...
+   ✅ Created link: https://www.google.com/...
+   ✅ Created link: https://www.google.com/v2...
+   ✅ Created link: https://www.google.com/v4...
+   ✅ Created link: https://www.google.com/v3...
+
+   Summary: 12 created, 0 skipped
+
+🩺 Importing Recommendations...
+   Found 34 recommendations in CSV
+
+   ❌ Failed to create recommendation: column "ai_analysis_data" of relation "recommendations" does not exist
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create recommendation: current transaction is aborted, commands ignored until end of transaction block
+
+   Summary: 0 created, 9 skipped
+
+📊 Importing User Results...
+   Found 4 results in CSV
+
+   ❌ Failed to create result: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create result: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create result: current transaction is aborted, commands ignored until end of transaction block
+
+   Summary: 0 created, 1 skipped
+
+🥗 Importing Nutrition Interviews...
+   Found 13 nutrition interviews in CSV
+
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+   ❌ Failed to create nutrition interview: current transaction is aborted, commands ignored until end of transaction block
+
+   Summary: 0 created, 6 skipped
+
+╔════════════════════════════════════════════════╗
+║   Migration Completed Successfully! ✅         ║
+╚════════════════════════════════════════════════╝
+
+📊 Final Statistics:
+
+   Users:               25 created, 0 skipped, 0 failed
+   Profiles:            25 created
+   Patients:            25 created
+   Person Profiles:     25 created
+   Referrals:           5 created, 0 skipped
+   Notes:               9 created, 0 skipped
+   Messages:            48 created, 0 skipped
+   Links:               12 created, 0 skipped
+   Recommendations:     0 created, 9 skipped
+   User Results:        0 created, 1 skipped
+   Nutrition Interviews:0 created, 6 skipped
+
+💾 Mapping saved to: csv-import-mapping.json
+
+📝 Next steps:
+   1. All migrated users have default password: MigratedUser123!
+   2. Users should reset their passwords on first login
+   3. Verify the data in Supabase dashboard
+   4. Check csv-import-mapping.json for ID mappings
+

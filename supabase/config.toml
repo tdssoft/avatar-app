@@ -1,0 +1,40 @@
+project_id = "llrmskcwsfmubooswatz"
+
+[functions.post-signup]
+verify_jwt = false
+
+[functions.repair-referral]
+verify_jwt = false
+
+[functions.admin-create-patient]
+verify_jwt = false
+
+[functions.bootstrap-admin]
+verify_jwt = false
+
+[functions.create-checkout-session]
+verify_jwt = false
+
+[functions.send-recommendation-email]
+verify_jwt = false
+
+[functions.verify-download-token]
+verify_jwt = false
+
+[functions.import-patients]
+verify_jwt = false
+
+[functions.export-data]
+verify_jwt = false
+
+[functions.admin-delete-user]
+verify_jwt = false
+
+[functions.send-question-notification]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.admin-ensure-person-profile]
+verify_jwt = false

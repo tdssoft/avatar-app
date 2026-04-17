@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "webhookStatus": 200,
+  "webhookText": "{\"received\":true}",
+  "accessRow": {
+    "person_profile_id": "eaf2deb7-fe23-45e1-9cd6-c1bd6c71689b",
+    "status": "active",
+    "selected_packages": "mini",
+    "source": "stripe"
+  },
+  "patientRow": {
+    "subscription_status": "Aktywna"
+  },
+  "finalUrl": "https://app.eavatar.diet/interview",
+  "videoPath": "/Users/alanurban/Documents/eavatar.app/avatar-app/reports/production-payment-activation/production-payment-activation-1773927964238.webm",
+  "seed": {
+    "email": "prod-activation-1773927949106@example.com",
+    "primaryProfileId": "eaf2deb7-fe23-45e1-9cd6-c1bd6c71689b"
+  }
+}

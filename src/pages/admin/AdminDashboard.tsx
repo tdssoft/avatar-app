@@ -1,0 +1,540 @@
+import { useState, useEffect, useMemo } from "react";
+import { Plus, Search, Tag, X, LogIn } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import AdminLayout from "@/components/admin/AdminLayout";
+import PatientTable from "@/components/admin/PatientTable";
+import CreatePatientDialog from "@/components/admin/CreatePatientDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { supabase } from "@/integrations/supabase/client";
+import { useAdminNotificationsContext } from "@/contexts/AdminNotificationsContext";
+import { allPackages } from "@/lib/paymentFlow";
+import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
+import {
+  formatGrantAccessSuccessMessage,
+  invokeAdminGrantAccess,
+  resolveGrantAccessErrorMessage,
+  type GrantAccessResponse,
+} from "@/lib/adminGrantAccess";
+import { toast } from "sonner";
+
+interface Patient {
+  id: string;
+  user_id: string;
+  subscription_status: string;
+  diagnosis_status: string;
+  last_communication_at: string | null;
+  created_at: string;
+  tags: string[] | null;
+  profiles?: {
+    first_name: string | null;
+    last_name: string | null;
+    phone: string | null;
+  };
+  primary_person_profile?: {
+    name: string | null;
+  } | null;
+  person_profiles?: {
+    id: string;
+    name: string | null;
+    is_primary: boolean | null;
+  }[];
+  referral?: {
+    referrer_code: string;
+    referrer_name: string | null;
+  } | null;
+}
+
+type GrantAccessReason = "platnosc_gotowka" | "inny_przypadek";
+
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isGrantingAccess, setIsGrantingAccess] = useState(false);
+  const [grantPatientId, setGrantPatientId] = useState("");
+  const [grantPersonProfileId, setGrantPersonProfileId] = useState("");
+  const [grantReason, setGrantReason] = useState<GrantAccessReason | "">("");
+  const [grantProductId, setGrantProductId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [subscriptionFilter, setSubscriptionFilter] = useState("all");
+  const [diagnosisFilter, setDiagnosisFilter] = useState("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const {
+    byPatientMap,
+    markPatientInterviewRead,
+    markPatientMessagesRead,
+  } = useAdminNotificationsContext();
+
+  const fetchPatients = async () => {
+    setIsLoading(true);
+    try {
+      // First get patients
+      const { data: patientsData, error: patientsError } = await supabase
+        .from("patients")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (patientsError) throw patientsError;
+
+      // Then get profiles for each patient
+      if (patientsData && patientsData.length > 0) {
+        const userIds = patientsData.map(p => p.user_id);
+        
+        // Fetch profiles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, phone")
+          .in("user_id", userIds);
+
+        if (profilesError) throw profilesError;
+
+        // Fetch all person profiles so admin can grant access per profile
+        const { data: personProfilesData, error: personProfilesError } = await supabase
+          .from("person_profiles")
+          .select("id, account_user_id, name, is_primary")
+          .in("account_user_id", userIds)
+          .order("is_primary", { ascending: false })
+          .order("created_at", { ascending: true });
+
+        if (personProfilesError) {
+          console.error("[AdminDashboard] Error fetching person profiles:", personProfilesError);
+        }
+
+        // Fetch referrals - who referred each patient
+        const { data: referralsData, error: referralsError } = await supabase
+          .from("referrals")
+          .select("referred_user_id, referrer_code, referrer_user_id")
+          .in("referred_user_id", userIds);
+
+        if (referralsError) {
+          console.error("[AdminDashboard] Error fetching referrals:", referralsError);
+        }
+
+        // Get referrer profiles (names of partners who made referrals)
+        let referrerProfiles: { user_id: string; first_name: string | null; last_name: string | null }[] = [];
+        if (referralsData && referralsData.length > 0) {
+          const referrerUserIds = [...new Set(referralsData.map(r => r.referrer_user_id))];
+          const { data: referrerProfilesData } = await supabase
+            .from("profiles")
+            .select("user_id, first_name, last_name")
+            .in("user_id", referrerUserIds);
+          
+          referrerProfiles = referrerProfilesData || [];
+        }
+
+        // Merge profiles and referrals with patients
+        const patientsWithProfiles = patientsData.map(patient => {
+          const profile = profilesData?.find(p => p.user_id === patient.user_id);
+          const accountProfiles = (personProfilesData ?? []).filter(pp => pp.account_user_id === patient.user_id);
+          const primaryPersonProfile = accountProfiles.find(pp => pp.is_primary);
+          const referral = referralsData?.find(r => r.referred_user_id === patient.user_id);
+          
+          let referralInfo = null;
+          if (referral) {
+            const referrerProfile = referrerProfiles.find(p => p.user_id === referral.referrer_user_id);
+            const referrerName = referrerProfile?.first_name && referrerProfile?.last_name
+              ? `${referrerProfile.first_name} ${referrerProfile.last_name}`
+              : null;
+            referralInfo = {
+              referrer_code: referral.referrer_code,
+              referrer_name: referrerName
+            };
+          }
+
+          return {
+            ...patient,
+            profiles: profile || { first_name: null, last_name: null, phone: null },
+            primary_person_profile: primaryPersonProfile ? { name: primaryPersonProfile.name } : null,
+            person_profiles: accountProfiles.map((accountProfile) => ({
+              id: accountProfile.id,
+              name: accountProfile.name,
+              is_primary: accountProfile.is_primary,
+            })),
+            referral: referralInfo
+          };
+        });
+
+        setPatients(patientsWithProfiles);
+      } else {
+        setPatients([]);
+      }
+    } catch (error) {
+      console.error("[AdminDashboard] Error fetching patients:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  // Get all unique tags from patients
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    patients.forEach((p) => {
+      p.tags?.forEach((tag) => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet).sort();
+  }, [patients]);
+
+  // Filter patients based on search and filters
+  const filteredPatients = useMemo(() => {
+    return patients.filter((patient) => {
+      // Search filter
+      const fullName = resolvePatientDisplayName(
+        patient.profiles?.first_name,
+        patient.profiles?.last_name,
+        patient.primary_person_profile?.name || null,
+      ).toLowerCase();
+      const phone = patient.profiles?.phone?.toLowerCase() || "";
+      const searchLower = searchQuery.toLowerCase();
+      
+      const matchesSearch = searchQuery === "" || 
+        fullName.includes(searchLower) || 
+        phone.includes(searchLower);
+
+      // Subscription filter
+      const matchesSubscription = subscriptionFilter === "all" || 
+        patient.subscription_status === subscriptionFilter;
+
+      // Diagnosis filter
+      const matchesDiagnosis = diagnosisFilter === "all" || 
+        patient.diagnosis_status === diagnosisFilter;
+
+      // Tags filter
+      const matchesTags = selectedTags.length === 0 ||
+        selectedTags.some((tag) => patient.tags?.includes(tag));
+
+      return matchesSearch && matchesSubscription && matchesDiagnosis && matchesTags;
+    });
+  }, [patients, searchQuery, subscriptionFilter, diagnosisFilter, selectedTags]);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const clearTagFilters = () => {
+    setSelectedTags([]);
+  };
+
+  const hasActiveFilters = subscriptionFilter !== "all" || diagnosisFilter !== "all" || selectedTags.length > 0;
+
+  const patientOptions = useMemo(() => {
+    return patients.map((patient) => {
+      const fullName = resolvePatientDisplayName(
+        patient.profiles?.first_name,
+        patient.profiles?.last_name,
+        patient.primary_person_profile?.name || null,
+      );
+      return {
+        id: patient.id,
+        label: `${fullName} (${patient.subscription_status || "Brak"})`,
+      };
+    });
+  }, [patients]);
+
+  const grantProfileOptions = useMemo(() => {
+    const selectedPatient = patients.find((patient) => patient.id === grantPatientId);
+    return (selectedPatient?.person_profiles ?? []).map((profile) => ({
+      id: profile.id,
+      label: profile.is_primary
+        ? `${profile.name || "Profil główny"} (profil główny)`
+        : profile.name || "Profil dodatkowy",
+    }));
+  }, [patients, grantPatientId]);
+
+  useEffect(() => {
+    setGrantPersonProfileId("");
+  }, [grantPatientId]);
+
+  const handleOpenPatientMessages = async (patientId: string) => {
+    await markPatientMessagesRead(patientId);
+    navigate(`/admin/patient/${patientId}?tab=notes`);
+  };
+
+  const handleOpenPatientInterview = async (patientId: string) => {
+    await markPatientInterviewRead(patientId);
+    navigate(`/admin/patient/${patientId}?tab=interview`);
+  };
+
+  const handleImpersonate = async (userId: string, fullName: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-impersonate', {
+        body: { target_user_id: userId }
+      });
+
+      if (error) {
+        console.error('[AdminDashboard] Impersonation error:', error);
+        toast.error(`Nie udało się zalogować jako ${fullName}: ${error.message}`);
+        return;
+      }
+
+      if (data?.url) {
+        toast.success(`Otwieram sesję jako ${fullName}...`);
+        // Open the magic link in the same window
+        window.location.href = data.url;
+      } else {
+        toast.error('Brak linku do logowania');
+      }
+    } catch (error) {
+      console.error('[AdminDashboard] Impersonation error:', error);
+      toast.error('Wystąpił błąd podczas logowania jako pacjent');
+    }
+  };
+
+  const handleGrantAccess = async () => {
+    if (!grantPatientId || !grantPersonProfileId || !grantReason || !grantProductId) {
+      toast.error("Wybierz pacjenta, profil, powód i abonament");
+      return;
+    }
+
+    setIsGrantingAccess(true);
+    try {
+      const { data, error } = await invokeAdminGrantAccess({
+        patientId: grantPatientId,
+        personProfileId: grantPersonProfileId,
+        reason: grantReason,
+        productId: grantProductId,
+      });
+
+      if (error) throw error;
+
+      const selectedProfileLabel =
+        grantProfileOptions.find((profile) => profile.id === grantPersonProfileId)?.label ?? null;
+      toast.success(formatGrantAccessSuccessMessage(data?.grantedProfilesCount ?? 1, selectedProfileLabel));
+      setGrantPatientId("");
+      setGrantPersonProfileId("");
+      setGrantReason("");
+      setGrantProductId("");
+      await fetchPatients();
+    } catch (error: unknown) {
+      console.error("[AdminDashboard] grant access error:", error);
+      const message = await resolveGrantAccessErrorMessage(error);
+      toast.error(message);
+    } finally {
+      setIsGrantingAccess(false);
+    }
+  };
+
+  return (
+    <AdminLayout>
+      {/* Page Header - on turquoise background */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <p className="text-white/90 text-sm mb-1">Witamy w Avatar!</p>
+          <h1 className="text-2xl font-semibold text-white">Pacjenci</h1>
+          <p className="text-white/80 mt-1">
+            Zarządzaj kontami pacjentów i ich zaleceniami
+          </p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 bg-white text-primary hover:bg-white/90">
+          <Plus className="h-4 w-4" />
+          Dodaj pacjenta
+        </Button>
+      </div>
+
+      {/* Content Card - white background */}
+      <div className="bg-card rounded-xl shadow-lg p-6">
+        <div className="space-y-6">
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Szukaj po imieniu, nazwisku lub telefonie..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={subscriptionFilter} onValueChange={setSubscriptionFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Subskrypcja" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszystkie</SelectItem>
+                <SelectItem value="Aktywna">Aktywna</SelectItem>
+                <SelectItem value="Wygasła">Wygasła</SelectItem>
+                <SelectItem value="Brak">Brak</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={diagnosisFilter} onValueChange={setDiagnosisFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Diagnoza" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Wszystkie</SelectItem>
+                <SelectItem value="Wykonana">Wykonana</SelectItem>
+                <SelectItem value="Oczekuje">Oczekuje</SelectItem>
+                <SelectItem value="Brak">Brak</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Tags Filter */}
+            {allTags.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Tag className="h-4 w-4" />
+                    Tagi
+                    {selectedTags.length > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {selectedTags.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Filtruj po tagach</span>
+                      {selectedTags.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={clearTagFilters}>
+                          <X className="h-3 w-3 mr-1" />
+                          Wyczyść
+                        </Button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {allTags.map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant={selectedTags.includes(tag) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => handleTagToggle(tag)}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          {/* Results count */}
+          {searchQuery || hasActiveFilters ? (
+            <p className="text-sm text-muted-foreground">
+              Znaleziono: {filteredPatients.length} z {patients.length} pacjentów
+            </p>
+          ) : null}
+
+          <div className="border rounded-lg p-4 space-y-4">
+            <div>
+              <h2 className="text-base font-semibold">Przyznaj dostęp</h2>
+              <p className="text-sm text-muted-foreground">
+                Ręczne nadanie dostępu dla wybranego profilu pacjenta. Wybierz osobno
+                profil główny albo dziecko.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-end">
+              <div className="space-y-2">
+                <Label>Klient</Label>
+                <Select value={grantPatientId} onValueChange={setGrantPatientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz pacjenta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {patientOptions.map((patient) => (
+                      <SelectItem key={patient.id} value={patient.id}>
+                        {patient.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Profil</Label>
+                <Select
+                  value={grantPersonProfileId}
+                  onValueChange={setGrantPersonProfileId}
+                  disabled={!grantPatientId || grantProfileOptions.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={grantPatientId ? "Wybierz profil" : "Najpierw wybierz pacjenta"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grantProfileOptions.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Powód</Label>
+                <Select value={grantReason} onValueChange={(value) => setGrantReason(value as GrantAccessReason)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz powód" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="platnosc_gotowka">Płatność gotówką</SelectItem>
+                    <SelectItem value="inny_przypadek">Inny przypadek</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Abonament</Label>
+                <Select value={grantProductId} onValueChange={setGrantProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz produkt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allPackages.map((pkg) => (
+                      <SelectItem key={pkg.id} value={pkg.id}>
+                        {pkg.name} - {pkg.price} zł ({pkg.billing === "monthly" ? "miesięczny" : "jednorazowy"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleGrantAccess} disabled={isGrantingAccess}>
+                {isGrantingAccess ? "Przyznawanie..." : "Przyznaj dostęp"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Patient Table */}
+          <PatientTable
+            patients={filteredPatients}
+            isLoading={isLoading}
+            unreadByPatient={byPatientMap}
+            onOpenPatientMessages={handleOpenPatientMessages}
+            onOpenPatientInterview={handleOpenPatientInterview}
+            onImpersonate={handleImpersonate}
+          />
+        </div>
+      </div>
+
+      {/* Create Patient Dialog */}
+      <CreatePatientDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={fetchPatients}
+      />
+    </AdminLayout>
+  );
+};
+
+export default AdminDashboard;

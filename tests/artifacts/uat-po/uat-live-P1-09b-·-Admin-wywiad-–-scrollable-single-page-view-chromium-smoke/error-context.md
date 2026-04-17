@@ -1,0 +1,174 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - region "Notifications (F8)":
+      - list
+    - region "Notifications alt+T"
+    - generic [ref=e3]:
+      - complementary [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e7]:
+            - img "Avatar centrum zdrowia" [ref=e8]
+            - generic [ref=e9]: ADMIN
+          - navigation [ref=e10]:
+            - list [ref=e11]:
+              - listitem [ref=e12]:
+                - link "Pacjenci" [ref=e13] [cursor=pointer]:
+                  - /url: /admin
+                  - img [ref=e14]
+                  - generic [ref=e19]: Pacjenci
+              - listitem [ref=e20]:
+                - link "Partnerzy" [ref=e21] [cursor=pointer]:
+                  - /url: /admin/partners
+                  - img [ref=e22]
+                  - generic [ref=e27]: Partnerzy
+              - listitem [ref=e28]:
+                - link "Pomoc" [ref=e29] [cursor=pointer]:
+                  - /url: /dashboard/help
+                  - img [ref=e30]
+                  - generic [ref=e32]: Pomoc
+              - listitem [ref=e33]:
+                - button "Więcej" [ref=e35] [cursor=pointer]:
+                  - generic [ref=e36]: Więcej
+                  - img [ref=e37]
+              - listitem [ref=e39]
+              - listitem [ref=e41]:
+                - link "Panel użytkownika" [ref=e42] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e43]
+                  - generic [ref=e48]: Panel użytkownika
+              - listitem [ref=e49]:
+                - button "Wyloguj" [ref=e50] [cursor=pointer]:
+                  - img [ref=e51]
+                  - generic [ref=e54]: Wyloguj
+      - generic [ref=e55]:
+        - banner [ref=e56]:
+          - generic [ref=e57]:
+            - generic [ref=e59]: AE
+            - generic [ref=e60]: Admin Eavatar
+            - button "Wiadomości" [ref=e62] [cursor=pointer]:
+              - img [ref=e63]
+            - button "Powiadomienia" [ref=e65] [cursor=pointer]:
+              - img [ref=e66]
+        - main [ref=e70]:
+          - generic [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e74]:
+                - button [ref=e75] [cursor=pointer]:
+                  - img
+                - generic [ref=e76]:
+                  - 'heading "Pacjent: Aleksandra Mika" [level=1] [ref=e77]'
+                  - paragraph [ref=e78]: Widok wynikowy i komunikacja pacjenta
+              - generic [ref=e79]:
+                - combobox [ref=e80] [cursor=pointer]:
+                  - generic: Zalecenia dla Aleksandra Mika - 24.03.2026
+                  - img [ref=e81]
+                - button "Dodaj zalecenia" [ref=e83] [cursor=pointer]
+                - button "Edytuj" [ref=e84] [cursor=pointer]
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - generic [ref=e87]:
+                  - heading "Podsumowanie funkcjonowania organizmu i zalecenia dietetyczne" [level=3] [ref=e89]
+                  - generic [ref=e91]:
+                    - paragraph [ref=e92]: Zalecenia dla Aleksandra Mika - 24.03.2026
+                    - paragraph [ref=e93]: Brak podsumowania funkcjonowania organizmu dla tego zalecenia.
+                    - generic [ref=e94]:
+                      - paragraph [ref=e95]: "Plik zalecenia: 1774358739061_Diagnoza_i_zalecenia___Mika_Aleksandra_-_24.03.2026.docx"
+                      - paragraph [ref=e96]: "Typ pliku: DOCX"
+                      - generic [ref=e97]:
+                        - button "Otwórz plik" [ref=e98] [cursor=pointer]
+                        - button "Pobierz plik" [ref=e99] [cursor=pointer]
+                - generic [ref=e100]:
+                  - heading "Wyniki badań laboratoryjne klienta" [level=3] [ref=e102]
+                  - generic [ref=e103]:
+                    - paragraph [ref=e104]: Brak wgranych plików wynikowych dla tego profilu.
+                    - button "+ wgraj plik" [ref=e105] [cursor=pointer]:
+                      - img
+                      - text: + wgraj plik
+                - generic [ref=e107]:
+                  - generic [ref=e108]:
+                    - heading "Karta z urządzenia (dokument wewnętrzny)" [level=3] [ref=e109]
+                    - generic [ref=e110]: Brak plików
+                    - button "+ wgraj plik" [ref=e111] [cursor=pointer]:
+                      - img
+                      - text: + wgraj plik
+                  - generic [ref=e112]:
+                    - heading "Dane do AI" [level=3] [ref=e113]
+                    - textbox "Wpisz dane pomocnicze dla AI..." [ref=e114]
+                    - button "Dodaj plik AI" [ref=e116] [cursor=pointer]
+                    - button "Zapisz" [disabled]
+                    - generic [ref=e117]:
+                      - paragraph [ref=e118]: Historia danych AI
+                      - paragraph [ref=e119]: Brak zapisanej historii danych AI.
+                - generic [ref=e120]:
+                  - heading "Pakiet pacjenta" [level=3] [ref=e122]
+                  - generic [ref=e123]:
+                    - generic [ref=e124]:
+                      - generic [ref=e125]: Status pakietu
+                      - generic [ref=e126]: Aktywna
+                    - generic [ref=e127]:
+                      - generic [ref=e128]: Status analizy organizmu
+                      - generic [ref=e129]: Brak
+                    - button "Zobacz wyniki ankiety (wywiad dietetyczny)" [disabled]:
+                      - img
+                      - text: Zobacz wyniki ankiety (wywiad dietetyczny)
+                    - paragraph [ref=e130]: Brak wysłanego wywiadu dla tego profilu.
+                - generic [ref=e131]:
+                  - heading "Notatki" [level=3] [ref=e133]
+                  - generic [ref=e134]:
+                    - paragraph [ref=e135]: Brak notatek.
+                    - textbox "Dodaj notatkę..." [ref=e136]
+                    - button "Dodaj notatkę" [disabled]
+                - generic [ref=e137]:
+                  - heading "Komunikacja SMS" [level=3] [ref=e139]
+                  - generic [ref=e140]:
+                    - paragraph [ref=e141]: Brak historii SMS.
+                    - textbox "Napisz wiadomość SMS do pacjenta..." [ref=e142]
+                    - button "Wyślij SMS" [disabled]:
+                      - img
+                      - text: Wyślij SMS
+                - generic [ref=e143]:
+                  - heading "Zadane pytania przez formularz" [level=3] [ref=e145]
+                  - generic [ref=e146]:
+                    - paragraph [ref=e147]: Brak pytań z formularza.
+                    - textbox "Napisz odpowiedź..." [ref=e148]
+                    - button "Odpowiedz" [disabled]
+              - generic [ref=e149]:
+                - generic [ref=e150]:
+                  - heading "Avatar" [level=3] [ref=e152]
+                  - generic [ref=e156]: AM
+                - generic [ref=e157]:
+                  - heading "Zdjęcie pacjenta" [level=3] [ref=e159]
+                  - generic [ref=e163]: AM
+                - generic [ref=e164]:
+                  - heading "Dane pacjenta" [level=3] [ref=e166]
+                  - generic [ref=e167]:
+                    - generic [ref=e168]:
+                      - generic [ref=e169]:
+                        - generic [ref=e170]: "Imię i nazwisko:"
+                        - generic [ref=e171]: Aleksandra Mika
+                      - generic [ref=e172]:
+                        - img [ref=e173]
+                        - generic [ref=e176]: sylwia.mika86@gmail.com
+                      - generic [ref=e177]:
+                        - img [ref=e178]
+                        - generic [ref=e180]: "796219012"
+                    - generic [ref=e181]:
+                      - paragraph [ref=e182]: Profile osób
+                      - generic [ref=e184] [cursor=pointer]: Aleksandra Mika ★
+                    - generic [ref=e185]:
+                      - paragraph [ref=e186]:
+                        - img [ref=e187]
+                        - text: Tagi pacjenta
+                      - paragraph [ref=e191]: Brak tagów
+                      - generic [ref=e192]:
+                        - textbox "Nowy tag..." [ref=e193]
+                        - button [ref=e194] [cursor=pointer]:
+                          - img
+                    - button "Usuń klienta" [ref=e195] [cursor=pointer]:
+                      - img
+                      - text: Usuń klienta
+  - generic: Link do wywiadu klienta
+```

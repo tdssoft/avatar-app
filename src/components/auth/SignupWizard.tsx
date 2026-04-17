@@ -1,0 +1,513 @@
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Camera, Eye, EyeOff, Info, Upload } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
+
+const step1Schema = z.object({
+  photoOption: z.enum(["upload", "later"]),
+});
+
+const step3Schema = z
+  .object({
+    firstName: z.string().trim().min(2, "Imię musi mieć minimum 2 znaki"),
+    lastName: z.string().trim().min(2, "Nazwisko musi mieć minimum 2 znaki"),
+    phone: z.string().min(9, "Podaj poprawny numer telefonu").max(15),
+    email: z.string().email("Podaj poprawny adres email"),
+    password: z.string().min(8, "Hasło musi mieć minimum 8 znaków"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Hasła muszą być identyczne",
+    path: ["confirmPassword"],
+  });
+
+type Step1Data = z.infer<typeof step1Schema>;
+type Step3Data = z.infer<typeof step3Schema>;
+
+const SignupWizard = () => {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraCaptureInputRef = useRef<HTMLInputElement>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+
+  const { signup } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const step1Form = useForm<Step1Data>({
+    resolver: zodResolver(step1Schema),
+    defaultValues: { photoOption: "upload" },
+  });
+
+  const step3Form = useForm<Step3Data>({
+    resolver: zodResolver(step3Schema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const photoOption = step1Form.watch("photoOption");
+
+  const progress = useMemo(() => {
+    if (step === 1) return 1;
+    if (step === 2) return 2;
+    return 3;
+  }, [step]);
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+    }
+    setCameraStream(null);
+    setIsCameraOpen(false);
+  };
+
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click();
+  };
+
+  const openCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+      });
+      setCameraStream(stream);
+      setIsCameraOpen(true);
+    } catch {
+      toast({
+        title: "Brak dostępu do kamerki",
+        description: "Na telefonie otwieram aparat urządzenia do zrobienia zdjęcia.",
+      });
+      cameraCaptureInputRef.current?.click();
+    }
+  };
+
+  const captureFromCamera = async () => {
+    const video = cameraVideoRef.current;
+    if (!video) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", 0.92);
+    });
+
+    if (!blob) return;
+
+    const file = new File([blob], `camera-photo-${Date.now()}.jpg`, {
+      type: "image/jpeg",
+    });
+
+    setSelectedPhoto(file);
+    stopCamera();
+    toast({ title: "Zdjęcie zrobione", description: "Możesz przejść dalej." });
+  };
+
+  const handlePhotoSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        variant: "destructive",
+        title: "Nieprawidłowy plik",
+        description: "Wybierz plik graficzny (JPG, PNG, WEBP).",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "Plik jest za duży",
+        description: "Maksymalny rozmiar zdjęcia to 10 MB.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedPhoto(file);
+    if (isCameraOpen) {
+      stopCamera();
+    }
+    toast({ title: "Zdjęcie wybrane", description: file.name });
+  };
+
+  const requirePhotoToast = () =>
+    toast({
+      variant: "destructive",
+      title: "Wgraj zdjęcie",
+      description: "Wybierz zdjęcie zapisane na urządzeniu albo zrób zdjęcie kamerką.",
+    });
+
+  const handleStep1Submit = (data: Step1Data) => {
+    setStep(data.photoOption === "later" ? 3 : 2);
+  };
+
+  const handleStep2Submit = () => {
+    if (!selectedPhoto) {
+      requirePhotoToast();
+      return;
+    }
+    setStep(3);
+  };
+
+  const handleStep3Submit = async (data: Step3Data) => {
+    setIsLoading(true);
+    try {
+      const result = await signup({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        email: data.email,
+        password: data.password,
+        photoOption,
+        photoFile: photoOption === "upload" ? selectedPhoto ?? undefined : undefined,
+      });
+
+      if (!result.success) {
+        let errorMessage = "Wystąpił błąd podczas rejestracji";
+        if (result.error?.includes("User already registered")) {
+          errorMessage = "Konto z tym adresem email już istnieje";
+        }
+        toast({ variant: "destructive", title: "Błąd rejestracji", description: errorMessage });
+        return;
+      }
+
+      if (result.nextRoute === "/signup/verify-email") {
+        navigate("/signup/verify-email", { state: { email: data.email } });
+      } else {
+        navigate(result.nextRoute ?? "/dashboard");
+      }
+    } catch {
+      toast({ variant: "destructive", title: "Błąd", description: "Wystąpił błąd podczas rejestracji" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedPhoto) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedPhoto);
+    setPhotoPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedPhoto]);
+
+  useEffect(() => {
+    if (cameraVideoRef.current && cameraStream) {
+      cameraVideoRef.current.srcObject = cameraStream;
+    }
+  }, [cameraStream]);
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  return (
+    <div>
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+      <input
+        ref={cameraCaptureInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        className="hidden"
+        onChange={handlePhotoSelect}
+      />
+
+      <div className="flex items-center gap-2 mb-6">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className={`h-2 flex-1 rounded-full ${s <= progress ? "bg-accent" : "bg-muted"}`} />
+        ))}
+      </div>
+
+      {step === 1 && (
+        <>
+          <p className="text-sm text-muted-foreground mb-2">Krok 1/3</p>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Wybierz opcję zdjęcia</h1>
+
+          <form onSubmit={step1Form.handleSubmit(handleStep1Submit)} className="space-y-6">
+            <RadioGroup
+              value={photoOption}
+              onValueChange={(value) => step1Form.setValue("photoOption", value as "upload" | "later")}
+              className="space-y-4"
+            >
+              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                <RadioGroupItem value="upload" id="upload" className="mt-1" />
+                <div className="flex-1">
+                  <Label htmlFor="upload" className="font-medium cursor-pointer">
+                    Wybierz zdjęcie zapisane na urządzeniu
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      step1Form.setValue("photoOption", "upload");
+                      setStep(2);
+                    }}
+                    className="mt-2 text-sm text-accent hover:underline block"
+                  >
+                    Wgraj zdjęcie
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 rounded-lg border border-border p-4">
+                <RadioGroupItem value="later" id="later" className="mt-1" />
+                <Label htmlFor="later" className="font-medium cursor-pointer">
+                  Wgraj zdjęcie później
+                </Label>
+              </div>
+            </RadioGroup>
+
+            <div className="rounded-lg bg-muted p-4 flex gap-3">
+              <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div className="text-sm text-foreground">
+                <p className="font-semibold">Dlaczego zdjęcie jest potrzebne?</p>
+                <p className="text-muted-foreground">
+                  Zdjęcie jest niezbędne, aby system mógł odczytać indywidualną informację o aktualnym stanie funkcjonowania
+                  Twojego organizmu. Możesz wgrać zdjęcie później.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button type="submit" variant="black" className="w-full">
+                Dalej {"->"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
+            </div>
+          </form>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          <p className="text-sm text-muted-foreground mb-2">Krok 2/3</p>
+          <h1 className="text-2xl font-bold text-foreground mb-6">Wgraj zdjęcie</h1>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleStep2Submit();
+            }}
+            className="space-y-6"
+          >
+            <button
+              type="button"
+              onClick={openCamera}
+              className="w-full rounded-lg border-2 border-dashed border-border p-8 text-center hover:bg-muted/40 transition-colors"
+            >
+              <p className="font-medium text-foreground inline-flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Zrób zdjęcie kamerką (komputer/telefon)
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Użyj kamerki, aby zrobić zdjęcie.</p>
+              {selectedPhoto ? <p className="text-xs text-muted-foreground mt-3">{selectedPhoto.name}</p> : null}
+            </button>
+
+            <Button type="button" variant="outline" className="w-full" onClick={openPhotoPicker}>
+              <Upload className="h-4 w-4 mr-2" />
+              Wybierz plik z urządzenia
+            </Button>
+
+            {isCameraOpen ? (
+              <div className="rounded-lg border border-border p-3 space-y-3">
+                <video
+                  ref={cameraVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full max-h-72 rounded-md border border-border bg-black object-cover"
+                />
+                <div className="flex gap-2">
+                  <Button type="button" variant="black" className="flex-1" onClick={captureFromCamera}>
+                    Zrób zdjęcie
+                  </Button>
+                  <Button type="button" variant="outline" className="flex-1" onClick={stopCamera}>
+                    Anuluj
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {photoPreviewUrl ? (
+              <div className="rounded-lg border border-border p-3">
+                <img
+                  src={photoPreviewUrl}
+                  alt="Podgląd wybranego avatara"
+                  className="h-48 w-48 rounded-md border border-border object-cover"
+                />
+              </div>
+            ) : null}
+
+            <div className="rounded-lg bg-muted p-4 flex gap-3">
+              <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                Na zdjęciu powinna znajdować się wyłącznie Twoja twarz – bez innych osób, z możliwie jednolitym tłem.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button type="submit" variant="black" className="w-full">
+                Dalej {"->"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
+            </div>
+          </form>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          <p className="text-sm text-muted-foreground mb-2">Krok 3/3</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Ustaw login i hasło</h1>
+
+          <form onSubmit={step3Form.handleSubmit(handleStep3Submit)} className="space-y-5 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">Imię</Label>
+                <Input id="firstName" placeholder="Imię" {...step3Form.register("firstName")} />
+                {step3Form.formState.errors.firstName && (
+                  <p className="text-sm text-destructive">{step3Form.formState.errors.firstName.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Nazwisko</Label>
+                <Input id="lastName" placeholder="Nazwisko" {...step3Form.register("lastName")} />
+                {step3Form.formState.errors.lastName && (
+                  <p className="text-sm text-destructive">{step3Form.formState.errors.lastName.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Numer Telefonu</Label>
+              <Input id="phone" placeholder="Numer Telefonu" {...step3Form.register("phone")} />
+              {step3Form.formState.errors.phone && (
+                <p className="text-sm text-destructive">{step3Form.formState.errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Adres E-mail</Label>
+              <Input id="email" type="email" placeholder="Adres E-mail" {...step3Form.register("email")} />
+              {step3Form.formState.errors.email && (
+                <p className="text-sm text-destructive">{step3Form.formState.errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Hasło</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Hasło"
+                  {...step3Form.register("password")}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {step3Form.formState.errors.password && (
+                <p className="text-sm text-destructive">{step3Form.formState.errors.password.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Powtórz Hasło</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Powtórz Hasło"
+                  {...step3Form.register("confirmPassword")}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {step3Form.formState.errors.confirmPassword && (
+                <p className="text-sm text-destructive">{step3Form.formState.errors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-3 pt-1">
+              <Button type="submit" variant="black" className="w-full" disabled={isLoading}>
+                {isLoading ? "Rejestracja..." : "Rejestracja"}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Posiadasz już konto?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Zaloguj się
+                </Link>
+              </p>
+            </div>
+          </form>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default SignupWizard;

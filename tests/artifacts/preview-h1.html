@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head><meta charset="UTF-8"><title>Dashboard h1 PRZED vs PO</title>
+<style>
+  body{background:#0f0f0f;color:#e8e8e8;font-family:-apple-system,sans-serif;margin:0;padding:40px;}
+  h2{font-size:18px;margin-bottom:6px;}
+  p{color:#888;font-size:13px;margin-bottom:24px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+  .label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;}
+  .przed{color:#ef4444;} .po{color:#22c55e;}
+  video{width:100%;border-radius:8px;border:1px solid #2e2e2e;background:#000;}
+</style></head>
+<body>
+<h2>Dashboard h1 — rozmiar nagłówka</h2>
+<p>PRZED: <em>text-3xl md:text-5xl</em> (duży) &nbsp;|&nbsp; PO: <em>text-2xl md:text-3xl</em> (mniejszy)</p>
+<div class="grid">
+  <div>
+    <div class="label przed">● PRZED — port 5173</div>
+    <video controls autoplay muted src="dashboard-h1-before/single-test-Dashboard-h1-–-40a2f-t-5xl-PRZED-vs-text-3xl-PO--chromium-smoke/video.webm"></video>
+  </div>
+  <div>
+    <div class="label po">● PO — port 5174</div>
+    <video controls autoplay muted src="dashboard-h1-after/single-test-Dashboard-h1-–-40a2f-t-5xl-PRZED-vs-text-3xl-PO--chromium-smoke/video.webm"></video>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "stripeInvoiceId": "in_1TChSNGsB2OKp20sciz1VOGz",
+  "invoiceNumber": "99F773E0-0005",
+  "customerEmail": "e2e+1773930110350@example.com",
+  "webhookStatus": 200,
+  "webhookResponse": {"received": true},
+  "webhookEndpoint": "https://kong-production-d36f.up.railway.app/functions/v1/stripe-webhook",
+  "expectedAdminEmail": "avatarmieszek@gmail.com",
+  "notes": [
+    "Invoice was created and paid through Stripe live API using restricted key with expanded scopes.",
+    "Signed invoice.paid webhook returned HTTP 200 from production stripe-webhook.",
+    "Server log confirmation for PDF fetch and email send was checked separately in Railway logs."
+  ]
+}

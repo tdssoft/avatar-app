@@ -1,0 +1,79 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications alt+T"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - img "Avatar centrum zdrowia" [ref=e7]
+        - button "Jan Kowalski" [ref=e10] [cursor=pointer]:
+          - img
+          - generic [ref=e11]: Jan Kowalski
+          - img
+        - navigation [ref=e12]:
+          - list [ref=e13]:
+            - listitem [ref=e14]:
+              - link "Dashboard" [ref=e15] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e16]
+                - generic [ref=e21]: Dashboard
+            - listitem [ref=e22]:
+              - link "Wyniki badań" [ref=e23] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e24]
+                - generic [ref=e26]: Wyniki badań
+            - listitem [ref=e27]:
+              - link "Mój profil" [ref=e28] [cursor=pointer]:
+                - /url: /dashboard/profile
+                - img [ref=e29]
+                - generic [ref=e32]: Mój profil
+            - listitem [ref=e33]:
+              - link "Pomoc" [ref=e34] [cursor=pointer]:
+                - /url: /dashboard/help
+                - img [ref=e35]
+                - generic [ref=e37]: Pomoc
+            - listitem [ref=e38]:
+              - link "Program polecający" [ref=e39] [cursor=pointer]:
+                - /url: /dashboard/referrals
+                - img [ref=e40]
+                - generic [ref=e45]: Program polecający
+            - listitem [ref=e46]:
+              - button "Więcej" [ref=e48] [cursor=pointer]:
+                - generic [ref=e49]: Więcej
+                - img [ref=e50]
+            - listitem [ref=e52]:
+              - button "Wyloguj" [ref=e53] [cursor=pointer]:
+                - img [ref=e54]
+                - generic [ref=e57]: Wyloguj
+    - generic [ref=e58]:
+      - banner [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e62]: JK
+          - generic [ref=e63]: Jan Kowalski
+          - button "Powiadomienia" [ref=e65] [cursor=pointer]:
+            - img [ref=e66]
+      - main [ref=e69]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - paragraph [ref=e73]: Witamy w Avatar!
+            - heading "Twoja ścieżka pracy z ciałem zaczyna się w AVATAR" [level=1] [ref=e74]
+            - paragraph [ref=e75]: "Wybierz odpowiedni program dla siebie:"
+          - generic [ref=e76]:
+            - generic [ref=e78]:
+              - generic [ref=e79]:
+                - heading "Indywidualny program wsparcia ciała AVATAR" [level=3] [ref=e80]
+                - paragraph [ref=e81]: Wybierz pakiet dopasowany do Twoich potrzeb zdrowotnych.
+              - generic [ref=e82]:
+                - generic [ref=e83]: od 220 zł
+                - button "Kupuję" [ref=e84] [cursor=pointer]
+            - generic [ref=e86]:
+              - generic [ref=e87]:
+                - heading "Regeneracyjny program organizmu" [level=3] [ref=e88]
+                - paragraph [ref=e89]: Program wspierający regenerację organizmu i codzienne nawyki.
+              - generic [ref=e90]:
+                - generic [ref=e91]: od 27 zł
+                - button "Kupuję" [ref=e92] [cursor=pointer]
+```

@@ -1,0 +1,1107 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      audio_recordings: {
+        Row: {
+          duration_seconds: number | null
+          file_name: string
+          file_path: string
+          id: string
+          interview_id: string | null
+          notes: string | null
+          person_profile_id: string
+          recommendation_id: string | null
+          recorded_at: string
+          recorded_by: string
+        }
+        Insert: {
+          duration_seconds?: number | null
+          file_name: string
+          file_path: string
+          id?: string
+          interview_id?: string | null
+          notes?: string | null
+          person_profile_id: string
+          recommendation_id?: string | null
+          recorded_at?: string
+          recorded_by: string
+        }
+        Update: {
+          duration_seconds?: number | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          interview_id?: string | null
+          notes?: string | null
+          person_profile_id?: string
+          recommendation_id?: string | null
+          recorded_at?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_recordings_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "nutrition_interviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_recordings_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audio_recordings_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_event_reads: {
+        Row: {
+          admin_user_id: string
+          event_id: string
+          id: string
+          read_at: string
+        }
+        Insert: {
+          admin_user_id: string
+          event_id: string
+          id?: string
+          read_at?: string
+        }
+        Update: {
+          admin_user_id?: string
+          event_id?: string
+          id?: string
+          read_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_event_reads_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "admin_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          occurred_at: string
+          patient_id: string | null
+          person_profile_id: string | null
+          preview: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          occurred_at: string
+          patient_id?: string | null
+          person_profile_id?: string | null
+          preview?: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          occurred_at?: string
+          patient_id?: string | null
+          person_profile_id?: string | null
+          preview?: string | null
+          source_id?: string
+          source_table?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_events_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_events_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nutrition_interview_history: {
+        Row: {
+          changed_at: string | null
+          changed_by: string | null
+          content: Json
+          id: string
+          interview_id: string
+        }
+        Insert: {
+          changed_at?: string | null
+          changed_by?: string | null
+          content: Json
+          id?: string
+          interview_id: string
+        }
+        Update: {
+          changed_at?: string | null
+          changed_by?: string | null
+          content?: Json
+          id?: string
+          interview_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutrition_interview_history_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "nutrition_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nutrition_interviews: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          last_updated_at: string
+          last_updated_by: string | null
+          person_profile_id: string
+          status: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by?: string | null
+          person_profile_id: string
+          status?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          last_updated_at?: string
+          last_updated_by?: string | null
+          person_profile_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nutrition_interviews_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_shop_links: {
+        Row: {
+          added_by_admin_id: string
+          created_at: string | null
+          id: string
+          partner_user_id: string
+          shop_name: string | null
+          shop_url: string
+        }
+        Insert: {
+          added_by_admin_id: string
+          created_at?: string | null
+          id?: string
+          partner_user_id: string
+          shop_name?: string | null
+          shop_url: string
+        }
+        Update: {
+          added_by_admin_id?: string
+          created_at?: string | null
+          id?: string
+          partner_user_id?: string
+          shop_name?: string | null
+          shop_url?: string
+        }
+        Relationships: []
+      }
+      patient_ai_entries: {
+        Row: {
+          attachment_file_name: string | null
+          attachment_file_path: string | null
+          attachment_file_size: number | null
+          attachment_file_type: string | null
+          content: string
+          created_at: string
+          id: string
+          patient_id: string
+          person_profile_id: string
+          saved_by_admin_id: string
+        }
+        Insert: {
+          attachment_file_name?: string | null
+          attachment_file_path?: string | null
+          attachment_file_size?: number | null
+          attachment_file_type?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          saved_by_admin_id: string
+        }
+        Update: {
+          attachment_file_name?: string | null
+          attachment_file_path?: string | null
+          attachment_file_size?: number | null
+          attachment_file_type?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          saved_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_ai_entries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_ai_entries_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_device_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          uploaded_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_device_files_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_device_files_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_messages: {
+        Row: {
+          admin_id: string | null
+          id: string
+          message_text: string
+          message_type: string
+          patient_id: string
+          person_profile_id: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          admin_id?: string | null
+          id?: string
+          message_text: string
+          message_type: string
+          patient_id: string
+          person_profile_id?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          admin_id?: string | null
+          id?: string
+          message_text?: string
+          message_type?: string
+          patient_id?: string
+          person_profile_id?: string | null
+          sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_messages_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_messages_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_result_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id: string
+          person_profile_id: string
+          uploaded_by_admin_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          patient_id?: string
+          person_profile_id?: string
+          uploaded_by_admin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_result_files_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_result_files_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patient_notes: {
+        Row: {
+          admin_id: string
+          created_at: string | null
+          id: string
+          note_text: string
+          patient_id: string
+          person_profile_id: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          note_text: string
+          patient_id: string
+          person_profile_id?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          note_text?: string
+          patient_id?: string
+          person_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_notes_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "patient_notes_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          diagnosis_status: string | null
+          id: string
+          last_communication_at: string | null
+          subscription_status: string | null
+          tags: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          diagnosis_status?: string | null
+          id?: string
+          last_communication_at?: string | null
+          subscription_status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          diagnosis_status?: string | null
+          id?: string
+          last_communication_at?: string | null
+          subscription_status?: string | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      person_profiles: {
+        Row: {
+          account_user_id: string
+          avatar_url: string | null
+          birth_date: string | null
+          created_at: string
+          gender: string | null
+          id: string
+          is_primary: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_user_id: string
+          avatar_url?: string | null
+          birth_date?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_user_id?: string
+          avatar_url?: string | null
+          birth_date?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_primary?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          phone: string | null
+          referral_code: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          phone?: string | null
+          referral_code?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profile_access: {
+        Row: {
+          account_user_id: string
+          activated_at: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          person_profile_id: string
+          selected_packages: string | null
+          source: string
+          status: string
+          stripe_session_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_user_id: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          person_profile_id: string
+          selected_packages?: string | null
+          source: string
+          status: string
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_user_id?: string
+          activated_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          person_profile_id?: string
+          selected_packages?: string | null
+          source?: string
+          status?: string
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_access_account_user_id_fkey"
+            columns: ["account_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_access_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendation_access_log: {
+        Row: {
+          access_type: string
+          accessed_at: string
+          id: string
+          ip_address: unknown
+          person_profile_id: string | null
+          recommendation_id: string
+          user_agent: string | null
+        }
+        Insert: {
+          access_type: string
+          accessed_at?: string
+          id?: string
+          ip_address?: unknown
+          person_profile_id?: string | null
+          recommendation_id: string
+          user_agent?: string | null
+        }
+        Update: {
+          access_type?: string
+          accessed_at?: string
+          id?: string
+          ip_address?: unknown
+          person_profile_id?: string | null
+          recommendation_id?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendation_access_log_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_access_log_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendations: {
+        Row: {
+          body_systems: string[] | null
+          content: string | null
+          created_at: string | null
+          created_by_admin_id: string
+          diagnosis_summary: string | null
+          dietary_recommendations: string | null
+          download_token: string | null
+          id: string
+          patient_id: string
+          pdf_url: string | null
+          person_profile_id: string | null
+          recommendation_date: string
+          shop_links: string | null
+          supplementation_program: string | null
+          supporting_therapies: string | null
+          tags: string[] | null
+          title: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          body_systems?: string[] | null
+          content?: string | null
+          created_at?: string | null
+          created_by_admin_id: string
+          diagnosis_summary?: string | null
+          dietary_recommendations?: string | null
+          download_token?: string | null
+          id?: string
+          patient_id: string
+          pdf_url?: string | null
+          person_profile_id?: string | null
+          recommendation_date?: string
+          shop_links?: string | null
+          supplementation_program?: string | null
+          supporting_therapies?: string | null
+          tags?: string[] | null
+          title?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          body_systems?: string[] | null
+          content?: string | null
+          created_at?: string | null
+          created_by_admin_id?: string
+          diagnosis_summary?: string | null
+          dietary_recommendations?: string | null
+          download_token?: string | null
+          id?: string
+          patient_id?: string
+          pdf_url?: string | null
+          person_profile_id?: string | null
+          recommendation_date?: string
+          shop_links?: string | null
+          supplementation_program?: string | null
+          supporting_therapies?: string | null
+          tags?: string[] | null
+          title?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendations_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          activated_at: string | null
+          created_at: string | null
+          id: string
+          referred_email: string
+          referred_name: string
+          referred_user_id: string
+          referrer_code: string
+          referrer_user_id: string
+          status: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string | null
+          id?: string
+          referred_email: string
+          referred_name: string
+          referred_user_id: string
+          referrer_code: string
+          referrer_user_id: string
+          status?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string | null
+          id?: string
+          referred_email?: string
+          referred_name?: string
+          referred_user_id?: string
+          referrer_code?: string
+          referrer_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          person_profile_id: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          person_profile_id?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          person_profile_id?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_person_profile_id_fkey"
+            columns: ["person_profile_id"]
+            isOneToOne: false
+            referencedRelation: "person_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_results: {
+        Row: {
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      get_admin_event_feed: {
+        Args: {
+          p_event_types?: string[] | null
+          p_limit?: number | null
+          p_offset?: number | null
+          p_patient_id?: string | null
+          p_scope?: string | null
+        }
+        Returns: {
+          created_at: string
+          event_type: string
+          id: string
+          is_read: boolean
+          occurred_at: string
+          patient_id: string | null
+          person_profile_id: string | null
+          preview: string | null
+          source_id: string
+          source_table: string
+          title: string
+        }[]
+      }
+      get_admin_unread_counters: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          by_patient: Json
+          unread_all: number
+          unread_messages: number
+        }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      mark_admin_events_read: {
+        Args: {
+          p_event_ids: string[]
+        }
+        Returns: number
+      }
+    }
+    Enums: {
+      app_role: "admin" | "user"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "user"],
+    },
+  },
+} as const
