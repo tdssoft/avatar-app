@@ -115,7 +115,8 @@ const AdminEventsPopover = ({
               <div className="py-8 text-center text-sm text-muted-foreground">Brak zdarzeń</div>
             ) : (
               events.map((event) => {
-                const meta = EVENT_META[event.event_type];
+                const meta = EVENT_META[event.event_type as keyof typeof EVENT_META];
+                if (!meta) return null;
                 const EventIcon = meta.icon;
 
                 return (
