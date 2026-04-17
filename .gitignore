@@ -33,3 +33,6 @@ csv/export_All-*.csv
 # Playwright outputs
 playwright-report/
 test-results/
+
+# Large video files
+videos/
