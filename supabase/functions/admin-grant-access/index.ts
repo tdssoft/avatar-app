@@ -231,6 +231,7 @@ serve(async (req: Request): Promise<Response> => {
         person_profile_id: targetProfile.id,
         source_table: "admin_access_grants",
         source_id: grantData.id,
+        occurred_at: new Date().toISOString(),
         title: `Zakup pakietu (ręcznie): ${product.name}`,
         preview: `Profil: ${(targetProfile as {id:string;name?:string|null}).name ?? "—"} • Powód: ${reason}`,
       });

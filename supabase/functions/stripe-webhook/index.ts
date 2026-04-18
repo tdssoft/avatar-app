@@ -165,17 +165,24 @@ const handler = async (req: Request): Promise<Response> => {
               const { data: patientRow } = await supabaseAdmin
                 .from("patients").select("id").eq("user_id", userId).maybeSingle();
               if (patientRow?.id) {
-                await supabaseAdmin.from("admin_events").insert({
+                // source_id must be UUID — stripe session IDs are not UUIDs, generate one
+                const { error: evtError } = await supabaseAdmin.from("admin_events").insert({
                   event_type: "subscription_purchased",
                   patient_id: patientRow.id,
                   person_profile_id: profileId ?? null,
                   source_table: "stripe_sessions",
-                  source_id: session.id,
+                  source_id: crypto.randomUUID(),
+                  occurred_at: new Date().toISOString(),
                   title: `Zakup pakietu: ${selectedPackages ?? "nieznany"}`,
                   preview: `Email: ${session.customer_email ?? "—"} • Kwota: ${((session.amount_total ?? 0) / 100).toFixed(2)} PLN • Typ: Stripe`,
                 });
+                if (evtError) {
+                  console.warn("[stripe-webhook] admin_events insert failed:", evtError.message);
+                } else {
+                  console.log("[stripe-webhook] admin_events subscription_purchased inserted for patient", patientRow.id);
+                }
               }
-            } catch (e) { console.warn("[stripe-webhook] admin_events insert failed:", e); }
+            } catch (e) { console.warn("[stripe-webhook] admin_events insert error:", e); }
           }
         } else {
           console.warn("stripe-webhook: missing profile_id in checkout metadata");
