@@ -1444,7 +1444,7 @@ const PatientProfile = () => {
                             <p className="text-xs text-muted-foreground">
                               {format(new Date(entry.created_at), "dd.MM.yyyy HH:mm", { locale: pl })}
                             </p>
-                            <p className="whitespace-pre-wrap line-clamp-4">{entry.content}</p>
+                            <p className="whitespace-pre-wrap">{entry.content}</p>
                             {entry.attachment_file_path && (
                               <div className="flex items-center gap-2">
                                 <Button size="sm" variant="outline" onClick={() => void openFileWithSignedUrl("patient-ai-files", entry.attachment_file_path!, entry.attachment_file_name ?? undefined)}>
