@@ -246,6 +246,39 @@ export const useAdminNotifications = () => {
     [],
   );
 
+  // Collect ALL unread event IDs (all pages, no patient/type filter) and mark them read.
+  // Used when opening the notifications popover so the red dot disappears reliably,
+  // even when total unread count exceeds PAGE_SIZE.
+  const markAllUnreadRead = useCallback(async () => {
+    const unreadEventIds: string[] = [];
+    let offset = 0;
+
+    while (true) {
+      const { data, error } = await supabase.rpc("get_admin_event_feed", {
+        p_scope: "all",
+        p_limit: MARK_SCOPE_PAGE_SIZE,
+        p_offset: offset,
+      });
+
+      if (error) {
+        console.error("[useAdminNotifications] markAllUnreadRead fetch error", error);
+        break;
+      }
+
+      const rows = (data ?? []) as AdminEventItem[];
+      unreadEventIds.push(...rows.filter((item) => !item.is_read).map((item) => item.id));
+
+      // Stop early if this page has no more unread — no point continuing
+      const pageHasUnread = rows.some((item) => !item.is_read);
+      if (rows.length < MARK_SCOPE_PAGE_SIZE || !pageHasUnread) break;
+      offset += MARK_SCOPE_PAGE_SIZE;
+    }
+
+    if (unreadEventIds.length > 0) {
+      await markEventsRead(unreadEventIds);
+    }
+  }, [markEventsRead]);
+
   const markPatientMessagesRead = useCallback(
     async (patientId: string) => {
       const ids = await collectUnreadEventIds(patientId, MESSAGES_EVENT_TYPES);
@@ -330,6 +363,7 @@ export const useAdminNotifications = () => {
     refresh: fetchAll,
     markEventRead,
     markEventsRead,
+    markAllUnreadRead,
     markPatientMessagesRead,
     markPatientInterviewRead,
   };

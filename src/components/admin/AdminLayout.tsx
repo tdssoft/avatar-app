@@ -40,6 +40,7 @@ interface AdminEventsPopoverProps {
   isLoading: boolean;
   onMarkEventRead: (eventId: string) => Promise<number>;
   onMarkVisibleRead: (eventIds: string[]) => Promise<number>;
+  onMarkAllRead: () => Promise<void>;
 }
 
 const AdminEventsPopover = ({
@@ -51,6 +52,7 @@ const AdminEventsPopover = ({
   isLoading,
   onMarkEventRead,
   onMarkVisibleRead,
+  onMarkAllRead,
 }: AdminEventsPopoverProps) => {
   const navigate = useNavigate();
 
@@ -59,10 +61,11 @@ const AdminEventsPopover = ({
     [events],
   );
 
-  // Auto-mark all visible unread events as read when the popover is opened.
+  // Auto-mark ALL unread events as read when the popover is opened.
+  // Uses paginated fetch so it works even when unread count exceeds PAGE_SIZE.
   const handleOpenChange = (open: boolean) => {
-    if (open && unreadVisibleIds.length > 0) {
-      void onMarkVisibleRead(unreadVisibleIds);
+    if (open && unreadCount > 0) {
+      void onMarkAllRead();
     }
   };
 
@@ -192,6 +195,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
     isUpdating,
     markEventRead,
     markEventsRead,
+    markAllUnreadRead,
   } = useAdminNotificationsContext();
   const navigate = useNavigate();
 
@@ -248,6 +252,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               isLoading={notificationsLoading || isUpdating}
               onMarkEventRead={markEventRead}
               onMarkVisibleRead={markEventsRead}
+              onMarkAllRead={markAllUnreadRead}
             />
 
             <AdminEventsPopover
@@ -259,6 +264,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
               isLoading={notificationsLoading || isUpdating}
               onMarkEventRead={markEventRead}
               onMarkVisibleRead={markEventsRead}
+              onMarkAllRead={markAllUnreadRead}
             />
           </div>
         </header>
