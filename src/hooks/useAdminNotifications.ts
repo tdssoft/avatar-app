@@ -161,15 +161,49 @@ export const useAdminNotifications = () => {
       const uniqueIds = [...new Set(eventIds.filter(Boolean))];
       if (!adminUserId || uniqueIds.length === 0) return 0;
 
+      // Optimistic update: immediately mark events as read in local state and
+      // recalculate unread counters so the red dot disappears without waiting
+      // for the round-trip DB fetch.
+      const idSet = new Set(uniqueIds);
+      setState((prev) => {
+        const updatedAll = prev.allEvents.map((e) =>
+          idSet.has(e.id) ? { ...e, is_read: true } : e,
+        );
+        const updatedMessages = updatedAll.filter((e) =>
+          MESSAGES_EVENT_TYPES.includes(e.event_type),
+        );
+        // unreadAll from DB may be higher (events beyond PAGE_SIZE), so only
+        // reduce it — never increase — based on how many we just marked.
+        const markedCount = prev.allEvents.filter(
+          (e) => idSet.has(e.id) && !e.is_read,
+        ).length;
+        return {
+          ...prev,
+          allEvents: updatedAll,
+          messageEvents: updatedMessages,
+          unreadAll: Math.max(0, prev.unreadAll - markedCount),
+          unreadMessages: Math.max(
+            0,
+            prev.unreadMessages -
+              prev.allEvents.filter(
+                (e) => idSet.has(e.id) && !e.is_read && MESSAGES_EVENT_TYPES.includes(e.event_type),
+              ).length,
+          ),
+        };
+      });
+
       const { error } = await supabase.rpc("mark_admin_events_read", {
         p_event_ids: uniqueIds,
       });
 
       if (error) {
         console.error("[useAdminNotifications] markEventsRead error", error);
+        // Roll back optimistic update by re-fetching the real state.
+        await fetchAll(false);
         return 0;
       }
 
+      // Confirm with a real DB fetch to reconcile any events beyond PAGE_SIZE.
       await fetchAll(false);
       return uniqueIds.length;
     },
