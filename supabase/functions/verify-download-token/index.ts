@@ -75,23 +75,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check if token is expired
-    if (recommendation.token_expires_at) {
-      const expiresAt = new Date(recommendation.token_expires_at);
-      if (expiresAt < new Date()) {
-        return new Response(
-          JSON.stringify({ 
-            error: "Token wygasł. Poproś o nowy link.", 
-            valid: false,
-            expired: true 
-          }),
-          {
-            status: 410,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          }
-        );
-      }
-    }
+    // Note: token expiry is informational only — patients always retain access
+    // to recommendations they received, regardless of subscription status.
 
     // Get person profile name if exists
     let profileName = "";

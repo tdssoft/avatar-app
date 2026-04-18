@@ -177,16 +177,7 @@ const Recommendations = () => {
       return;
     }
 
-    // Check if token is expired
-    if (recommendation.token_expires_at) {
-      const expiresAt = new Date(recommendation.token_expires_at);
-      if (expiresAt < new Date()) {
-        toast.error("Token wygasł. Skontaktuj się z administracją po nowy link.");
-        return;
-      }
-    }
-
-    // Open download page in new tab
+    // Open download page in new tab — access is always allowed regardless of token expiry
     window.open(`/recommendation/download?token=${recommendation.download_token}`, "_blank");
 
     // Log access
@@ -228,11 +219,6 @@ const Recommendations = () => {
       console.error("[Recommendations] download recommendation file error:", error);
       toast.error("Nie udało się pobrać pliku zalecenia");
     }
-  };
-
-  const isTokenExpired = (expiresAt: string | null): boolean => {
-    if (!expiresAt) return false;
-    return new Date(expiresAt) < new Date();
   };
 
   const getTokenStatus = (recommendation: Recommendation) => {
@@ -447,7 +433,6 @@ const Recommendations = () => {
                           size="sm"
                           onClick={() => handleDownload(recommendation)}
                           className="gap-2"
-                          disabled={isTokenExpired(recommendation.token_expires_at)}
                         >
                           <Eye className="h-4 w-4" />
                           <span className="hidden sm:inline">Szczegóły</span>
