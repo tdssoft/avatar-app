@@ -88,7 +88,9 @@ export const useUserFlowStatus = () => {
       return;
     }
 
-    setStatus((prev) => ({ ...prev, isLoading: true }));
+    // Only show loading spinner on the very first load (no resolved data yet).
+    // On profile switches we keep the previous content visible to avoid a blank-screen flash.
+    setStatus((prev) => ({ ...prev, isLoading: !prev.isFlowResolved }));
 
     try {
       const prevStatus = statusRef.current;

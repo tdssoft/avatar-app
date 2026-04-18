@@ -47,7 +47,7 @@ export const ProfileSelector = forwardRef<HTMLDivElement, ProfileSelectorProps>(
             <ChevronDown className="h-3 w-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent align="start" className="w-56 z-[200]">
           <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
             Aktywny profil
           </div>
