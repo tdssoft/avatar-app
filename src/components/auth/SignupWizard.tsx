@@ -288,19 +288,9 @@ const SignupWizard = () => {
               <div className="flex items-start gap-4 rounded-lg border border-border p-4">
                 <RadioGroupItem value="upload" id="upload" className="mt-1" />
                 <div className="flex-1">
-                  <Label htmlFor="upload" className="font-medium cursor-pointer">
-                    Wybierz zdjęcie zapisane na urządzeniu
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      step1Form.setValue("photoOption", "upload");
-                      setStep(2);
-                    }}
-                    className="mt-2 text-sm text-accent hover:underline block"
-                  >
+                  <Label htmlFor="upload" className="font-medium cursor-pointer text-foreground">
                     Wgraj zdjęcie
-                  </button>
+                  </Label>
                 </div>
               </div>
 
