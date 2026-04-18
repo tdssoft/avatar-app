@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Info, Camera, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,6 +33,7 @@ const PhotoUpload = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [captureMode, setCaptureMode] = useState<"idle" | "camera">("idle");
+  const [videoReady, setVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -95,7 +96,7 @@ const PhotoUpload = ({
       window.removeEventListener("avatar-updated", onAvatarUpdated);
       window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onActiveProfileChanged);
     };
-  }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -153,7 +154,6 @@ const PhotoUpload = ({
       if (!currentProfileId) {
         throw new Error("Brak aktywnego profilu");
       }
-      setActiveProfileId(currentProfileId);
 
       const fileExt = file.name.split(".").pop() || "jpg";
       const filePath = `${currentUserId}/${currentProfileId}/avatar.${fileExt.toLowerCase()}`;
@@ -231,8 +231,9 @@ const PhotoUpload = ({
         video: { facingMode: "user" }
       });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      setVideoReady(false);
       setCaptureMode("camera");
+      // videoRef.srcObject is set in useEffect after captureMode changes
     } catch (error) {
       console.error("Camera error:", error);
       toast({
@@ -247,33 +248,66 @@ const PhotoUpload = ({
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    setVideoReady(false);
     setCaptureMode("idle");
   };
 
-  const capturePhoto = () => {
-    if (!videoRef.current) return;
+  const capturePhoto = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    if (!width || !height) {
+      toast({
+        title: "Kamera nie jest gotowa",
+        description: "Poczekaj chwilę i spróbuj ponownie.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, width, height);
+
     canvas.toBlob((blob) => {
-      if (!blob) return;
+      if (!blob || blob.size < 100) {
+        toast({
+          title: "Błąd zdjęcia",
+          description: "Nie udało się uchwycić klatki. Spróbuj ponownie.",
+          variant: "destructive",
+        });
+        return;
+      }
       const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
       stopCamera();
       const syntheticEvent = {
         target: { files: [file] },
       } as unknown as React.ChangeEvent<HTMLInputElement>;
       void handleFileSelect(syntheticEvent);
-    }, "image/jpeg", 0.9);
-  };
+    }, "image/jpeg", 0.92);
+  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     return () => { streamRef.current?.getTracks().forEach((t) => t.stop()); };
   }, []);
 
   useEffect(() => {
-    if (captureMode === "camera" && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current;
+    const video = videoRef.current;
+    if (captureMode === "camera" && video && streamRef.current) {
+      video.srcObject = streamRef.current;
+      const onReady = () => setVideoReady(true);
+      video.addEventListener("loadedmetadata", onReady);
+      // If metadata already loaded (e.g. stream was re-attached)
+      if (video.readyState >= 1) setVideoReady(true);
+      return () => {
+        video.removeEventListener("loadedmetadata", onReady);
+      };
     }
   }, [captureMode]);
 
@@ -340,14 +374,15 @@ const PhotoUpload = ({
           </>
         ) : (
           <div className="space-y-2 w-full">
-            <video ref={videoRef} autoPlay playsInline className="w-full rounded-lg" />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-lg" />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={capturePhoto}
-                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded text-sm"
+                disabled={!videoReady}
+                className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded text-sm disabled:opacity-50"
               >
-                Zrób zdjęcie
+                {videoReady ? "Zrób zdjęcie" : "Ładowanie kamery..."}
               </button>
               <button
                 type="button"
