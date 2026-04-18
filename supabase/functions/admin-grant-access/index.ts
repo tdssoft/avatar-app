@@ -193,6 +193,18 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // Update referral status to "active" if there's a pending referral for this patient
+    const { error: referralError } = await serviceClient
+      .from("referrals")
+      .update({ status: "active", activated_at: now })
+      .eq("referred_user_id", patient.user_id)
+      .eq("status", "pending");
+
+    if (referralError) {
+      // Non-critical — log but don't block the grant flow
+      console.warn("[admin-grant-access] Failed to update referral status:", referralError.message);
+    }
+
     const { data: grantData, error: grantError } = await serviceClient
       .from("admin_access_grants")
       .insert({
