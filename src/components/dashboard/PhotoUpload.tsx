@@ -5,6 +5,29 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ACTIVE_PROFILE_CHANGED_EVENT, ACTIVE_PROFILE_STORAGE_KEY } from "@/hooks/usePersonProfiles";
 
+async function compressImage(source: File | Blob, maxPx = 1200, quality = 0.82): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(source instanceof File ? source : new Blob([source]));
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => blob
+          ? resolve(new File([blob], "avatar.jpg", { type: "image/jpeg" }))
+          : reject(new Error("Kompresja nie powiodła się")),
+        "image/jpeg", quality,
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Nie można wczytać obrazu")); };
+    img.src = url;
+  });
+}
+
 interface PhotoUploadProps {
   className?: string;
   title?: string;
@@ -107,29 +130,14 @@ const PhotoUpload = ({
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedMimeTypes.includes(file.type)) {
+    if (!file.type.startsWith("image/")) {
       URL.revokeObjectURL(objectUrl);
       setPreviewUrl(null);
-      setStatusMessage("Dozwolone formaty: JPG, PNG, WEBP");
+      setStatusMessage("Dozwolone formaty: JPG, PNG, WEBP, HEIC i inne obrazy");
       setStatusVariant("error");
       toast({
         title: "Nieprawidłowy typ pliku",
-        description: "Dozwolone formaty: JPG, PNG, WEBP",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate file size (max 20MB)
-    if (file.size > 20 * 1024 * 1024) {
-      URL.revokeObjectURL(objectUrl);
-      setPreviewUrl(null);
-      setStatusMessage("Maksymalny rozmiar pliku to 20MB");
-      setStatusVariant("error");
-      toast({
-        title: "Plik zbyt duży",
-        description: "Maksymalny rozmiar pliku to 20MB",
+        description: "Dozwolone formaty: JPG, PNG, WEBP, HEIC i inne obrazy",
         variant: "destructive",
       });
       return;
@@ -155,16 +163,16 @@ const PhotoUpload = ({
         throw new Error("Brak aktywnego profilu");
       }
 
-      const fileExt = file.name.split(".").pop() || "jpg";
-      const filePath = `${currentUserId}/${currentProfileId}/avatar.${fileExt.toLowerCase()}`;
+      const compressed = await compressImage(file);
+      const filePath = `${currentUserId}/${currentProfileId}/avatar.jpg`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, {
+        .upload(filePath, compressed, {
           upsert: true,
           cacheControl: "3600",
-          contentType: file.type || "image/jpeg",
+          contentType: "image/jpeg",
         });
 
       if (uploadError) throw uploadError;
@@ -268,12 +276,14 @@ const PhotoUpload = ({
       return;
     }
 
+    const MAX_PX = 1200;
+    const scale = Math.min(1, MAX_PX / Math.max(width, height));
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, width, height);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     canvas.toBlob((blob) => {
       if (!blob || blob.size < 100) {
@@ -290,7 +300,7 @@ const PhotoUpload = ({
         target: { files: [file] },
       } as unknown as React.ChangeEvent<HTMLInputElement>;
       void handleFileSelect(syntheticEvent);
-    }, "image/jpeg", 0.92);
+    }, "image/jpeg", 0.85);
   }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -349,7 +359,7 @@ const PhotoUpload = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/*"
           className="hidden"
           onChange={handleFileSelect}
         />
