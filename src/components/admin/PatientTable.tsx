@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { ClipboardList, MessageSquare } from "lucide-react";
+import { ClipboardList, MessageSquare, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { resolvePatientDisplayName } from "@/lib/patientDisplayName";
 
@@ -36,6 +36,7 @@ interface PatientTableProps {
   unreadByPatient?: Record<string, { unread_messages: number; unread_interviews: number }>;
   onOpenPatientMessages?: (patientId: string) => void | Promise<void>;
   onOpenPatientInterview?: (patientId: string) => void | Promise<void>;
+  onImpersonate?: (userId: string, fullName: string) => void | Promise<void>;
 }
 
 const NewDot = ({ visible }: { visible: boolean }) => {
@@ -49,6 +50,7 @@ const PatientTable = ({
   unreadByPatient = {},
   onOpenPatientMessages,
   onOpenPatientInterview,
+  onImpersonate,
 }: PatientTableProps) => {
   const navigate = useNavigate();
 
@@ -180,6 +182,23 @@ const PatientTable = ({
                       <ClipboardList className="h-4 w-4 text-muted-foreground" />
                       <NewDot visible={unreadCounters.unread_interviews > 0} />
                     </button>
+                    {onImpersonate && (
+                      <button
+                        className="relative p-2 rounded-md border border-primary bg-primary hover:bg-primary/90 transition-colors"
+                        aria-label={`Zaloguj jako ${fullName}`}
+                        title="Zaloguj jako ten użytkownik"
+                        onClick={() => {
+                          if (!patient.user_id) {
+                            console.error("[PatientTable] Missing user_id for impersonation", patient);
+                            toast.error("Nie udało się zalogować jako pacjent");
+                            return;
+                          }
+                          void onImpersonate(patient.user_id, fullName);
+                        }}
+                      >
+                        <LogIn className="h-4 w-4 text-primary-foreground" />
+                      </button>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>

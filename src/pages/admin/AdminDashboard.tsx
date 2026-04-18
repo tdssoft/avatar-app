@@ -276,6 +276,40 @@ const AdminDashboard = () => {
     navigate(`/admin/patient/${patientId}?tab=interview`);
   };
 
+  const handleImpersonate = async (userId: string, fullName: string) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        toast.error("Brak sesji admina");
+        return;
+      }
+      toast.loading(`Generowanie linku dla ${fullName}...`);
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-impersonate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ target_user_id: userId }),
+      });
+      toast.dismiss();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(`Błąd: ${err.error ?? res.statusText}`);
+        return;
+      }
+      const { url } = await res.json();
+      toast.success(`Otwieranie sesji jako ${fullName}`);
+      window.open(url, "_blank");
+    } catch (e) {
+      toast.dismiss();
+      toast.error("Nie udało się zalogować jako pacjent");
+      console.error("[AdminDashboard] impersonate error", e);
+    }
+  };
+
   const handleGrantAccess = async () => {
     if (!grantPatientId || !grantPersonProfileId || !grantReason || !grantProductId) {
       toast.error("Wybierz pacjenta, profil, powód i abonament");
@@ -497,6 +531,7 @@ const AdminDashboard = () => {
             unreadByPatient={byPatientMap}
             onOpenPatientMessages={handleOpenPatientMessages}
             onOpenPatientInterview={handleOpenPatientInterview}
+            onImpersonate={handleImpersonate}
           />
         </div>
       </div>
