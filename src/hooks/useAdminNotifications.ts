@@ -27,7 +27,8 @@ export type AdminEventType =
   | "support_ticket"
   | "interview_sent"
   | "interview_draft_updated"
-  | "new_registration";
+  | "new_registration"
+  | "subscription_purchased";
 
 export type AdminFeedScope = "all" | "messages";
 

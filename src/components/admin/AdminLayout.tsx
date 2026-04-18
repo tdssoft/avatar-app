@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
-import { Bell, CheckCheck, ClipboardList, Loader2, Mail, MessageSquare, UserPlus } from "lucide-react";
+import { Bell, CheckCheck, ClipboardList, Loader2, Mail, MessageSquare, ShoppingCart, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminRole } from "@/hooks/useAdminRole";
 import { type AdminEventItem, type AdminEventType, type AdminFeedScope } from "@/hooks/useAdminNotifications";
@@ -17,13 +17,14 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-const EVENT_META: Record<AdminEventType, { label: string; icon: typeof Bell }> = {
-  patient_question: { label: "Pytanie pacjenta", icon: MessageSquare },
-  support_ticket: { label: "Zgłoszenie Help", icon: Mail },
-  interview_sent: { label: "Nowy wywiad", icon: ClipboardList },
-  interview_draft_updated: { label: "Wywiad edytowany", icon: ClipboardList },
-  new_registration: { label: "Nowa rejestracja", icon: UserPlus },
-};
+const EVENT_META: Record<AdminEventType, { label: string; icon: typeof Bell; badgeColor: string }> = {
+  patient_question:        { label: "Pytanie pacjenta",   icon: MessageSquare, badgeColor: "bg-gray-100 text-gray-700" },
+  support_ticket:          { label: "Zgłoszenie Help",    icon: Mail,          badgeColor: "bg-gray-100 text-gray-700" },
+  interview_sent:          { label: "Nowy wywiad",        icon: ClipboardList, badgeColor: "bg-blue-100 text-blue-800" },
+  interview_draft_updated: { label: "Wywiad edytowany",   icon: ClipboardList, badgeColor: "bg-yellow-100 text-yellow-800" },
+  new_registration:        { label: "Nowa rejestracja",   icon: UserPlus,      badgeColor: "bg-green-100 text-green-800" },
+  subscription_purchased:  { label: "Zakup pakietu",      icon: ShoppingCart,  badgeColor: "bg-purple-100 text-purple-800" },
+} as const;
 
 const UnreadDot = ({ visible }: { visible: boolean }) => {
   if (!visible) return null;
@@ -117,7 +118,6 @@ const AdminEventsPopover = ({
               events.map((event) => {
                 const meta = EVENT_META[event.event_type as keyof typeof EVENT_META];
                 if (!meta) return null;
-                const EventIcon = meta.icon;
 
                 return (
                   <div
@@ -132,8 +132,10 @@ const AdminEventsPopover = ({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <EventIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">{meta.label}</span>
+                          <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${meta.badgeColor}`}>
+                            <meta.icon className="h-3 w-3" />
+                            {meta.label}
+                          </span>
                         </div>
                         <p className="text-sm font-medium text-foreground leading-tight mb-1">{event.title}</p>
                         {event.preview ? (

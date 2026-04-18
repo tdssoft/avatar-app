@@ -133,7 +133,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: personProfiles, error: personProfilesError } = await serviceClient
       .from("person_profiles")
-      .select("id")
+      .select("id, name")
       .eq("account_user_id", patient.user_id)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: true });
@@ -223,6 +223,18 @@ serve(async (req: Request): Promise<Response> => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    try {
+      await serviceClient.from("admin_events").insert({
+        event_type: "subscription_purchased",
+        patient_id: patientId,
+        person_profile_id: targetProfile.id,
+        source_table: "admin_access_grants",
+        source_id: grantData.id,
+        title: `Zakup pakietu (ręcznie): ${product.name}`,
+        preview: `Profil: ${(targetProfile as {id:string;name?:string|null}).name ?? "—"} • Powód: ${reason}`,
+      });
+    } catch (e) { console.warn("[admin-grant-access] admin_events insert failed:", e); }
 
     return new Response(
       JSON.stringify({
