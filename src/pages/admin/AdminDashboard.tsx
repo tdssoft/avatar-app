@@ -228,9 +228,14 @@ const AdminDashboard = () => {
       const phone = patient.profiles?.phone?.toLowerCase() || "";
       const searchLower = searchQuery.toLowerCase();
       
-      const matchesSearch = searchQuery === "" || 
-        fullName.includes(searchLower) || 
-        phone.includes(searchLower);
+      const subProfileMatch = (patient.person_profiles ?? [])
+        .filter(pp => !pp.is_primary)
+        .some(pp => (pp.name ?? "").toLowerCase().includes(searchLower));
+
+      const matchesSearch = searchQuery === "" ||
+        fullName.includes(searchLower) ||
+        phone.includes(searchLower) ||
+        subProfileMatch;
 
       // Subscription filter
       const matchesSubscription = subscriptionFilter === "all" || 
