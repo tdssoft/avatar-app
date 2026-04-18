@@ -106,11 +106,11 @@ const AudioRecordingsList = ({
         .from("audio-recordings")
         .createSignedUrl(recording.file_path, 3600);
 
-      if (error) {
-        throw error;
+      if (error || !data?.signedUrl) {
+        throw error ?? new Error("Brak signed URL");
       }
 
-      // Create and play audio
+      // Create audio element
       const audio = new Audio(data.signedUrl);
       audioRef.current = audio;
 
@@ -118,16 +118,26 @@ const AudioRecordingsList = ({
         setPlayingId(null);
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error("[AudioRecordingsList] audio.onerror:", e);
         toast.error("Nie udało się odtworzyć nagrania");
         setPlayingId(null);
       };
 
-      await audio.play();
+      // load() before play() — required by Safari; set UI state immediately
+      audio.load();
       setPlayingId(recording.id);
+
+      try {
+        await audio.play();
+      } catch (playError) {
+        console.error("[AudioRecordingsList] play() error:", playError);
+        toast.error("Nie udało się odtworzyć nagrania");
+        setPlayingId(null);
+      }
     } catch (error) {
-      console.error("Error playing recording:", error);
-      toast.error("Nie udało się odtworzyć nagrania");
+      console.error("[AudioRecordingsList] handlePlay error:", error);
+      toast.error("Błąd podczas ładowania nagrania");
     }
   };
 
