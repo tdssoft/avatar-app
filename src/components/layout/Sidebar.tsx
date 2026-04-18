@@ -13,13 +13,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
   { title: "Wyniki badań", url: "/dashboard", icon: Shield },
+  { title: "Moje zalecenia", url: "/dashboard/recommendations", icon: FileText },
   { title: "Mój profil", url: "/dashboard/profile", icon: User },
   { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
   { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
 ];
 
 const extraNavItems = [
-  { title: "Moje zalecenia", url: "/dashboard/recommendations", icon: FileText },
   { title: "Wywiad żywieniowy", url: "/interview", icon: ClipboardList },
 ];
 
