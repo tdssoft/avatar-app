@@ -205,10 +205,6 @@ const PatientProfile = () => {
   const [isUploadingDeviceFile, setIsUploadingDeviceFile] = useState(false);
   const [isSavingAiData, setIsSavingAiData] = useState(false);
   const [isGeneratingRecommendation, setIsGeneratingRecommendation] = useState(false);
-  const [isRecommendationPreviewOpen, setIsRecommendationPreviewOpen] = useState(false);
-  const [isRecommendationPreviewLoading, setIsRecommendationPreviewLoading] = useState(false);
-  const [recommendationPreviewUrl, setRecommendationPreviewUrl] = useState<string | null>(null);
-  const [recommendationPreviewName, setRecommendationPreviewName] = useState("Podgląd pliku");
 
   // General file viewer modal state (for patient result/device files)
   const [fileViewerOpen, setFileViewerOpen] = useState(false);
@@ -562,18 +558,21 @@ const PatientProfile = () => {
   };
 
   const openRecommendationFile = async (fileRef: string) => {
+    const name = getRecommendationFileName(fileRef) || "Podgląd pliku";
+    setFileViewerName(name);
+    setFileViewerUrl(null);
+    setFileViewerLoading(true);
+    setFileViewerOpen(true);
+    setFileViewerDownloadFn(undefined);
     try {
-      setIsRecommendationPreviewOpen(true);
-      setIsRecommendationPreviewLoading(true);
-      setRecommendationPreviewUrl(null);
-      setRecommendationPreviewName(getRecommendationFileName(fileRef) || "Podgląd pliku");
-      const previewUrl = await resolveRecommendationFileUrl(fileRef);
-      setRecommendationPreviewUrl(previewUrl);
+      const signedUrl = await resolveRecommendationFileUrl(fileRef);
+      setFileViewerUrl(signedUrl);
+      setFileViewerDownloadFn(() => () => void downloadRecommendationFile(fileRef));
     } catch {
-      setIsRecommendationPreviewOpen(false);
+      setFileViewerOpen(false);
       toast.error("Nie udało się otworzyć pliku zalecenia");
     } finally {
-      setIsRecommendationPreviewLoading(false);
+      setFileViewerLoading(false);
     }
   };
 
@@ -1059,43 +1058,6 @@ const PatientProfile = () => {
         isLoading={fileViewerLoading}
         onDownload={fileViewerDownloadFn}
       />
-      <Dialog
-        open={isRecommendationPreviewOpen}
-        onOpenChange={(open) => {
-          setIsRecommendationPreviewOpen(open);
-          if (!open) {
-            setRecommendationPreviewUrl(null);
-            setIsRecommendationPreviewLoading(false);
-          }
-        }}
-      >
-        <DialogContent className="max-w-5xl h-[90vh] p-0 overflow-hidden flex flex-col gap-1">
-          <DialogHeader className="px-6 pt-4 pb-0 space-y-0">
-            <DialogTitle>{recommendationPreviewName}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 px-6 pb-6 pt-1">
-            {isRecommendationPreviewLoading ? (
-              <div className="h-full min-h-[300px] grid place-items-center text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Ładowanie podglądu pliku...</span>
-                </div>
-              </div>
-            ) : recommendationPreviewUrl ? (
-              <iframe
-                src={recommendationPreviewUrl}
-                title={recommendationPreviewName}
-                className="w-full h-full min-h-[420px] rounded-md border bg-background"
-              />
-            ) : (
-              <div className="h-full min-h-[300px] grid place-items-center text-muted-foreground">
-                Nie udało się załadować podglądu pliku.
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Dialog aktywacji profilu */}
       <Dialog open={isActivateDialogOpen} onOpenChange={(open) => {
         setIsActivateDialogOpen(open);
