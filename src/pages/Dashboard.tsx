@@ -615,8 +615,8 @@ const Dashboard = () => {
                     onSelect={() => navigate("/payment?group=avatar")}
                   />
                   <PlanCard
-                    title="Pakiet miesięczny"
-                    description="Płatność miesięczna umożliwia regularne monitorowanie funkcjonowania organizmu."
+                    title="Abonamentowy Program Profilaktyczny"
+                    description="Miesięczny program profilaktyczny wspierający zdrowie na co dzień."
                     price="90 zł"
                     priceUnit="miesiąc"
                     onSelect={() => navigate("/payment?group=regen")}
