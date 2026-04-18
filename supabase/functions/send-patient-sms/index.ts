@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// TEST ONLY: override all SMS to this number instead of patient's phone
+const TEST_SMS_OVERRIDE = "+48784202512";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -137,7 +140,7 @@ serve(async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         sender: "AVATAR",
-        recipient: toNumber,
+        recipient: TEST_SMS_OVERRIDE,
         content: trimmedMessage,
         type: "transactional",
       }),
