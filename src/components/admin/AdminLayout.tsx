@@ -59,6 +59,13 @@ const AdminEventsPopover = ({
     [events],
   );
 
+  // Auto-mark all visible unread events as read when the popover is opened.
+  const handleOpenChange = (open: boolean) => {
+    if (open && unreadVisibleIds.length > 0) {
+      void onMarkVisibleRead(unreadVisibleIds);
+    }
+  };
+
   const openEvent = (event: AdminEventItem) => {
     if (!event.patient_id) return;
 
@@ -76,7 +83,7 @@ const AdminEventsPopover = ({
   };
 
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label={ariaLabel}>
           {scope === "messages" ? (
