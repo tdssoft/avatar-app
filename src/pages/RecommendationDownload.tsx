@@ -1,6 +1,27 @@
 import { useState, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { useSearchParams, Link } from "react-router-dom";
+
+// Convert plain-text URLs in HTML content to clickable <a> links
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
+function linkifyHtml(html: string): string {
+  return html.replace(URL_REGEX, (url) => {
+    // Remove trailing punctuation that's unlikely part of the URL
+    const cleanUrl = url.replace(/[.,;:!?)]+$/, "");
+    const trailing = url.slice(cleanUrl.length);
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${trailing}`;
+  });
+}
+
+function sanitizeWithLinks(raw: string | null | undefined): string {
+  if (!raw) return "";
+  const linked = linkifyHtml(raw);
+  return DOMPurify.sanitize(linked, {
+    ALLOWED_TAGS: ["p", "strong", "em", "u", "s", "span", "h1", "h2", "h3", "ul", "ol", "li", "br", "a"],
+    ALLOWED_ATTR: ["style", "class", "href", "target", "rel"],
+    ALLOWED_URI_REGEXP: /^https?:\/\//i,
+  });
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -281,9 +302,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Podsumowanie funkcjonowania organizmu:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.diagnosis_summary, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.diagnosis_summary),
                     }}
                   />
                 </div>
@@ -296,9 +317,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Zalecenia dietetyczne:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.dietary_recommendations, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.dietary_recommendations),
                     }}
                   />
                 </div>
@@ -311,9 +332,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Program suplementacji:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.supplementation_program, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.supplementation_program),
                     }}
                   />
                 </div>
@@ -326,9 +347,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Terapie wspierające:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.supporting_therapies, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.supporting_therapies),
                     }}
                   />
                 </div>
@@ -341,9 +362,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Linki do sklepu:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.shop_links, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.shop_links),
                     }}
                   />
                 </div>
@@ -356,9 +377,9 @@ const RecommendationDownload = () => {
                 <h3 className="font-medium text-foreground mb-2">Dodatkowe informacje:</h3>
                 <div className="bg-muted/50 rounded-lg p-4">
                   <div
-                    className="text-foreground prose prose-sm max-w-none"
+                    className="text-foreground prose prose-sm max-w-none break-all [&_a]:text-blue-600 [&_a]:underline [&_a]:break-all"
                     dangerouslySetInnerHTML={{
-                      __html: DOMPurify.sanitize(recommendation.content, { ALLOWED_TAGS: ["p","strong","em","u","s","span","h1","h2","h3","ul","ol","li","br"], ALLOWED_ATTR: ["style","class"] }),
+                      __html: sanitizeWithLinks(recommendation.content),
                     }}
                   />
                 </div>
