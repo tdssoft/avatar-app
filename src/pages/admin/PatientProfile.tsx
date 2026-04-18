@@ -999,15 +999,26 @@ const PatientProfile = () => {
   const selectedPersonProfile = personProfiles.find((p) => p.id === selectedProfileId) ?? personProfiles[0] ?? null;
   const selectedProfileAvatarUrl = selectedPersonProfile?.avatar_url || null;
   const primaryPersonProfileName = personProfiles.find((p) => p.is_primary)?.name?.trim() || "";
-  const fullName = resolvePatientDisplayName(
-    firstName,
-    lastName,
-    selectedPersonProfile?.name || primaryPersonProfileName || null,
-  );
 
-  const initials = profile?.first_name && profile?.last_name
-    ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
-    : "?";
+  // When a specific person profile is selected, prefer its name in the header.
+  // Fall back to account-level first_name + last_name only when no profile name is available.
+  const selectedProfileName = normalizeDisplayName(selectedPersonProfile?.name);
+  const fullName = selectedProfileName
+    ? selectedProfileName
+    : resolvePatientDisplayName(firstName, lastName, primaryPersonProfileName || null);
+
+  // Initials: derive from the selected person profile's name (first letters of each word)
+  const initials = (() => {
+    if (selectedProfileName) {
+      const parts = selectedProfileName.trim().split(/\s+/);
+      if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
+    }
+    return "?";
+  })();
 
   const filteredRecommendations = selectedProfileId
     ? recommendations.filter((r) => r.person_profile_id === selectedProfileId || !r.person_profile_id)
