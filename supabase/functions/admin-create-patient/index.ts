@@ -352,13 +352,35 @@ serve(async (req: Request): Promise<Response> => {
       console.warn("[admin-create-patient] BREVO_API_KEY not configured, skipping email");
     }
 
+    // Plan A: SMS to admin when email failed
+    if (!emailSent && brevoApiKey) {
+      try {
+        const smsContent = `AVATAR Admin: Konto dla ${firstName} ${lastName} (${email}) - email NIE wyslany. Wyslij link recznie z panelu admina.`;
+        await fetch("https://api.brevo.com/v3/transactionalSMS/sms", {
+          method: "POST",
+          headers: {
+            "api-key": brevoApiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sender: "AVATAR",
+            recipient: "+48784202512",
+            content: smsContent,
+          }),
+        });
+        console.log("[admin-create-patient] Admin SMS sent (email fallback)");
+      } catch (smsError) {
+        console.warn("[admin-create-patient] Admin SMS failed:", smsError);
+      }
+    }
+
     return jsonResponse({
       success: true,
       userId: newUserId,
       patientId,
       message: "Patient account created successfully",
       emailSent,
-      // Return temp password for testing (in production, only rely on email)
+      setupLink: setPasswordLink,
       tempPassword: tempPassword,
     });
 
