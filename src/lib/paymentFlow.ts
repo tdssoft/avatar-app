@@ -74,8 +74,8 @@ export const paymentGroups = {
     packageIds: ["optimal", "mini", "update"],
   },
   regen: {
-    title: "Profilaktyczny program wsparcia Twojego organizmu",
-    description: "Wybierz pakiety regeneracyjne dopasowane do Twoich potrzeb.",
+    title: "Abonamentowy Program Profilaktyczny",
+    description: "Wybierz pakiety profilaktyczne dopasowane do Twoich potrzeb.",
     packageIds: ["menu", "autopilot"],
   },
 } as const;

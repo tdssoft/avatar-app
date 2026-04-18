@@ -210,8 +210,8 @@ const Results = () => {
                         onSelect={() => navigate("/payment?group=avatar")}
                       />
                       <PlanCard
-                        title="Regeneracyjny program organizmu"
-                        description="Program wspierający regenerację i profilaktykę, dobierany do Twoich aktualnych potrzeb."
+                        title="Abonamentowy Program Profilaktyczny"
+                        description="Miesięczny program profilaktyczny wspierający zdrowie na co dzień."
                         price="od 27 zł"
                         onSelect={() => navigate("/payment?group=regen")}
                       />

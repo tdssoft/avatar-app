@@ -146,7 +146,7 @@ test.describe("Client fixes verification", () => {
     await expect(page.getByRole("heading", { name: "Twoja ścieżka pracy z ciałem zaczyna się w AVATAR" })).toBeVisible();
     await expect(page.getByText("Wybierz odpowiedni program dla siebie:")).toBeVisible();
     await expect(page.getByText("Indywidualny program wsparcia ciała AVATAR")).toBeVisible();
-    await expect(page.getByText("Regeneracyjny program organizmu")).toBeVisible();
+    await expect(page.getByText("Abonamentowy Program Profilaktyczny")).toBeVisible();
   });
 
   test("profile switch Jan/Staszek reflects interview state without refresh", async ({ page }) => {
