@@ -346,8 +346,9 @@ const PatientProfile = () => {
       const agRows: any[] = (d.admin_access_grants as any[]) ?? [];
       const patientData: PatientData | null = d.patient ?? null;
 
+      // Include ALL profile_access records (stripe + admin) so sub-profiles
+      // activated via admin show as "Aktywny" (not just stripe-sourced ones)
       const stripeRecords: PaymentHistoryRecord[] = paRows
-        .filter((pa) => pa.source === "stripe")
         .map((pa) => ({
           id: pa.id,
           person_profile_id: pa.person_profile_id,
