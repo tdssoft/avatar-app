@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
+import AuthImpersonate from "./pages/AuthImpersonate";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/impersonate" element={<AuthImpersonate />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup/verify-email" element={<SignupVerifyEmail />} />
             <Route path="/onboarding/confirm" element={<OnboardingConfirm />} />

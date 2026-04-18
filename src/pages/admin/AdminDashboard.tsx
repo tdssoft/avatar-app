@@ -300,9 +300,22 @@ const AdminDashboard = () => {
         toast.error(`Błąd: ${err.error ?? res.statusText}`);
         return;
       }
-      const { url } = await res.json();
+      const data = await res.json();
       toast.success(`Otwieranie sesji jako ${fullName}`);
-      window.open(url, "_blank");
+
+      if (data.access_token && data.refresh_token) {
+        // Tokeny sesji — otwórz w nowym oknie z tokenami w hashu (React obsłuży setSession)
+        const params = new URLSearchParams({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          token_type: "bearer",
+          type: "impersonate",
+        });
+        window.open(`/auth/impersonate#${params.toString()}`, "_blank");
+      } else if (data.url) {
+        // Fallback: magic link
+        window.open(data.url, "_blank");
+      }
     } catch (e) {
       toast.dismiss();
       toast.error("Nie udało się zalogować jako pacjent");

@@ -108,7 +108,11 @@ serve(async (req: Request): Promise<Response> => {
         apikey: supabaseServiceKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ type: "magiclink", email: targetEmail }),
+      body: JSON.stringify({
+        type: "magiclink",
+        email: targetEmail,
+        redirect_to: `${supabaseUrl}/dashboard`,
+      }),
     });
 
     if (!generateLinkRes.ok) {
@@ -131,9 +135,38 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
+    // Follow the magic link redirect to get session tokens directly
+    // This avoids localStorage session conflicts in the browser
+    const verifyRes = await fetch(actionLink, { redirect: "manual" });
+    const location = verifyRes.headers.get("location") ?? "";
+    console.log("[admin-impersonate] verify redirect location prefix:", location.substring(0, 80));
+
+    // Parse access_token + refresh_token from the redirect hash
+    let access_token: string | null = null;
+    let refresh_token: string | null = null;
+
+    if (location) {
+      const hashIndex = location.indexOf("#");
+      if (hashIndex !== -1) {
+        const params = new URLSearchParams(location.substring(hashIndex + 1));
+        access_token = params.get("access_token");
+        refresh_token = params.get("refresh_token");
+      }
+    }
+
+    if (!access_token || !refresh_token) {
+      // Fallback: return magic link URL for browser to handle
+      console.log("[admin-impersonate] Could not extract tokens, falling back to magic link URL");
+      return new Response(
+        JSON.stringify({ url: actionLink, user_id: target_user_id, email: targetEmail }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({
-        url: actionLink,
+        access_token,
+        refresh_token,
         user_id: target_user_id,
         email: targetEmail,
       }),
