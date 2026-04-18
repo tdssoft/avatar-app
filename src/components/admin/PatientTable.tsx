@@ -24,6 +24,13 @@ interface Patient {
   primary_person_profile?: {
     name: string | null;
   } | null;
+  person_profiles?: {
+    id: string;
+    name: string | null;
+    is_primary: boolean | null;
+    created_at?: string | null;
+    subscription_status?: string;
+  }[];
   referral?: {
     referrer_code: string;
     referrer_name: string | null;
@@ -118,111 +125,145 @@ const PatientTable = ({
               unread_interviews: 0,
             };
 
-            return (
-              <TableRow key={patient.id} className="hover:bg-muted/30">
-                <TableCell className="font-medium">{fullName}</TableCell>
-                <TableCell>
-                  {patient.referral ? (
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-primary">
-                        {patient.referral.referrer_name || "Partner"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {patient.referral.referrer_code}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">—</span>
-                  )}
-                </TableCell>
-                <TableCell>{getStatusBadge(patient.subscription_status)}</TableCell>
-                <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {patient.created_at
-                    ? format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
-                    : "Brak"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
-                      aria-label={`Wiadomości pacjenta ${fullName}`}
-                      onClick={() => {
-                        if (!hasValidPatientId) {
-                          console.error("[PatientTable] Missing patient id for message action", patient);
-                          toast.error("Nie udało się otworzyć wiadomości pacjenta");
-                          return;
-                        }
-                        if (onOpenPatientMessages) {
-                          void onOpenPatientMessages(patient.id);
-                          return;
-                        }
-                        navigate(`/admin/patient/${patient.id}?tab=notes`);
-                      }}
-                    >
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                      <NewDot visible={unreadCounters.unread_messages > 0} />
-                    </button>
-                    <button
-                      className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
-                      aria-label={`Wywiad pacjenta ${fullName}`}
-                      onClick={() => {
-                        if (!hasValidPatientId) {
-                          console.error("[PatientTable] Missing patient id for interview action", patient);
-                          toast.error("Nie udało się otworzyć wywiadu pacjenta");
-                          return;
-                        }
-                        if (onOpenPatientInterview) {
-                          void onOpenPatientInterview(patient.id);
-                          return;
-                        }
-                        navigate(`/admin/patient/${patient.id}?tab=interview`);
-                      }}
-                    >
-                      <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                      <NewDot visible={unreadCounters.unread_interviews > 0} />
-                    </button>
-                    {onImpersonate && (
-                      <button
-                        className="relative p-2 rounded-md border border-primary bg-primary hover:bg-primary/90 transition-colors"
-                        aria-label={`Zaloguj jako ${fullName}`}
-                        title="Zaloguj jako ten użytkownik"
-                        onClick={() => {
-                          if (!patient.user_id) {
-                            console.error("[PatientTable] Missing user_id for impersonation", patient);
-                            toast.error("Nie udało się zalogować jako pacjent");
-                            return;
-                          }
-                          void onImpersonate(patient.user_id, fullName);
-                        }}
-                      >
-                        <LogIn className="h-4 w-4 text-primary-foreground" />
-                      </button>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
+            const subProfiles = (patient.person_profiles ?? []).filter(pp => !pp.is_primary);
+
+            const nowosciCell = (
+              <div className="flex items-center gap-2">
+                <button
+                  className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                  aria-label={`Wiadomości pacjenta ${fullName}`}
+                  onClick={() => {
+                    if (!hasValidPatientId) {
+                      console.error("[PatientTable] Missing patient id for message action", patient);
+                      toast.error("Nie udało się otworzyć wiadomości pacjenta");
+                      return;
+                    }
+                    if (onOpenPatientMessages) {
+                      void onOpenPatientMessages(patient.id);
+                      return;
+                    }
+                    navigate(`/admin/patient/${patient.id}?tab=notes`);
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <NewDot visible={unreadCounters.unread_messages > 0} />
+                </button>
+                <button
+                  className="relative p-2 rounded-md border border-border hover:bg-muted transition-colors"
+                  aria-label={`Wywiad pacjenta ${fullName}`}
+                  onClick={() => {
+                    if (!hasValidPatientId) {
+                      console.error("[PatientTable] Missing patient id for interview action", patient);
+                      toast.error("Nie udało się otworzyć wywiadu pacjenta");
+                      return;
+                    }
+                    if (onOpenPatientInterview) {
+                      void onOpenPatientInterview(patient.id);
+                      return;
+                    }
+                    navigate(`/admin/patient/${patient.id}?tab=interview`);
+                  }}
+                >
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
+                  <NewDot visible={unreadCounters.unread_interviews > 0} />
+                </button>
+                {onImpersonate && (
+                  <button
+                    className="relative p-2 rounded-md border border-primary bg-primary hover:bg-primary/90 transition-colors"
+                    aria-label={`Zaloguj jako ${fullName}`}
+                    title="Zaloguj jako ten użytkownik"
                     onClick={() => {
-                      if (!hasValidPatientId) {
-                        console.error("[PatientTable] Missing patient id for profile navigation", patient);
-                        toast.error("Nie udało się otworzyć profilu pacjenta");
+                      if (!patient.user_id) {
+                        console.error("[PatientTable] Missing user_id for impersonation", patient);
+                        toast.error("Nie udało się zalogować jako pacjent");
                         return;
                       }
-                      navigate(`/admin/patient/${patient.id}`);
+                      void onImpersonate(patient.user_id, fullName);
                     }}
                   >
-                    Profil klienta
-                  </Button>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {patient.last_communication_at
-                    ? format(new Date(patient.last_communication_at), "dd.MM.yyyy HH:mm", { locale: pl })
-                    : "Brak"}
-                </TableCell>
-              </TableRow>
+                    <LogIn className="h-4 w-4 text-primary-foreground" />
+                  </button>
+                )}
+              </div>
+            );
+
+            const profilKlientaBtn = (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!hasValidPatientId) {
+                    console.error("[PatientTable] Missing patient id for profile navigation", patient);
+                    toast.error("Nie udało się otworzyć profilu pacjenta");
+                    return;
+                  }
+                  navigate(`/admin/patient/${patient.id}`);
+                }}
+              >
+                Profil klienta
+              </Button>
+            );
+
+            const referralCell = patient.referral ? (
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-primary">
+                  {patient.referral.referrer_name || "Partner"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {patient.referral.referrer_code}
+                </span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-sm">—</span>
+            );
+
+            return (
+              <>
+                {/* Wiersz główny pacjenta */}
+                <TableRow key={patient.id} className="hover:bg-muted/30">
+                  <TableCell className="font-medium">{fullName}</TableCell>
+                  <TableCell>{referralCell}</TableCell>
+                  <TableCell>{getStatusBadge(patient.subscription_status)}</TableCell>
+                  <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {patient.created_at
+                      ? format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
+                      : "Brak"}
+                  </TableCell>
+                  <TableCell>{nowosciCell}</TableCell>
+                  <TableCell>{profilKlientaBtn}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {patient.last_communication_at
+                      ? format(new Date(patient.last_communication_at), "dd.MM.yyyy HH:mm", { locale: pl })
+                      : "Brak"}
+                  </TableCell>
+                </TableRow>
+
+                {/* Wiersze sub-profili (dzieci) */}
+                {subProfiles.map((sp) => (
+                  <TableRow key={sp.id} className="hover:bg-muted/20 bg-muted/5 border-l-2 border-l-muted">
+                    <TableCell className="text-muted-foreground pl-8">
+                      <span className="mr-1.5 text-muted-foreground/40">└</span>
+                      {sp.name || "—"}
+                    </TableCell>
+                    <TableCell>{referralCell}</TableCell>
+                    <TableCell>{getStatusBadge(sp.subscription_status ?? "Brak")}</TableCell>
+                    <TableCell>{getDiagnosisBadge(patient.diagnosis_status)}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {sp.created_at
+                        ? format(new Date(sp.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })
+                        : format(new Date(patient.created_at), "EEEE, d MMMM yyyy HH:mm", { locale: pl })}
+                    </TableCell>
+                    <TableCell>{nowosciCell}</TableCell>
+                    <TableCell>{profilKlientaBtn}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {patient.last_communication_at
+                        ? format(new Date(patient.last_communication_at), "dd.MM.yyyy HH:mm", { locale: pl })
+                        : "Brak"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </>
             );
           })}
         </TableBody>

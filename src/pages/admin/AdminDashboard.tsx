@@ -107,13 +107,26 @@ const AdminDashboard = () => {
         // Fetch all person profiles so admin can grant access per profile
         const { data: personProfilesData, error: personProfilesError } = await supabase
           .from("person_profiles")
-          .select("id, account_user_id, name, is_primary")
+          .select("id, account_user_id, name, is_primary, created_at")
           .in("account_user_id", userIds)
           .order("is_primary", { ascending: false })
           .order("created_at", { ascending: true });
 
         if (personProfilesError) {
           console.error("[AdminDashboard] Error fetching person profiles:", personProfilesError);
+        }
+
+        // Fetch profile_access to get subscription status per sub-profile
+        const allProfileIds = (personProfilesData ?? []).map(pp => pp.id);
+        let profileAccessMap = new Map<string, { status: string; selected_packages: string | null }>();
+        if (allProfileIds.length > 0) {
+          const { data: profileAccessData } = await supabase
+            .from("profile_access")
+            .select("person_profile_id, status, selected_packages")
+            .in("person_profile_id", allProfileIds);
+          profileAccessMap = new Map(
+            (profileAccessData ?? []).map(pa => [pa.person_profile_id, pa])
+          );
         }
 
         // Fetch referrals - who referred each patient
@@ -161,11 +174,20 @@ const AdminDashboard = () => {
             ...patient,
             profiles: profile || { first_name: null, last_name: null, phone: null },
             primary_person_profile: primaryPersonProfile ? { name: primaryPersonProfile.name } : null,
-            person_profiles: accountProfiles.map((accountProfile) => ({
-              id: accountProfile.id,
-              name: accountProfile.name,
-              is_primary: accountProfile.is_primary,
-            })),
+            person_profiles: accountProfiles.map((accountProfile) => {
+              const pa = profileAccessMap.get(accountProfile.id);
+              const subStatus = !pa ? "Brak"
+                : pa.status === "active" ? "Aktywna"
+                : pa.status === "expired" ? "Wygasła"
+                : "Brak";
+              return {
+                id: accountProfile.id,
+                name: accountProfile.name,
+                is_primary: accountProfile.is_primary,
+                created_at: accountProfile.created_at ?? null,
+                subscription_status: subStatus,
+              };
+            }),
             referral: referralInfo
           };
         });
