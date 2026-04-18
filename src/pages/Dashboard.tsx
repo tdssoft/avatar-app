@@ -3,6 +3,7 @@ import DOMPurify from "dompurify";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import PlanCard from "@/components/dashboard/PlanCard";
 import PhotoUpload from "@/components/dashboard/PhotoUpload";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,7 @@ const Dashboard = () => {
     hasPaidPlan,
   } = useUserFlowStatus();
 
+  const [upsellAvatarUrl, setUpsellAvatarUrl] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedRecommendationId, setSelectedRecommendationId] = useState<string>("");
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
@@ -129,6 +131,41 @@ const Dashboard = () => {
       window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
     };
   }, [fetchRecommendations]);
+
+  // Fetch avatar for the upsell section (unpaid users)
+  useEffect(() => {
+    const fetchUpsellAvatar = async () => {
+      const profileId = localStorage.getItem(ACTIVE_PROFILE_STORAGE_KEY);
+      if (!profileId) {
+        setUpsellAvatarUrl(null);
+        return;
+      }
+      const { data } = await supabase
+        .from("person_profiles")
+        .select("avatar_url")
+        .eq("id", profileId)
+        .maybeSingle();
+      setUpsellAvatarUrl(data?.avatar_url ?? null);
+    };
+
+    void fetchUpsellAvatar();
+
+    const onAvatarUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ avatarUrl?: string }>;
+      if (customEvent.detail?.avatarUrl) {
+        setUpsellAvatarUrl(customEvent.detail.avatarUrl);
+      }
+    };
+
+    const onProfileChanged = () => void fetchUpsellAvatar();
+
+    window.addEventListener("avatar-updated", onAvatarUpdated);
+    window.addEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    return () => {
+      window.removeEventListener("avatar-updated", onAvatarUpdated);
+      window.removeEventListener(ACTIVE_PROFILE_CHANGED_EVENT, onProfileChanged);
+    };
+  }, []);
 
   const fetchPatientResultFiles = useCallback(async () => {
     if (!user?.id) {
@@ -343,10 +380,20 @@ const Dashboard = () => {
       <div className="mx-auto max-w-[1120px] rounded-2xl border border-[#d9dee4] bg-[#f3f5f7] p-5 md:p-8 lg:p-10 space-y-7">
         {!hasPaidPlan && (
           <>
-            <div className="mb-8 space-y-2">
-              <p className="text-foreground text-sm">Witamy w Avatar!</p>
-              <h1 className="text-lg md:text-xl font-bold text-foreground">Twoja ścieżka pracy z ciałem zaczyna się w AVATAR</h1>
-              <p className="text-muted-foreground text-lg font-semibold">Wybierz odpowiedni program dla siebie:</p>
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div className="space-y-2 flex-1 min-w-0">
+                <p className="text-foreground text-sm">Witamy w Avatar!</p>
+                <h1 className="text-lg md:text-xl font-bold text-foreground">Twoja ścieżka pracy z ciałem zaczyna się w AVATAR</h1>
+                <p className="text-muted-foreground text-lg font-semibold">Wybierz odpowiedni program dla siebie:</p>
+              </div>
+              <Avatar className="h-20 w-20 shrink-0 ring-2 ring-[#d9dee4] ring-offset-2">
+                <AvatarImage src={upsellAvatarUrl ?? undefined} alt="Twoje zdjęcie" className="object-cover" />
+                <AvatarFallback className="bg-muted text-muted-foreground text-2xl">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-10 w-10 opacity-50">
+                    <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+                  </svg>
+                </AvatarFallback>
+              </Avatar>
             </div>
             <div className="space-y-4 max-w-4xl">
               <PlanCard
