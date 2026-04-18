@@ -439,47 +439,49 @@ const Dashboard = () => {
 
         {hasPaidPlan && (
           <>
-            <div className="space-y-3">
-              <h1 className="text-[56px] leading-[1.04] font-bold text-foreground">Witamy w Avatar!</h1>
-              {recommendations.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <Select value={selectedRecommendationId} onValueChange={setSelectedRecommendationId}>
-                    <SelectTrigger className="w-fit min-w-[280px] h-8 border-0 bg-transparent p-0 text-[16px] font-semibold shadow-none focus:ring-0">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {recommendations.map((rec) => {
-                        const recDate = new Date(rec.recommendation_date).toLocaleDateString("pl-PL");
-                        return (
-                          <SelectItem key={rec.id} value={rec.id}>
-                            {`Zalecenia z dnia ${recDate}`}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-3 text-sm"
-                    onClick={() => navigate("/dashboard/recommendations")}
-                  >
-                    Wszystkie zalecenia
-                  </Button>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 text-[16px] font-semibold text-foreground">
-                  <ChevronDown className="h-4 w-4" />
-                  <span>Brak opublikowanych zaleceń</span>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end mb-4">
-              <PhotoUpload
-                className="rounded-lg border-[#d9dee4] shadow-none"
-                title="Twoje zdjęcie"
-                actionLabel="Zmień zdjęcie"
-              />
+            <div className="flex items-start justify-between gap-6">
+              <div className="space-y-3 flex-1 min-w-0">
+                <h1 className="text-[56px] leading-[1.04] font-bold text-foreground">Witamy w Avatar!</h1>
+                {recommendations.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Select value={selectedRecommendationId} onValueChange={setSelectedRecommendationId}>
+                      <SelectTrigger className="w-fit min-w-[280px] h-8 border-0 bg-transparent p-0 text-[16px] font-semibold shadow-none focus:ring-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {recommendations.map((rec) => {
+                          const recDate = new Date(rec.recommendation_date).toLocaleDateString("pl-PL");
+                          return (
+                            <SelectItem key={rec.id} value={rec.id}>
+                              {`Zalecenia z dnia ${recDate}`}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-8 px-3 text-sm"
+                      onClick={() => navigate("/dashboard/recommendations")}
+                    >
+                      Wszystkie zalecenia
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 text-[16px] font-semibold text-foreground">
+                    <ChevronDown className="h-4 w-4" />
+                    <span>Brak opublikowanych zaleceń</span>
+                  </div>
+                )}
+              </div>
+              <div className="shrink-0 hidden sm:block">
+                <PhotoUpload
+                  className="rounded-lg border-[#d9dee4] shadow-none"
+                  title="Twoje zdjęcie"
+                  actionLabel="Zmień zdjęcie"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 items-start">
               <Card className="rounded-lg border-[#d9dee4] shadow-none">
