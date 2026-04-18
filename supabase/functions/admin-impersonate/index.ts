@@ -73,16 +73,26 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get target user email
-    const { data: targetUserData, error: getUserError } = await serviceClient.auth.admin.getUser(target_user_id);
-    if (getUserError || !targetUserData.user) {
+    // Get target user email via Auth Admin REST API (supabase-js@2 w tej wersji Deno nie ma auth.admin)
+    const getUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${target_user_id}`, {
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        apikey: supabaseServiceKey,
+      },
+    });
+
+    if (!getUserRes.ok) {
+      const errBody = await getUserRes.text();
+      console.error("[admin-impersonate] getUser failed:", errBody);
       return new Response(JSON.stringify({ error: "Target user not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const targetEmail = targetUserData.user.email;
+    const targetUser = await getUserRes.json();
+    const targetEmail = targetUser.email;
+
     if (!targetEmail) {
       return new Response(JSON.stringify({ error: "Target user has no email" }), {
         status: 400,
@@ -90,15 +100,32 @@ serve(async (req: Request): Promise<Response> => {
       });
     }
 
-    // Generate magic link for the target user
-    const { data: linkData, error: linkError } = await serviceClient.auth.admin.generateLink({
-      type: "magiclink",
-      email: targetEmail,
+    // Generate magic link via Auth Admin REST API
+    const generateLinkRes = await fetch(`${supabaseUrl}/auth/v1/admin/generate_link`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`,
+        apikey: supabaseServiceKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ type: "magiclink", email: targetEmail }),
     });
 
-    if (linkError) {
-      console.error("[admin-impersonate] Error generating magic link:", linkError);
+    if (!generateLinkRes.ok) {
+      const errBody = await generateLinkRes.text();
+      console.error("[admin-impersonate] generateLink failed:", errBody);
       return new Response(JSON.stringify({ error: "Failed to generate magic link" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const linkData = await generateLinkRes.json();
+    const actionLink = linkData.action_link ?? linkData.properties?.action_link;
+
+    if (!actionLink) {
+      console.error("[admin-impersonate] No action_link in response:", JSON.stringify(linkData));
+      return new Response(JSON.stringify({ error: "No action link returned" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -106,7 +133,7 @@ serve(async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        url: linkData.properties.action_link,
+        url: actionLink,
         user_id: target_user_id,
         email: targetEmail,
       }),
