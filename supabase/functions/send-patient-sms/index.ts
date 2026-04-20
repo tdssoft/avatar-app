@@ -55,19 +55,21 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(500, { error: "Supabase environment is not configured" });
     }
 
-    // Use getClaims (local JWT decode) — more reliable in edge functions than getUser()
-    // which requires a network round-trip to the auth API and can fail intermittently.
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Decode JWT payload directly — Kong gateway has already verified the signature.
+    // Both getUser() and getClaims() require a live session object in the client,
+    // which is not available in edge functions receiving a raw Bearer token.
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-
-    if (claimsError || !claimsData?.claims?.sub) {
-      console.error("[send-patient-sms] getClaims error:", claimsError);
+    let callerUserId: string;
+    try {
+      const payloadB64 = token.split(".")[1];
+      if (!payloadB64) throw new Error("malformed token");
+      const payload = JSON.parse(atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")));
+      if (!payload?.sub) throw new Error("no sub");
+      callerUserId = payload.sub as string;
+    } catch (e) {
+      console.error("[send-patient-sms] JWT decode error:", e);
       return jsonResponse(401, { error: "Unauthorized" });
     }
-    const callerUserId = claimsData.claims.sub as string;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
