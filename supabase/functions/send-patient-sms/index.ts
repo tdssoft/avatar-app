@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// TEST ONLY: override all SMS to this number instead of patient's phone
-const TEST_SMS_OVERRIDE = "+48784202512";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -14,6 +11,8 @@ interface SendPatientSmsRequest {
   patient_id: string;
   person_profile_id?: string | null;
   message_text: string;
+  /** "sms" = only SMS (default), "email" = only email, "both" = SMS + email */
+  channel?: "sms" | "email" | "both";
 }
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
@@ -83,7 +82,7 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(403, { error: "Brak uprawnień administratora" });
     }
 
-    const { patient_id, person_profile_id = null, message_text }: SendPatientSmsRequest = await req.json();
+    const { patient_id, person_profile_id = null, message_text, channel = "sms" }: SendPatientSmsRequest = await req.json();
     const trimmedMessage = (message_text || "").trim();
 
     if (!patient_id || !trimmedMessage) {
@@ -105,7 +104,7 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(404, { error: "Nie znaleziono pacjenta" });
     }
 
-    // Get phone number
+    // Get phone number + email
     const { data: profile, error: profileError } = await adminClient
       .from("profiles")
       .select("phone")
@@ -113,67 +112,137 @@ serve(async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (profileError) {
-      return jsonResponse(500, { error: "Nie udało się pobrać numeru telefonu pacjenta" });
+      return jsonResponse(500, { error: "Nie udało się pobrać profilu pacjenta" });
     }
 
-    if (!profile?.phone?.trim()) {
-      return jsonResponse(400, { error: "Pacjent nie ma ustawionego numeru telefonu" });
-    }
+    // Get patient email from auth.users
+    const { data: authUserData, error: authUserError } = await adminClient.auth.admin.getUserById(patient.user_id);
+    const patientEmail = authUserData?.user?.email ?? null;
 
-    const toNumber = normalizeToE164(profile.phone);
-    if (!toNumber) {
-      return jsonResponse(400, { error: "Nieprawidłowy numer telefonu pacjenta (wymagany format E.164)" });
-    }
-
-    // Send SMS via Brevo transactional SMS API
     const brevoApiKey = Deno.env.get("BREVO_API_KEY");
     if (!brevoApiKey) {
       return jsonResponse(500, { error: "Brak konfiguracji BREVO_API_KEY" });
     }
 
-    const brevoResponse = await fetch("https://api.brevo.com/v3/transactionalSMS/sms", {
-      method: "POST",
-      headers: {
-        "api-key": brevoApiKey,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        sender: "AVATAR",
-        recipient: TEST_SMS_OVERRIDE,
-        content: trimmedMessage,
-        type: "transactional",
-      }),
-    });
+    let smsSent = false;
+    let emailSent = false;
+    let smsMessageId: string | null = null;
 
-    const brevoData = await brevoResponse.json().catch(() => ({}));
+    const wantSms = channel === "sms" || channel === "both";
+    const wantEmail = channel === "email" || channel === "both";
 
-    if (!brevoResponse.ok) {
-      const brevoError = brevoData?.message ?? brevoData?.code ?? "Brevo SMS request failed";
-      console.error("[send-patient-sms] Brevo SMS error:", brevoData);
-      return jsonResponse(502, { error: `Nie udało się wysłać SMS: ${brevoError}` });
+    // --- Attempt SMS if requested and phone number available ---
+    const rawPhone = profile?.phone?.trim() ?? "";
+    const toNumber = rawPhone ? normalizeToE164(rawPhone) : null;
+
+    if (wantSms && toNumber) {
+      const brevoResponse = await fetch("https://api.brevo.com/v3/transactionalSMS/sms", {
+        method: "POST",
+        headers: {
+          "api-key": brevoApiKey,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          sender: "AVATAR",
+          recipient: toNumber,
+          content: trimmedMessage,
+          type: "transactional",
+        }),
+      });
+
+      const brevoData = await brevoResponse.json().catch(() => ({}));
+
+      if (brevoResponse.ok) {
+        smsSent = true;
+        smsMessageId = brevoData?.messageId ?? null;
+        console.log(`[send-patient-sms] SMS sent to ${toNumber}, messageId: ${smsMessageId}`);
+      } else {
+        console.error("[send-patient-sms] Brevo SMS error:", brevoData);
+      }
+    } else if (wantSms) {
+      console.warn("[send-patient-sms] No valid phone number for patient, skipping SMS");
     }
 
-    console.log(`[send-patient-sms] SMS sent to ${toNumber} via Brevo, messageId: ${brevoData?.messageId}`);
+    // --- Send email if requested ---
+    if (wantEmail && patientEmail) {
+      try {
+        const emailPayload = {
+          sender: { name: "AVATAR", email: "noreply@eavatar.diet" },
+          to: [{ email: patientEmail }],
+          subject: "Masz nową wiadomość od dietetyka AVATAR",
+          htmlContent: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 22px;">💬 Wiadomość od dietetyka</h1>
+              </div>
+              <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+                <p style="color: #374151; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${trimmedMessage}</p>
+                <div style="margin-top: 30px; text-align: center;">
+                  <a href="https://app.eavatar.diet/dashboard" style="display: inline-block; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+                    Otwórz platformę →
+                  </a>
+                </div>
+              </div>
+              <p style="text-align: center; color: #9ca3af; font-size: 11px; margin-top: 16px;">
+                © ${new Date().getFullYear()} AVATAR — System Zarządzania Zdrowiem
+              </p>
+            </div>
+          `,
+        };
+
+        const emailRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: { "api-key": brevoApiKey, "Content-Type": "application/json" },
+          body: JSON.stringify(emailPayload),
+        });
+
+        if (emailRes.ok) {
+          emailSent = true;
+          console.log(`[send-patient-sms] Email notification sent to ${patientEmail}`);
+        } else {
+          const emailErr = await emailRes.text();
+          console.error("[send-patient-sms] Email send error:", emailErr);
+        }
+      } catch (emailError) {
+        console.error("[send-patient-sms] Email send exception:", emailError);
+      }
+    }
+
+    // Fail if no channel worked
+    if (!smsSent && !emailSent) {
+      if (wantSms && !toNumber) {
+        return jsonResponse(400, { error: "Pacjent nie ma ustawionego numeru telefonu" });
+      }
+      if (wantEmail && !patientEmail) {
+        return jsonResponse(400, { error: "Nie można znaleźć adresu email pacjenta" });
+      }
+      return jsonResponse(502, { error: "Nie udało się wysłać wiadomości" });
+    }
 
     // Save to patient_messages history
     const { error: insertError } = await adminClient.from("patient_messages").insert({
       patient_id,
       admin_id: user.id,
-      message_type: "sms",
+      message_type: channel === "email" ? "email" : "sms",
       message_text: trimmedMessage,
       person_profile_id,
     });
 
     if (insertError) {
       console.error("[send-patient-sms] insert message error:", insertError);
-      return jsonResponse(500, { error: "SMS wysłany, ale nie udało się zapisać historii wiadomości" });
     }
 
     return jsonResponse(200, {
       success: true,
-      message: "SMS sent successfully via Brevo",
-      messageId: brevoData?.messageId ?? null,
+      message: smsSent && emailSent
+        ? "Wysłano SMS i email do pacjenta"
+        : smsSent
+        ? "Wysłano SMS do pacjenta"
+        : "Wysłano email do pacjenta (brak numeru telefonu)",
+      smsSent,
+      emailSent,
+      messageId: smsMessageId,
       to: toNumber,
     });
 

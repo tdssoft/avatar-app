@@ -863,6 +863,7 @@ const PatientProfile = () => {
           patient_id: id,
           person_profile_id: selectedProfileId || null,
           message_text: newQuestionReply.trim(),
+          channel: "email",
         },
       });
 

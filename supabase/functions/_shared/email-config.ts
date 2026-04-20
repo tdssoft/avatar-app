@@ -25,3 +25,8 @@ export function getAdminEmails(): string[] {
 export function getAppUrl(): string {
   return Deno.env.get("APP_URL")?.trim() || DEFAULT_APP_URL;
 }
+
+// Admin phone for SMS alerts (E.164 format)
+export function getAdminPhone(): string {
+  return Deno.env.get("ADMIN_PHONE")?.trim() || "+48784202512";
+}
