@@ -221,9 +221,9 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Save to patient_messages history
-    // channel="email" means admin reply to a form question → use "admin_reply" so it
+    // channel="email" means admin reply to a form question → use "answer" so it
     // appears in "Zadane pytania przez formularz" section, not in "Komunikacja SMS".
-    const savedMessageType = channel === "email" ? "admin_reply" : "sms";
+    const savedMessageType = channel === "email" ? "answer" : "sms";
     const { error: insertError } = await adminClient.from("patient_messages").insert({
       patient_id,
       admin_id: user.id,
