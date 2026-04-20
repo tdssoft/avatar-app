@@ -55,14 +55,19 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse(500, { error: "Supabase environment is not configured" });
     }
 
+    // Use getClaims (local JWT decode) — more reliable in edge functions than getUser()
+    // which requires a network round-trip to the auth API and can fail intermittently.
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
 
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error("[send-patient-sms] getClaims error:", claimsError);
       return jsonResponse(401, { error: "Unauthorized" });
     }
+    const callerUserId = claimsData.claims.sub as string;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
@@ -70,7 +75,7 @@ serve(async (req: Request): Promise<Response> => {
     const { data: roleData, error: roleError } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", callerUserId)
       .eq("role", "admin")
       .maybeSingle();
 
@@ -226,7 +231,7 @@ serve(async (req: Request): Promise<Response> => {
     const savedMessageType = channel === "email" ? "answer" : "sms";
     const { error: insertError } = await adminClient.from("patient_messages").insert({
       patient_id,
-      admin_id: user.id,
+      admin_id: callerUserId,
       message_type: savedMessageType,
       message_text: trimmedMessage,
       person_profile_id,
