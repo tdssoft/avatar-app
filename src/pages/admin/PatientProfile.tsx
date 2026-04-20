@@ -1032,7 +1032,8 @@ const PatientProfile = () => {
     : notes;
 
   const smsMessages = messages.filter((msg) => msg.message_type === "sms" && (!selectedProfileId || !msg.person_profile_id || msg.person_profile_id === selectedProfileId));
-  const questionMessages = messages.filter((msg) => msg.message_type === "question" && (!selectedProfileId || !msg.person_profile_id || msg.person_profile_id === selectedProfileId));
+  // "question" = patient's message, "admin_reply" = admin's reply to that question
+  const questionMessages = messages.filter((msg) => (msg.message_type === "question" || msg.message_type === "admin_reply") && (!selectedProfileId || !msg.person_profile_id || msg.person_profile_id === selectedProfileId));
 
   const formatMessageDate = (dateValue: string | null) =>
     dateValue ? format(new Date(dateValue), "dd.MM.yyyy HH:mm", { locale: pl }) : "Brak daty";
@@ -1677,12 +1678,17 @@ const PatientProfile = () => {
               <CardContent className="space-y-4">
                 {questionMessages.length > 0 ? (
                   <div className="space-y-3">
-                    {questionMessages.map((msg) => (
-                      <div key={msg.id} className="rounded-md border p-3">
-                        <p className="text-sm font-medium">wiadomość z dnia {formatMessageDate(msg.sent_at)}</p>
-                        <p className="text-sm text-muted-foreground">{msg.message_text}</p>
-                      </div>
-                    ))}
+                    {questionMessages.map((msg) => {
+                      const isAdminReply = msg.message_type === "admin_reply";
+                      return (
+                        <div key={msg.id} className={`rounded-md border p-3 ${isAdminReply ? "bg-blue-50 border-blue-200" : "bg-gray-50"}`}>
+                          <p className="text-xs font-semibold mb-1 text-muted-foreground">
+                            {isAdminReply ? "👨‍⚕️ Odpowiedź admina" : "🙋 Pytanie pacjenta"} · {formatMessageDate(msg.sent_at)}
+                          </p>
+                          <p className="text-sm text-foreground">{msg.message_text}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Brak pytań z formularza.</p>
