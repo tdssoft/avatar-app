@@ -18,6 +18,7 @@ import Referrals from "./pages/Referrals";
 import Payment from "./pages/Payment";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import Recommendations from "./pages/Recommendations";
+import Messages from "./pages/Messages";
 import RecommendationDownload from "./pages/RecommendationDownload";
 import NutritionInterview from "./pages/NutritionInterview";
 import SignupVerifyEmail from "./pages/flow/SignupVerifyEmail";
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/dashboard/help" element={<Help />} />
             <Route path="/dashboard/referrals" element={<Referrals />} />
             <Route path="/dashboard/recommendations" element={<Recommendations />} />
+            <Route path="/dashboard/messages" element={<Messages />} />
             <Route path="/dashboard/interview" element={<NutritionInterview />} />
             <Route path="/interview" element={<NutritionInterview />} />
             <Route path="/interview/:step" element={<NutritionInterview />} />

@@ -1,4 +1,4 @@
-import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu, Settings, FileText, ClipboardList, ChevronDown } from "lucide-react";
+import { LayoutGrid, Shield, User, MessageCircle, Handshake, LogOut, Menu, Settings, FileText, ClipboardList, ChevronDown, Mail } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -9,12 +9,14 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState, forwardRef } from "react";
 import { ProfileSelector } from "@/components/profile/ProfileSelector";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { usePatientMessages } from "@/hooks/usePatientMessages";
 
 const mainNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutGrid },
   { title: "Wyniki badań", url: "/dashboard", icon: Shield },
   { title: "Moje zalecenia", url: "/dashboard/recommendations", icon: FileText },
   { title: "Mój profil", url: "/dashboard/profile", icon: User },
+  { title: "Wiadomości", url: "/dashboard/messages", icon: Mail },
   { title: "Pomoc", url: "/dashboard/help", icon: MessageCircle },
   { title: "Program polecający", url: "/dashboard/referrals", icon: Handshake },
 ];
@@ -28,6 +30,7 @@ const SidebarContent = forwardRef<HTMLDivElement, { onItemClick?: () => void }>(
   const { logout } = useAuth();
   const navigate = useNavigate();
   const { isAdmin } = useAdminRole();
+  const { unreadCount } = usePatientMessages();
 
   const handleLogout = () => {
     logout();
@@ -63,7 +66,12 @@ const SidebarContent = forwardRef<HTMLDivElement, { onItemClick?: () => void }>(
                 onClick={onItemClick}
               >
                 <item.icon className="h-5 w-5" />
-                <span>{item.title}</span>
+                <span className="flex-1">{item.title}</span>
+                {item.url === "/dashboard/messages" && unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold leading-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </NavLink>
             </li>
           ))}

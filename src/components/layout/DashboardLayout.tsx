@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import { Bell, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useFlowRouteGuard } from "@/hooks/useFlowRouteGuard";
+import { usePatientMessages } from "@/hooks/usePatientMessages";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading: isFlowLoading, redirectTo } = useFlowRouteGuard(location.pathname);
+  const { unreadCount } = usePatientMessages();
 
   useEffect(() => {
     // Use session for redirect check (not user) to avoid race condition
@@ -90,8 +92,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               {displayName}
             </span>
             <div className="h-6 w-px bg-border mx-1" />
-            <button className="p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Powiadomienia">
+            <button
+              className="relative p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Wiadomości"
+              onClick={() => navigate("/dashboard/messages")}
+            >
               <Bell className="h-5 w-5 text-muted-foreground" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />
+              )}
             </button>
           </div>
         </header>
