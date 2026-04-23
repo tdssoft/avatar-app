@@ -56,6 +56,41 @@ const isEmailLike = (value: string | null | undefined): boolean => {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const getExistingPatientIdWithRetry = async (
+  serviceClient: ReturnType<typeof createClient>,
+  userId: string,
+  maxAttempts = 6,
+  delayMs = 150,
+): Promise<string | null> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const { data: existingPatient, error: existingPatientError } = await serviceClient
+      .from("patients")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!existingPatientError && existingPatient?.id) {
+      return existingPatient.id;
+    }
+
+    if (existingPatientError) {
+      console.warn("[admin-create-patient] Retry read existing patient failed", {
+        attempt,
+        userId,
+        existingPatientError,
+      });
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(delayMs);
+    }
+  }
+
+  return null;
+};
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -230,34 +265,26 @@ serve(async (req: Request): Promise<Response> => {
       .single();
 
     if (patientError) {
-      const isAlreadyLinkedPatient =
-        patientError.code === "23505" ||
-        (patientError.message ?? "").toLowerCase().includes("duplicate");
-
-      if (!isAlreadyLinkedPatient) {
-        console.error("[admin-create-patient] Patient error:", patientError);
-        return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
-      }
-
-      console.warn("[admin-create-patient] Patient already exists for user, loading existing row", {
+      console.warn("[admin-create-patient] Patient insert returned error, checking for existing row", {
         userId: newUserId,
+        patientError,
       });
 
-      const { data: existingPatient, error: existingPatientError } = await serviceClient
-        .from("patients")
-        .select("id")
-        .eq("user_id", newUserId)
-        .maybeSingle();
+      const existingPatientId = await getExistingPatientIdWithRetry(serviceClient, newUserId);
 
-      if (existingPatientError || !existingPatient?.id) {
-        console.error("[admin-create-patient] Failed to read existing patient after duplicate error:", {
-          existingPatientError,
+      if (!existingPatientId) {
+        console.error("[admin-create-patient] Failed to create or read patient record:", {
+          patientError,
           userId: newUserId,
         });
         return errorResponse({ error: "Failed to create patient record", code: "PATIENT_CREATE_FAILED" }, 500);
       }
 
-      patientId = existingPatient.id;
+      patientId = existingPatientId;
+      console.log("[admin-create-patient] Patient already existed after insert error, continuing", {
+        userId: newUserId,
+        patientId,
+      });
     } else {
       patientId = createdPatient?.id ?? null;
       console.log("[admin-create-patient] Patient created successfully");
